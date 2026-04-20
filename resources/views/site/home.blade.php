@@ -30,7 +30,7 @@
         </div>
 
         <x-site.container>
-            <div class="grid items-center gap-12 py-20 sm:py-24 lg:grid-cols-12 lg:gap-16 lg:py-32">
+            <div class="grid items-center gap-10 py-14 sm:gap-12 sm:py-20 lg:grid-cols-12 lg:gap-16 lg:py-28">
                 {{-- LEFT: copy + CTAs --}}
                 <div class="lg:col-span-7">
                     {{-- Mobile-only inline logo above the pill. Keeps the hero
@@ -38,9 +38,9 @@
                     <img
                         src="{{ asset('pprclogo.png') }}"
                         alt="Pretoria Precision Rifle Club"
-                        class="mb-8 h-20 w-auto drop-shadow-[0_10px_30px_rgba(29,138,192,0.35)] lg:hidden"
-                        width="80"
-                        height="80"
+                        class="mb-7 h-24 w-auto drop-shadow-[0_10px_30px_rgba(29,138,192,0.35)] sm:h-28 lg:hidden"
+                        width="96"
+                        height="96"
                     />
 
                     <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-slate-200 backdrop-blur">
@@ -51,12 +51,12 @@
                         <span class="text-[11px] font-semibold uppercase tracking-[0.2em]">Est. 2023 &middot; Pretoria</span>
                     </div>
 
-                    <h1 class="mt-6 text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl xl:text-6xl">
+                    <h1 class="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-tight text-white sm:mt-6 sm:text-5xl sm:leading-[1.05] xl:text-6xl">
                         Precision rifle,<br class="hidden sm:block">
                         built for <span class="text-brand-400">shooters.</span>
                     </h1>
 
-                    <div class="mt-7 max-w-xl space-y-4 text-base leading-relaxed text-slate-300 sm:text-lg">
+                    <div class="mt-6 max-w-xl space-y-4 text-base leading-relaxed text-slate-300 sm:mt-7 sm:text-lg">
                         <p>
                             PPRC is a precision rifle club in Pretoria, Gauteng, established in 2023 by
                             <span class="text-white">Dirk Pio</span>,
@@ -72,16 +72,16 @@
                         </p>
                     </div>
 
-                    <div class="mt-10 flex flex-col gap-3 sm:flex-row">
+                    <div class="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
                         <a href="{{ url('/register') }}"
-                           class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 font-semibold tracking-tight text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-400">
+                           class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 font-semibold tracking-tight text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-400 sm:w-auto">
                             Join PPRC
                             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                             </svg>
                         </a>
                         <a href="{{ url('/matches') }}"
-                           class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3.5 font-semibold tracking-tight text-white transition hover:border-white/25 hover:bg-white/5">
+                           class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3.5 font-semibold tracking-tight text-white transition hover:border-white/25 hover:bg-white/5 sm:w-auto">
                             View matches
                         </a>
                     </div>
@@ -140,16 +140,16 @@
     {{-- =====================================================================
          2. UPCOMING MATCHES  (sits directly under the hero, no filler)
     ===================================================================== --}}
-    <section class="relative border-t border-white/5 bg-slate-950 py-20 sm:py-24">
+    <section class="relative border-t border-white/5 bg-slate-950 py-14 sm:py-20 lg:py-24">
         <x-site.container>
-            <div class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div class="mb-8 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between">
                 <div>
                     <x-site.eyebrow>Upcoming</x-site.eyebrow>
                     <h2 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Next matches</h2>
                     <p class="mt-2 max-w-xl text-slate-400">PRS (Centerfire) and PR22 matches hosted by PPRC.</p>
                 </div>
                 <a href="{{ url('/matches') }}"
-                   class="hidden items-center gap-1 text-sm font-semibold text-brand-300 transition hover:text-brand-200 sm:inline-flex">
+                   class="inline-flex items-center gap-1 text-sm font-semibold text-brand-300 transition hover:text-brand-200">
                     View all matches
                     <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -165,7 +165,7 @@
                 </div>
             @else
                 {{-- Honest empty state — live site also currently has no listed events. --}}
-                <div class="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-14 text-center">
+                <div class="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-5 py-10 text-center sm:px-6 sm:py-14">
                     <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-brand-400/20 bg-brand-500/10">
                         <svg class="size-6 text-brand-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
@@ -175,7 +175,7 @@
                     <p class="mt-1 text-sm text-slate-400">Matches appear here as soon as they're scheduled.</p>
                     <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
                         <a href="{{ url('/matches') }}"
-                           class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-white/25 hover:bg-white/5">
+                           class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-white/25 hover:bg-white/5 sm:w-auto">
                             View all matches
                         </a>
                     </div>
@@ -189,7 +189,7 @@
          Factual summary. No invented benefits — only those supported by the
          source site and approved founding context.
     ===================================================================== --}}
-    <section class="relative bg-slate-900 py-20 sm:py-28">
+    <section class="relative bg-slate-900 py-14 sm:py-20 lg:py-24">
         <x-site.container>
             <div class="grid items-start gap-10 lg:grid-cols-12 lg:gap-16">
                 <div class="lg:col-span-6">
@@ -197,7 +197,7 @@
                     <h2 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
                         A home for precision rifle shooters.
                     </h2>
-                    <p class="mt-5 text-lg leading-relaxed text-slate-300">
+                    <p class="mt-4 text-base leading-relaxed text-slate-300 sm:mt-5 sm:text-lg">
                         PPRC exists to unite precision rifle shooters under one club &mdash; building a
                         sustainable environment where every shooter can grow, belong, and compete in PRS.
                     </p>
@@ -206,27 +206,27 @@
                         membership option, and a committee member will approve your application.
                     </p>
 
-                    <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+                    <div class="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row">
                         <a href="{{ url('/register') }}"
-                           class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 font-semibold tracking-tight text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-400">
+                           class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 font-semibold tracking-tight text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-400 sm:w-auto">
                             Become a member
                         </a>
                         <a href="{{ url('/membership') }}"
-                           class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3.5 font-semibold tracking-tight text-white transition hover:border-white/25 hover:bg-white/5">
+                           class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3.5 font-semibold tracking-tight text-white transition hover:border-white/25 hover:bg-white/5 sm:w-auto">
                             Membership details
                         </a>
                     </div>
                 </div>
 
                 <div class="lg:col-span-6">
-                    <ul class="grid gap-4 sm:grid-cols-2">
+                    <ul class="grid gap-3 sm:grid-cols-2 sm:gap-4">
                         @foreach ([
                             ['title' => 'PRS & PR22 matches', 'body' => 'Entry into PPRC-hosted PRS (Centerfire) and PR22 matches.'],
                             ['title' => 'Member portal', 'body' => 'Renewals, match entries, and orders in one place.'],
                             ['title' => 'Grow the sport', 'body' => 'Support for new shooters developing in PRS.'],
                             ['title' => 'A club community', 'body' => 'A home built around growth, belonging, and competition.'],
                         ] as $item)
-                            <li class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 ring-1 ring-white/5">
+                            <li class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 ring-1 ring-white/5 sm:p-5">
                                 <div class="flex items-start gap-3">
                                     <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-brand-400/30 bg-brand-500/15">
                                         <svg class="size-3.5 text-brand-200" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
@@ -249,16 +249,16 @@
     {{-- =====================================================================
          4. RECENT RESULTS
     ===================================================================== --}}
-    <section class="relative border-t border-white/5 bg-slate-950 py-20 sm:py-24">
+    <section class="relative border-t border-white/5 bg-slate-950 py-14 sm:py-20 lg:py-24">
         <x-site.container>
-            <div class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div class="mb-8 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between">
                 <div>
                     <x-site.eyebrow>Results</x-site.eyebrow>
                     <h2 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Recent results</h2>
                     <p class="mt-2 max-w-xl text-slate-400">Placings and scorecards from PPRC matches.</p>
                 </div>
                 <a href="{{ url('/results') }}"
-                   class="hidden items-center gap-1 text-sm font-semibold text-brand-300 transition hover:text-brand-200 sm:inline-flex">
+                   class="inline-flex items-center gap-1 text-sm font-semibold text-brand-300 transition hover:text-brand-200">
                     View all results
                     <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
@@ -273,7 +273,7 @@
                     @endforeach
                 </div>
             @else
-                <div class="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 py-14 text-center">
+                <div class="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-5 py-10 text-center sm:px-6 sm:py-14">
                     <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-brand-400/20 bg-brand-500/10">
                         <svg class="size-6 text-brand-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-4.5A3.375 3.375 0 0 0 13.125 10.875h-2.25A3.375 3.375 0 0 0 7.5 14.25v4.5m8.25-12 3-3m0 0-3-3m3 3h-15" />
@@ -294,20 +294,20 @@
             <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.14),transparent_55%)]"></div>
         </div>
         <x-site.container>
-            <div class="mx-auto max-w-3xl py-20 text-center sm:py-24">
-                <h2 class="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+            <div class="mx-auto max-w-3xl py-14 text-center sm:py-20 lg:py-24">
+                <h2 class="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
                     Join Pretoria Precision Rifle Club.
                 </h2>
-                <p class="mt-5 text-lg text-brand-50/90">
+                <p class="mt-4 text-base text-brand-50/90 sm:mt-5 sm:text-lg">
                     Register an account, pick a membership option, and get involved in the next match.
                 </p>
-                <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:mt-9 sm:flex-row">
                     <a href="{{ url('/register') }}"
-                       class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-brand-800 shadow-lg shadow-black/20 transition hover:bg-brand-50">
+                       class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 font-semibold text-brand-800 shadow-lg shadow-black/20 transition hover:bg-brand-50 sm:w-auto">
                         Join now
                     </a>
                     <a href="{{ url('/contact') }}"
-                       class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 px-7 py-3.5 font-semibold text-white transition hover:bg-white/10">
+                       class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/30 px-7 py-3.5 font-semibold text-white transition hover:bg-white/10 sm:w-auto">
                         Contact the club
                     </a>
                 </div>

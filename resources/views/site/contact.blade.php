@@ -17,12 +17,12 @@
         </div>
 
         <x-site.container>
-            <div class="py-20 sm:py-24 lg:py-28">
+            <div class="py-14 sm:py-20 lg:py-24">
                 <x-site.eyebrow>Contact</x-site.eyebrow>
-                <h1 class="mt-3 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
+                <h1 class="mt-3 max-w-3xl text-[2.15rem] font-semibold leading-[1.1] tracking-tight sm:text-5xl sm:leading-[1.05]">
                     Get in touch with the club.
                 </h1>
-                <p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-300">
+                <p class="mt-4 max-w-2xl text-base leading-relaxed text-slate-300 sm:mt-5 sm:text-lg">
                     Match enquiries, membership questions, or just want to shoot with us?
                     Send us a message and a committee member will get back to you by email.
                 </p>
@@ -30,9 +30,9 @@
         </x-site.container>
     </section>
 
-    <section class="relative border-t border-white/5 bg-slate-950 pb-20 sm:pb-28">
+    <section class="relative border-t border-white/5 bg-slate-950 pb-14 sm:pb-20 lg:pb-24">
         <x-site.container>
-            <div class="grid gap-10 lg:grid-cols-12 lg:gap-16">
+            <div class="grid gap-8 pt-10 sm:gap-10 sm:pt-12 lg:grid-cols-12 lg:gap-16">
                 {{-- =====================================================
                      CONTACT FORM
                 ===================================================== --}}
@@ -71,7 +71,7 @@
                         <form
                             method="POST"
                             action="{{ route('contact.submit') }}"
-                            class="rounded-2xl border border-white/10 bg-white/[0.02] p-6 ring-1 ring-white/5 sm:p-8"
+                            class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 ring-1 ring-white/5 sm:p-8"
                             novalidate
                         >
                             @csrf
@@ -89,7 +89,7 @@
                                 />
                             </div>
 
-                            <div class="grid gap-5 sm:grid-cols-2">
+                            <div class="grid gap-4 sm:grid-cols-2 sm:gap-5">
                                 <x-site.input
                                     name="name"
                                     label="Your name"
@@ -136,7 +136,7 @@
                                 @enderror
                             </div>
 
-                            <div class="mt-7 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                            <div class="mt-6 flex flex-col-reverse items-stretch justify-between gap-4 sm:mt-7 sm:flex-row sm:items-center">
                                 <p class="text-xs text-slate-500">
                                     We only use this to reply to your message. No newsletters, no spam.
                                 </p>
@@ -158,9 +158,9 @@
                      OTHER WAYS TO REACH THE CLUB
                 ===================================================== --}}
                 <aside class="lg:col-span-5">
-                    <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 ring-1 ring-white/5 sm:p-8">
+                    <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 ring-1 ring-white/5 sm:p-8">
                         <x-site.eyebrow>Reach us</x-site.eyebrow>
-                        <h2 class="mt-3 text-2xl font-semibold tracking-tight">Other ways to get hold of PPRC.</h2>
+                        <h2 class="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">Other ways to get hold of PPRC.</h2>
 
                         <dl class="mt-6 space-y-5 text-sm">
                             @if ($email)

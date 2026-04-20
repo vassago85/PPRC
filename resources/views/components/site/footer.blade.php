@@ -16,7 +16,7 @@
 @endphp
 <footer class="border-t border-white/10 bg-slate-950 text-slate-400">
     <x-site.container>
-        <div class="py-14 grid grid-cols-1 md:grid-cols-3 gap-10">
+        <div class="grid grid-cols-1 gap-8 py-10 md:grid-cols-3 md:gap-10 md:py-14">
             {{-- Brand --}}
             <div class="md:col-span-1">
                 <a href="{{ url('/') }}" class="flex items-center gap-3 text-white">
