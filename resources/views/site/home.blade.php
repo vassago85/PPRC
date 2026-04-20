@@ -30,19 +30,10 @@
         </div>
 
         <x-site.container>
-            <div class="grid items-center gap-10 py-14 sm:gap-12 sm:py-20 lg:grid-cols-12 lg:gap-16 lg:py-28">
-                {{-- LEFT: copy + CTAs --}}
-                <div class="lg:col-span-7">
-                    {{-- Mobile-only inline logo above the pill. Keeps the hero
-                         balanced on narrow screens without duplicating on desktop. --}}
-                    <img
-                        src="{{ asset('pprclogo.png') }}"
-                        alt="Pretoria Precision Rifle Club"
-                        class="mb-7 h-24 w-auto drop-shadow-[0_10px_30px_rgba(29,138,192,0.35)] sm:h-28 lg:hidden"
-                        width="96"
-                        height="96"
-                    />
-
+            <div class="grid items-center gap-10 py-12 sm:gap-12 sm:py-20 lg:grid-cols-12 lg:gap-16 lg:py-28">
+                {{-- COPY + CTAs. On mobile this comes second (logo treatment
+                     first); on desktop it sits on the left (7-col). --}}
+                <div class="order-2 lg:order-1 lg:col-span-7">
                     <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-slate-200 backdrop-blur">
                         <span class="relative flex h-1.5 w-1.5">
                             <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-60"></span>
@@ -94,39 +85,41 @@
                     @endguest
                 </div>
 
-                {{-- RIGHT: refined logo treatment. Calm, premium, identity-first. --}}
-                <div class="hidden lg:col-span-5 lg:block">
-                    <div class="relative mx-auto aspect-square w-full max-w-md">
+                {{-- LOGO TREATMENT — same premium frame on every breakpoint.
+                     Mobile: renders first (order-1), centered, narrower max width.
+                     Desktop: renders last (lg:order-2) in the 5-col right column. --}}
+                <div class="order-1 lg:order-2 lg:col-span-5">
+                    <div class="relative mx-auto aspect-square w-full max-w-[20rem] sm:max-w-sm lg:max-w-md">
                         {{-- Soft radial glow behind the logo --}}
-                        <div class="absolute inset-0 rounded-full bg-gradient-to-br from-brand-500/25 via-brand-600/10 to-transparent blur-3xl" aria-hidden="true"></div>
+                        <div class="absolute inset-0 rounded-full bg-gradient-to-br from-brand-500/30 via-brand-600/10 to-transparent blur-3xl" aria-hidden="true"></div>
 
                         {{-- Framed logo card --}}
-                        <div class="relative flex h-full w-full items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] p-10 ring-1 ring-white/5 backdrop-blur-sm">
+                        <div class="relative flex h-full w-full items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] p-6 ring-1 ring-white/5 backdrop-blur-sm sm:p-8 lg:p-10">
                             {{-- Thin corner marks for a composed, intentional feel --}}
-                            <span class="absolute left-4 top-4 h-4 w-4 border-l border-t border-white/20" aria-hidden="true"></span>
-                            <span class="absolute right-4 top-4 h-4 w-4 border-r border-t border-white/20" aria-hidden="true"></span>
-                            <span class="absolute bottom-4 left-4 h-4 w-4 border-b border-l border-white/20" aria-hidden="true"></span>
-                            <span class="absolute bottom-4 right-4 h-4 w-4 border-b border-r border-white/20" aria-hidden="true"></span>
+                            <span class="absolute left-3 top-3 h-3 w-3 border-l border-t border-white/25 sm:left-4 sm:top-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
+                            <span class="absolute right-3 top-3 h-3 w-3 border-r border-t border-white/25 sm:right-4 sm:top-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
+                            <span class="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-white/25 sm:bottom-4 sm:left-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
+                            <span class="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-white/25 sm:bottom-4 sm:right-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
 
                             <img
                                 src="{{ asset('pprclogo.png') }}"
                                 alt="Pretoria Precision Rifle Club logo"
-                                class="h-auto w-[78%] drop-shadow-[0_20px_50px_rgba(29,138,192,0.35)]"
+                                class="h-auto w-[80%] drop-shadow-[0_20px_50px_rgba(29,138,192,0.45)] sm:w-[78%]"
                             />
                         </div>
 
-                        {{-- At-a-glance row below the logo card. Pulled straight from
-                             approved facts — no invention. --}}
-                        <dl class="mt-6 grid grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02] text-center">
-                            <div class="px-3 py-4">
+                        {{-- At-a-glance strip: Founded · Based in · Matches. Centered
+                             to align visually with the framed logo above. --}}
+                        <dl class="mx-auto mt-5 grid max-w-[20rem] grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02] text-center sm:mt-6 sm:max-w-sm lg:max-w-md">
+                            <div class="px-2 py-3.5 sm:px-3 sm:py-4">
                                 <dt class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Founded</dt>
                                 <dd class="mt-1 text-sm font-semibold tabular-nums text-white">2023</dd>
                             </div>
-                            <div class="px-3 py-4">
+                            <div class="px-2 py-3.5 sm:px-3 sm:py-4">
                                 <dt class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Based in</dt>
                                 <dd class="mt-1 text-sm font-semibold text-white">Pretoria</dd>
                             </div>
-                            <div class="px-3 py-4">
+                            <div class="px-2 py-3.5 sm:px-3 sm:py-4">
                                 <dt class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Matches</dt>
                                 <dd class="mt-1 text-sm font-semibold text-white">PRS &middot; PR22</dd>
                             </div>
