@@ -1,62 +1,88 @@
 @php
-    $navPages = App\Models\Page::published()->inNav()->get(['slug','title']);
+    $nav = [
+        ['label' => 'Home',       'href' => url('/')],
+        ['label' => 'About',      'href' => url('/about')],
+        ['label' => 'Membership', 'href' => url('/membership')],
+        ['label' => 'Matches',    'href' => url('/matches')],
+        ['label' => 'Results',    'href' => url('/results')],
+        ['label' => 'Shop',       'href' => url('/shop')],
+        ['label' => 'Contact',    'href' => url('/contact')],
+    ];
+
+    $current = request()->path() === '/' ? '/' : '/'.trim(request()->path(), '/');
+    $isActive = function (string $href) use ($current) {
+        $path = parse_url($href, PHP_URL_PATH) ?: '/';
+        return $path === $current;
+    };
 @endphp
-<header x-data="{ open: false }" class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<header x-data="{ open: false }" class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur supports-[backdrop-filter]:bg-slate-950/70 border-b border-white/10">
+    <x-site.container>
         <div class="flex h-16 items-center justify-between">
-            <a href="{{ url('/') }}" class="flex items-center gap-2 font-semibold tracking-tight">
-                <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-white text-xs font-bold">PR</span>
-                <span>Pretoria Precision Rifle Club</span>
+            {{-- Logo / wordmark --}}
+            <a href="{{ url('/') }}" class="flex items-center gap-3 text-white">
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white text-slate-950 text-[10px] font-bold tracking-tighter">PPRC</span>
+                <span class="hidden sm:inline font-semibold tracking-tight">Pretoria Precision Rifle Club</span>
+                <span class="sm:hidden font-semibold tracking-tight">PPRC</span>
             </a>
 
-            <nav class="hidden md:flex items-center gap-7 text-sm text-slate-600">
-                @foreach ($navPages as $p)
-                    <a href="{{ url('/'.$p->slug) }}" class="hover:text-slate-900">{{ $p->title }}</a>
+            {{-- Desktop navigation --}}
+            <nav class="hidden lg:flex items-center gap-8 text-sm text-slate-300">
+                @foreach ($nav as $item)
+                    <a href="{{ $item['href'] }}"
+                       @class([
+                           'transition hover:text-white',
+                           'text-white' => $isActive($item['href']),
+                       ])>
+                        {{ $item['label'] }}
+                    </a>
                 @endforeach
-                <a href="{{ url('/events') }}" class="hover:text-slate-900">Events</a>
-                <a href="{{ url('/results') }}" class="hover:text-slate-900">Results</a>
-                <a href="{{ url('/gallery') }}" class="hover:text-slate-900">Gallery</a>
-                <a href="{{ url('/exco') }}" class="hover:text-slate-900">Committee</a>
-                <a href="{{ url('/news') }}" class="hover:text-slate-900">News</a>
             </nav>
 
-            <div class="hidden md:flex items-center gap-3">
+            {{-- Desktop CTA --}}
+            <div class="hidden lg:flex items-center gap-3">
                 @auth
-                    <a href="{{ url('/portal/membership') }}" class="text-sm text-slate-600 hover:text-slate-900">Portal</a>
-                    <form method="POST" action="{{ url('/logout') }}">
-                        @csrf
-                        <button type="submit" class="text-sm text-slate-600 hover:text-slate-900">Sign out</button>
-                    </form>
+                    <a href="{{ url('/portal/membership') }}" class="text-sm text-slate-300 hover:text-white">Portal</a>
                 @else
-                    <a href="{{ url('/login') }}" class="text-sm text-slate-600 hover:text-slate-900">Sign in</a>
-                    <a href="{{ url('/register') }}" class="inline-flex items-center rounded-md bg-slate-900 text-white px-3 py-1.5 text-sm hover:bg-slate-800">Join</a>
+                    <a href="{{ url('/login') }}" class="text-sm text-slate-300 hover:text-white">Sign in</a>
                 @endauth
+                <x-site.button :href="url('/register')" size="sm">Join PPRC</x-site.button>
             </div>
 
-            <button @click="open = !open" class="md:hidden inline-flex items-center justify-center rounded-md p-2 text-slate-700 hover:bg-slate-100">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path x-show="!open" stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h16.5" />
-                    <path x-show="open" stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" style="display:none" />
+            {{-- Mobile hamburger --}}
+            <button
+                @click="open = !open"
+                class="lg:hidden inline-flex items-center justify-center rounded-md p-2 text-slate-300 hover:text-white hover:bg-white/5"
+                aria-label="Toggle navigation"
+            >
+                <svg x-show="!open" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h16.5" />
+                </svg>
+                <svg x-show="open" x-cloak class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
 
-        <div x-show="open" x-cloak class="md:hidden pb-4 space-y-1 text-sm">
-            @foreach ($navPages as $p)
-                <a href="{{ url('/'.$p->slug) }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">{{ $p->title }}</a>
+        {{-- Mobile menu --}}
+        <div x-show="open" x-cloak x-transition.opacity class="lg:hidden pb-6 pt-2 space-y-1 text-base border-t border-white/10">
+            @foreach ($nav as $item)
+                <a href="{{ $item['href'] }}"
+                   @class([
+                       'block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white',
+                       'text-white bg-white/5' => $isActive($item['href']),
+                   ])>
+                    {{ $item['label'] }}
+                </a>
             @endforeach
-            <a href="{{ url('/events') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">Events</a>
-            <a href="{{ url('/results') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">Results</a>
-            <a href="{{ url('/gallery') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">Gallery</a>
-            <a href="{{ url('/exco') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">Committee</a>
-            <a href="{{ url('/news') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">News</a>
-            <a href="{{ url('/faqs') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">FAQs</a>
-            @auth
-                <a href="{{ url('/portal/membership') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">My portal</a>
-            @else
-                <a href="{{ url('/login') }}" class="block rounded-md px-3 py-2 hover:bg-slate-50">Sign in</a>
-                <a href="{{ url('/register') }}" class="block rounded-md px-3 py-2 bg-slate-900 text-white">Join</a>
-            @endauth
+
+            <div class="pt-4 space-y-2">
+                @auth
+                    <a href="{{ url('/portal/membership') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Portal</a>
+                @else
+                    <a href="{{ url('/login') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Sign in</a>
+                @endauth
+                <x-site.button :href="url('/register')" fullWidth>Join PPRC</x-site.button>
+            </div>
         </div>
-    </div>
+    </x-site.container>
 </header>

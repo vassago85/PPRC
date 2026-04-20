@@ -17,9 +17,11 @@ Route::get('/exco', ExcoController::class)->name('exco');
 Route::get('/committee', ExcoController::class);
 Route::get('/faqs', FaqController::class)->name('faqs');
 
-Route::view('/events', 'site.stubs.events')->name('events');
+Route::view('/matches', 'site.stubs.matches')->name('matches');
+Route::redirect('/events', '/matches');
 Route::view('/results', 'site.stubs.results')->name('results');
 Route::view('/gallery', 'site.stubs.gallery')->name('gallery');
+Route::view('/shop', 'site.stubs.shop')->name('shop');
 
 Route::middleware(['web', 'auth'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/membership', \App\Livewire\Portal\Membership::class)->name('membership');

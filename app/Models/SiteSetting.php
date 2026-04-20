@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
@@ -11,8 +10,14 @@ class SiteSetting extends Model
 {
     protected $fillable = ['key', 'value', 'is_secret', 'group', 'label', 'description'];
 
+    /**
+     * `value` is a JSONB column that can hold scalars (string / bool / int),
+     * arrays, or the `{cipher: "..."}` wrapper used for encrypted secrets.
+     * `json` cast handles all of these cleanly — unlike AsArrayObject, which
+     * returns null for scalar values.
+     */
     protected $casts = [
-        'value' => AsArrayObject::class,
+        'value' => 'json',
         'is_secret' => 'boolean',
     ];
 

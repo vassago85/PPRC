@@ -1,14 +1,15 @@
 <x-site.layout title="Gallery">
-    <section class="border-b border-slate-200 bg-slate-50">
-        <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-16">
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Gallery</p>
-            <h1 class="mt-3 text-4xl font-semibold tracking-tight text-slate-900">Match days in pictures</h1>
-            <p class="mt-4 max-w-2xl text-slate-600">Event galleries linked to each match go here. Uploading and album management arrive with the gallery module.</p>
-        </div>
-    </section>
-    <section class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
-        <div class="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-            <p class="text-slate-600">Photo albums launch after events.</p>
-        </div>
-    </section>
+    <x-site.section padding="lg">
+        <x-site.eyebrow>Gallery</x-site.eyebrow>
+        <h1 class="mt-3 text-4xl sm:text-5xl font-semibold tracking-tight">Event photos</h1>
+        <p class="mt-5 max-w-2xl text-slate-300">
+            Albums from recent matches will be published here.
+        </p>
+    </x-site.section>
+
+    <x-site.section tone="muted" padding="default">
+        <x-site.card padding="lg" class="text-center border-dashed">
+            <p class="text-slate-300">No albums to show yet.</p>
+        </x-site.card>
+    </x-site.section>
 </x-site.layout>
