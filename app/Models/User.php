@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -28,9 +29,18 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         ];
     }
 
+    /**
+     * Any committee role can access the Filament admin panel. Fine-grained
+     * gating is done by Spatie permissions on individual resources/actions.
+     */
+    public const COMMITTEE_ROLES = [
+        'developer', 'chairperson', 'treasurer', 'secretary',
+        'membership_secretary', 'admin',
+    ];
+
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->hasAnyRole(['developer', 'admin']) && $this->hasVerifiedEmail();
+        return $this->hasAnyRole(self::COMMITTEE_ROLES) && $this->hasVerifiedEmail();
     }
 
     public function isDeveloper(): bool
@@ -38,8 +48,23 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->hasRole('developer');
     }
 
+    public function isChairperson(): bool
+    {
+        return $this->hasRole('chairperson');
+    }
+
+    public function isCommittee(): bool
+    {
+        return $this->hasAnyRole(self::COMMITTEE_ROLES);
+    }
+
     public function isAdmin(): bool
     {
-        return $this->hasAnyRole(['developer', 'admin']);
+        return $this->hasAnyRole(['developer', 'chairperson', 'admin']);
+    }
+
+    public function member(): HasOne
+    {
+        return $this->hasOne(Member::class);
     }
 }

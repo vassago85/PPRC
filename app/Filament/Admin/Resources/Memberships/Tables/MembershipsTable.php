@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Filament\Admin\Resources\Memberships\Tables;
+
+use App\Enums\MembershipStatus;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+
+class MembershipsTable
+{
+    public static function configure(Table $table): Table
+    {
+        return $table
+            ->defaultSort('period_end', 'desc')
+            ->columns([
+                TextColumn::make('member.membership_number')->label('#')->badge()->sortable()->searchable(),
+                TextColumn::make('member.first_name')->label('Member')
+                    ->formatStateUsing(fn ($record) => $record->member?->fullName())
+                    ->searchable(['member.first_name', 'member.last_name']),
+                TextColumn::make('membership_type_name_snapshot')->label('Type')->badge()->sortable(),
+                TextColumn::make('period_start')->date('d M Y'),
+                TextColumn::make('period_end')->date('d M Y')
+                    ->color(fn ($record) => $record->period_end?->isPast() ? 'danger' : null)
+                    ->sortable(),
+                TextColumn::make('status')
+                    ->badge()
+                    ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
+                    ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
+                TextColumn::make('price_cents_snapshot')->label('Price')
+                    ->formatStateUsing(fn ($state) => 'R '.number_format($state / 100, 2))
+                    ->alignEnd(),
+                TextColumn::make('approved_at')->dateTime('d M Y')->toggleable()->label('Approved'),
+            ])
+            ->filters([
+                SelectFilter::make('status')
+                    ->options(collect(MembershipStatus::cases())
+                        ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all()),
+            ])
+            ->recordActions([
+                Action::make('approve')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn ($record) => $record->status === MembershipStatus::PendingApproval)
+                    ->requiresConfirmation()
+                    ->action(fn ($record) => $record->update([
+                        'status' => MembershipStatus::Active,
+                        'approved_at' => now(),
+                        'approved_by_user_id' => auth()->id(),
+                    ])),
+                EditAction::make(),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+}

@@ -15,26 +15,29 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolesAndPermissionsSeeder::class,
+            MembershipTypesSeeder::class,
+            SiteContentSeeder::class,
         ]);
 
-        $developer = User::updateOrCreate(
-            ['email' => 'dev@pretoriaprc.co.za'],
-            [
-                'name' => 'PPRC Developer',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ],
-        );
-        $developer->syncRoles(['developer']);
+        $committee = [
+            ['dev@pretoriaprc.co.za',         'PPRC Developer',           'developer'],
+            ['chair@pretoriaprc.co.za',       'PPRC Chairperson',         'chairperson'],
+            ['treasurer@pretoriaprc.co.za',   'PPRC Treasurer',           'treasurer'],
+            ['secretary@pretoriaprc.co.za',   'PPRC Secretary',           'secretary'],
+            ['membership@pretoriaprc.co.za',  'PPRC Membership Secretary', 'membership_secretary'],
+            ['admin@pretoriaprc.co.za',       'PPRC Admin',               'admin'],
+        ];
 
-        $admin = User::updateOrCreate(
-            ['email' => 'admin@pretoriaprc.co.za'],
-            [
-                'name' => 'PPRC Admin',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ],
-        );
-        $admin->syncRoles(['admin']);
+        foreach ($committee as [$email, $name, $role]) {
+            $user = User::updateOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'password' => Hash::make('password'),
+                    'email_verified_at' => now(),
+                ],
+            );
+            $user->syncRoles([$role]);
+        }
     }
 }
