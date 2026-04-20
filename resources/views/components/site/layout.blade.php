@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#020617">
+    <link rel="icon" type="image/png" href="{{ asset('pprclogo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('pprclogo.png') }}">
     <title>{{ $title ? $title.' · PPRC' : 'Pretoria Precision Rifle Club' }}</title>
     @if ($description)
         <meta name="description" content="{{ $description }}">

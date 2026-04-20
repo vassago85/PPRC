@@ -8,4 +8,17 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* PPRC brand palette — matches the club shield blue */
+    --color-brand-50: #eff8fd;
+    --color-brand-100: #dbeffa;
+    --color-brand-200: #bee2f6;
+    --color-brand-300: #90cfef;
+    --color-brand-400: #5bb4e4;
+    --color-brand-500: #2e97d4;
+    --color-brand-600: #1d8ac0;
+    --color-brand-700: #1a6f9b;
+    --color-brand-800: #1b5d7f;
+    --color-brand-900: #1c4e69;
+    --color-brand-950: #123245;
 }

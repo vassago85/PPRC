@@ -20,9 +20,15 @@
         <div class="flex h-16 items-center justify-between">
             {{-- Logo / wordmark --}}
             <a href="{{ url('/') }}" class="flex items-center gap-3 text-white">
-                <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white text-slate-950 text-[10px] font-bold tracking-tighter">PPRC</span>
-                <span class="hidden sm:inline font-semibold tracking-tight">Pretoria Precision Rifle Club</span>
-                <span class="sm:hidden font-semibold tracking-tight">PPRC</span>
+                <img
+                    src="{{ asset('pprclogo.png') }}"
+                    alt="Pretoria Precision Rifle Club"
+                    class="h-10 w-auto"
+                    width="40"
+                    height="40"
+                />
+                <span class="hidden md:inline font-semibold tracking-tight">Pretoria Precision Rifle Club</span>
+                <span class="md:hidden font-semibold tracking-tight text-sm">PPRC</span>
             </a>
 
             {{-- Desktop navigation --}}
