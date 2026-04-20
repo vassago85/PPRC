@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Site\AnnouncementController;
+use App\Http\Controllers\Site\ContactController;
 use App\Http\Controllers\Site\ExcoController;
 use App\Http\Controllers\Site\FaqController;
 use App\Http\Controllers\Site\HomeController;
@@ -22,6 +23,12 @@ Route::redirect('/events', '/matches');
 Route::view('/results', 'site.stubs.results')->name('results');
 Route::view('/gallery', 'site.stubs.gallery')->name('gallery');
 Route::view('/shop', 'site.stubs.shop')->name('shop');
+
+// Contact form (GET to render, POST to send). Throttled to blunt spam bots.
+Route::get('/contact', [ContactController::class, 'show'])->name('contact');
+Route::post('/contact', [ContactController::class, 'submit'])
+    ->middleware('throttle:5,10')
+    ->name('contact.submit');
 
 Route::middleware(['web', 'auth'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/membership', \App\Livewire\Portal\Membership::class)->name('membership');

@@ -78,23 +78,15 @@ HTML,
                 'show_in_nav' => true,
                 'nav_sort_order' => 20,
             ],
-            [
-                'slug' => 'contact',
-                'title' => 'Contact us',
-                'subtitle' => 'Match enquiries, membership queries, or range visits.',
-                'body' => <<<'HTML'
-<p>Have a question about a match, membership, or a visiting-shooter day pass? Use the contact form and the committee will route it to the right person.</p>
-HTML,
-                'is_published' => true,
-                'published_at' => now(),
-                'show_in_nav' => true,
-                'nav_sort_order' => 90,
-            ],
         ];
 
         foreach ($pages as $p) {
             Page::updateOrCreate(['slug' => $p['slug']], $p);
         }
+
+        // The /contact URL is served by the dedicated Site\ContactController
+        // (form + email delivery), so any previously-seeded CMS page must go.
+        Page::where('slug', 'contact')->delete();
     }
 
     /**
@@ -155,8 +147,9 @@ HTML,
     protected function seedContactSettings(): void
     {
         // Contact details sourced from https://pretoriaprc.co.za/contact/
+        // Phone number intentionally not seeded — public contact is the form
+        // on /contact, which emails contact.email.
         SiteSetting::put('contact.email', 'info@pretoriaprc.co.za', ['group' => 'contact', 'label' => 'Contact email']);
-        SiteSetting::put('contact.phone', '073 055 6726', ['group' => 'contact', 'label' => 'Contact phone']);
         SiteSetting::put('contact.physical_address', 'Pretoria, Gauteng, South Africa', ['group' => 'contact', 'label' => 'Physical address']);
         SiteSetting::put('contact.social.facebook', '', ['group' => 'contact', 'label' => 'Facebook URL']);
         SiteSetting::put('contact.social.instagram', '', ['group' => 'contact', 'label' => 'Instagram URL']);

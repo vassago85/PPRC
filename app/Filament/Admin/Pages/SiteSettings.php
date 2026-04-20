@@ -62,7 +62,6 @@ class SiteSettings extends Page
             // Contact & social
             'contact' => [
                 'email' => (string) SiteSetting::get('contact.email', ''),
-                'phone' => (string) SiteSetting::get('contact.phone', ''),
                 'physical_address' => (string) SiteSetting::get('contact.physical_address', ''),
                 'social' => [
                     'facebook' => (string) SiteSetting::get('contact.social.facebook', ''),
@@ -126,18 +125,15 @@ class SiteSettings extends Page
                             ->icon(Heroicon::OutlinedEnvelope)
                             ->schema([
                                 Section::make('Public contact details')
-                                    ->description('Shown on the website footer, contact page and in email signatures.')
+                                    ->description('Shown on the website footer, contact page and in email signatures. The public contact form on /contact delivers to this email address.')
                                     ->columns(2)
                                     ->schema([
                                         TextInput::make('contact.email')
                                             ->label('Contact email')
                                             ->email()
                                             ->required()
+                                            ->helperText('Where public contact-form submissions are delivered.')
                                             ->maxLength(255),
-                                        TextInput::make('contact.phone')
-                                            ->label('Contact phone')
-                                            ->tel()
-                                            ->maxLength(40),
                                         TextInput::make('contact.physical_address')
                                             ->label('Physical address')
                                             ->columnSpanFull()
@@ -379,7 +375,6 @@ class SiteSettings extends Page
         $map = [
             // --- Contact -----------------------------------------------------
             ['contact.email',             'contact.email',             'contact', 'Contact email',    false, false],
-            ['contact.phone',             'contact.phone',             'contact', 'Contact phone',    false, false],
             ['contact.physical_address',  'contact.physical_address',  'contact', 'Physical address', false, false],
             ['contact.social.facebook',   'contact.social.facebook',   'contact', 'Facebook URL',     false, false],
             ['contact.social.instagram',  'contact.social.instagram',  'contact', 'Instagram URL',    false, false],

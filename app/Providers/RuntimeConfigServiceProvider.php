@@ -140,13 +140,9 @@ class RuntimeConfigServiceProvider extends ServiceProvider
     protected function applyContactConfig(): void
     {
         $email = SiteSetting::get('contact.email');
-        $phone = SiteSetting::get('contact.phone');
 
         if (filled($email)) {
             config(['club.contact.email' => $email]);
-        }
-        if (filled($phone)) {
-            config(['club.contact.phone' => $phone]);
         }
     }
 }

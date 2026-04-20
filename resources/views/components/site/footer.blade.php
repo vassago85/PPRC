@@ -1,7 +1,6 @@
 @php
     use App\Models\SiteSetting;
     $email = SiteSetting::get('contact.email');
-    $phone = SiteSetting::get('contact.phone');
     $facebook = SiteSetting::get('contact.social.facebook');
     $instagram = SiteSetting::get('contact.social.instagram');
 
@@ -21,11 +20,11 @@
             {{-- Brand --}}
             <div class="md:col-span-1">
                 <a href="{{ url('/') }}" class="flex items-center gap-3 text-white">
-                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white text-slate-950 text-[10px] font-bold tracking-tighter">PPRC</span>
+                    <img src="{{ asset('pprclogo.png') }}" alt="PPRC" class="h-9 w-auto" width="36" height="36">
                     <span class="font-semibold tracking-tight">Pretoria Precision Rifle Club</span>
                 </a>
-                <p class="mt-4 text-sm max-w-xs">
-                    Based in Pretoria, Gauteng. Started in 2023 by precision rifle shooters, for precision rifle shooters.
+                <p class="mt-4 max-w-xs text-sm">
+                    Pretoria, Gauteng &middot; Est. 2023. Hosting PRS (Centerfire) and PR22 matches.
                 </p>
             </div>
 
@@ -50,9 +49,7 @@
                     @if ($email)
                         <li><a href="mailto:{{ $email }}" class="hover:text-white transition">{{ $email }}</a></li>
                     @endif
-                    @if ($phone)
-                        <li><a href="tel:{{ preg_replace('/\s+/', '', $phone) }}" class="hover:text-white transition">{{ $phone }}</a></li>
-                    @endif
+                    <li><a href="{{ url('/contact') }}" class="hover:text-white transition">Send a message &rarr;</a></li>
                 </ul>
                 @if ($facebook || $instagram)
                     <div class="mt-4 flex gap-4 text-sm">
