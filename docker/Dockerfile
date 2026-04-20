@@ -19,12 +19,16 @@ FROM composer:2 AS vendor
 WORKDIR /app
 
 COPY composer.json composer.lock ./
+# Platform requirements (ext-intl, ext-gd, ext-redis, etc.) are satisfied in the
+# final runtime stage, not in this composer image. Ignore them here so we can
+# download the locked vendor tree without installing every PHP extension twice.
 RUN composer install \
     --no-dev \
     --no-scripts \
     --no-autoloader \
     --no-interaction \
-    --prefer-dist
+    --prefer-dist \
+    --ignore-platform-reqs
 
 # ---------- Stage 3: runtime (nginx + php-fpm + supervisor) ----------
 FROM php:8.3-fpm-bookworm AS runtime
