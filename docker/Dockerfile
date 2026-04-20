@@ -1,0 +1,101 @@
+# syntax=docker/dockerfile:1.7
+# ---------- Stage 1: node asset build ----------
+FROM node:22-alpine AS assets
+
+WORKDIR /build
+
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+
+COPY vite.config.js ./
+COPY resources ./resources
+COPY public ./public
+
+RUN npm run build
+
+# ---------- Stage 2: composer dependencies ----------
+FROM composer:2 AS vendor
+
+WORKDIR /app
+
+COPY composer.json composer.lock ./
+RUN composer install \
+    --no-dev \
+    --no-scripts \
+    --no-autoloader \
+    --no-interaction \
+    --prefer-dist
+
+# ---------- Stage 3: runtime (nginx + php-fpm + supervisor) ----------
+FROM php:8.3-fpm-bookworm AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_HOME=/tmp/composer
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        nginx \
+        supervisor \
+        libpq-dev \
+        libzip-dev \
+        libicu-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libwebp-dev \
+        libxml2-dev \
+        libonig-dev \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        zlib1g-dev \
+        unzip \
+        git \
+        curl \
+        ca-certificates \
+        tzdata \
+        cron \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j"$(nproc)" \
+        pdo_pgsql \
+        pgsql \
+        bcmath \
+        intl \
+        zip \
+        gd \
+        exif \
+        opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/pear
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+COPY --from=vendor /app/vendor ./vendor
+
+COPY . .
+
+COPY --from=assets /build/public/build ./public/build
+
+RUN composer dump-autoload -o --no-dev \
+    && mkdir -p storage/framework/{cache,sessions,views,testing} storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R ug+rwx storage bootstrap/cache
+
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/php/www.conf /usr/local/etc/php-fpm.d/zz-www.conf
+COPY docker/nginx/default.conf /etc/nginx/sites-available/default
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod +x /usr/local/bin/entrypoint
+
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+ && ln -sf /dev/stderr /var/log/nginx/error.log
+
+EXPOSE 80
+
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
+CMD ["app"]

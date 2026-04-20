@@ -1,0 +1,144 @@
+# Production compose for PPRC.
+# Install path on server: /opt/pprc
+# Reverse proxied by Nginx Proxy Manager: pprc.charsleydigital.co.za -> 127.0.0.1:8093
+
+name: pprc
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: pprc-app:latest
+    container_name: pprc-app
+    restart: unless-stopped
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8093:80"
+    volumes:
+      - pprc-storage:/var/www/html/storage
+    command: ["app"]
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "-o", "/dev/null", "http://127.0.0.1/up"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  queue:
+    image: pprc-app:latest
+    container_name: pprc-queue
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      APP_RUN_MIGRATIONS_ON_BOOT: "false"
+    volumes:
+      - pprc-storage:/var/www/html/storage
+    command: ["queue"]
+
+  scheduler:
+    image: pprc-app:latest
+    container_name: pprc-scheduler
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+      pgsql:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      APP_RUN_MIGRATIONS_ON_BOOT: "false"
+    volumes:
+      - pprc-storage:/var/www/html/storage
+    command: ["scheduler"]
+
+  pgsql:
+    image: postgres:16-alpine
+    container_name: pprc-pgsql
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-pprc}"
+      POSTGRES_USER: "${DB_USERNAME:-pprc}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - pprc-pgsql:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-pprc} -d ${DB_DATABASE:-pprc}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: pprc-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - pprc-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: pprc-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+      MINIO_BROWSER_REDIRECT_URL: "${APP_URL}/minio"
+    volumes:
+      - pprc-minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: pprc-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+      AWS_BUCKET: "${AWS_BUCKET:-pprc-media}"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        mc alias set local http://pprc-minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$AWS_BUCKET"
+        mc anonymous set download "local/$$AWS_BUCKET"
+        echo "[minio-init] Bucket $$AWS_BUCKET ready with public download policy."
+        exit 0
+    restart: "no"
+
+volumes:
+  pprc-pgsql:
+  pprc-redis:
+  pprc-minio:
+  pprc-storage:

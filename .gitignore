@@ -1,4 +1,5 @@
 *.log
+.git-commit-msg.txt
 .DS_Store
 .env
 .env.backup
