@@ -21,6 +21,7 @@ class SiteContentSeeder extends Seeder
         $this->seedFaqs();
         $this->seedExco();
         $this->seedContactSettings();
+        $this->seedIntegrationSettings();
     }
 
     protected function seedHomepage(): void
@@ -216,5 +217,63 @@ HTML,
         SiteSetting::put('payments.bank.account_number', '0000000000', ['group' => 'payments', 'label' => 'Account number']);
         SiteSetting::put('payments.bank.branch_code', '250655', ['group' => 'payments', 'label' => 'Branch code']);
         SiteSetting::put('payments.bank.reference_format', 'PPRC-MEM-{id}', ['group' => 'payments', 'label' => 'Reference format']);
+        SiteSetting::put('payments.bank.account_type', 'cheque', ['group' => 'payments', 'label' => 'Account type']);
+        SiteSetting::put('payments.bank.notes', '', ['group' => 'payments', 'label' => 'Bank notes']);
+        SiteSetting::put('contact.social.whatsapp', '', ['group' => 'contact', 'label' => 'WhatsApp link']);
+    }
+
+    /**
+     * Ensure rows exist for every integration key the admin settings page
+     * writes to, so the Site settings form mounts cleanly on a fresh install.
+     * Values are intentionally empty — real credentials are entered via the
+     * admin UI (or imported from .env on first boot).
+     */
+    protected function seedIntegrationSettings(): void
+    {
+        $rows = [
+            // Mail / Mailgun
+            ['mail.from.address',        'mail',     'From address',            false],
+            ['mail.from.name',           'mail',     'From name',               false],
+            ['mail.mailgun.domain',      'mail',     'Mailgun domain',          false],
+            ['mail.mailgun.endpoint',    'mail',     'Mailgun endpoint',        false],
+            ['mail.mailgun.secret',      'mail',     'Mailgun secret',          true],
+
+            // Storage / S3 / MinIO
+            ['storage.s3.endpoint',       'storage', 'S3 endpoint',             false],
+            ['storage.s3.region',         'storage', 'S3 region',               false],
+            ['storage.s3.bucket',         'storage', 'S3 bucket',               false],
+            ['storage.s3.url',            'storage', 'S3 public URL',           false],
+            ['storage.s3.use_path_style', 'storage', 'Use path style',          false],
+            ['storage.s3.access_key',     'storage', 'S3 access key',           true],
+            ['storage.s3.secret_key',     'storage', 'S3 secret key',           true],
+
+            // Paystack
+            ['payments.paystack.public_key',     'payments', 'Paystack public key',     false],
+            ['payments.paystack.currency',       'payments', 'Paystack currency',       false],
+            ['payments.paystack.secret_key',     'payments', 'Paystack secret key',     true],
+            ['payments.paystack.webhook_secret', 'payments', 'Paystack webhook secret', true],
+        ];
+
+        foreach ($rows as [$key, $group, $label, $isSecret]) {
+            $exists = SiteSetting::query()->where('key', $key)->exists();
+            if ($exists) {
+                continue;
+            }
+
+            $default = match (true) {
+                $key === 'mail.from.name'             => 'PPRC',
+                $key === 'mail.mailgun.endpoint'      => 'api.mailgun.net',
+                $key === 'storage.s3.region'          => 'us-east-1',
+                $key === 'storage.s3.use_path_style'  => true,
+                $key === 'payments.paystack.currency' => 'ZAR',
+                default                               => '',
+            };
+
+            SiteSetting::put($key, $default, [
+                'group' => $group,
+                'label' => $label,
+                'is_secret' => $isSecret,
+            ]);
+        }
     }
 }

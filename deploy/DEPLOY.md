@@ -65,8 +65,10 @@ Required edits:
 - `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` — long random values; these same values go into `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
 - `AWS_ACCESS_KEY_ID` = `MINIO_ROOT_USER`
 - `AWS_SECRET_ACCESS_KEY` = `MINIO_ROOT_PASSWORD`
-- `MAILGUN_DOMAIN` / `MAILGUN_SECRET` — once your Mailgun sending domain is verified.
-- `PAYSTACK_PUBLIC_KEY` / `PAYSTACK_SECRET_KEY` / `PAYSTACK_WEBHOOK_SECRET` — once Paystack is configured (can defer; app still functions without it).
+- `MAILGUN_DOMAIN` / `MAILGUN_SECRET` — **optional.** You can now also set these later from **Admin → Site settings → Email (Mailgun)**. Values entered in the admin UI override `.env`.
+- `PAYSTACK_PUBLIC_KEY` / `PAYSTACK_SECRET_KEY` / `PAYSTACK_WEBHOOK_SECRET` — **optional.** Also editable from **Admin → Site settings → Payments (Paystack)**.
+
+> **Runtime-editable settings.** Mailgun credentials, S3/MinIO credentials, Paystack keys, EFT bank details and contact info are all editable at runtime via **Admin → Site settings** (`/admin/settings`). Values there take precedence over `.env` without a redeploy. The `.env` values above act as bootstrap defaults only.
 
 Quick way to generate strong values:
 
