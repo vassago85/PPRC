@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\MembershipStatus;
+use App\Services\Membership\MembershipNumberAssignment;
+use Database\Factories\MembershipFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Membership extends Model
 {
-    /** @use HasFactory<\Database\Factories\MembershipFactory> */
+    /** @use HasFactory<MembershipFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -35,6 +37,17 @@ class Membership extends Model
         'status' => MembershipStatus::class,
         'price_cents_snapshot' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (Membership $membership): void {
+            if ($membership->status !== MembershipStatus::Active) {
+                return;
+            }
+
+            app(MembershipNumberAssignment::class)->syncForActiveMembership($membership);
+        });
+    }
 
     public function member(): BelongsTo
     {

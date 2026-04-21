@@ -4,14 +4,12 @@ namespace App\Filament\Admin\Resources\Members\Schemas;
 
 use App\Enums\MemberStatus;
 use App\Models\Member;
-use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
-use Filament\Schemas\Components\Grid;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -38,7 +36,7 @@ class MemberForm
                             ->required()
                             ->default(MemberStatus::Pending->value),
                         TextInput::make('membership_number')
-                            ->helperText('Auto-assigned on committee approval unless set manually'),
+                            ->helperText('Leave blank for auto-assignment when a membership becomes active. Numbers are sequential; resigned or deleted members do not free their number for reuse.'),
                     ]),
 
                 Section::make('Personal details')
@@ -87,11 +85,13 @@ class MemberForm
                                 }
                                 if (is_string($state)) {
                                     $decoded = json_decode($state, true);
+
                                     return is_array($decoded) ? array_values($decoded) : [];
                                 }
                                 if ($state instanceof \Traversable) {
                                     return array_values(iterator_to_array($state));
                                 }
+
                                 return [];
                             })
                             ->dehydrateStateUsing(fn ($state) => is_array($state) ? array_values($state) : [])
