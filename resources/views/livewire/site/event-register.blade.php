@@ -1,4 +1,4 @@
-<div class="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-6 sm:p-8 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.65)]">
+<div class="rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-5 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.65)] sm:p-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <h2 class="text-xl font-semibold tracking-tight text-white sm:text-2xl">Enter this match</h2>
@@ -24,7 +24,7 @@
             If you need to change your entry, contact the match director.
         </p>
     @else
-        <div class="mt-8 grid gap-8 lg:grid-cols-2">
+        <div class="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-8">
             {{-- Member path --}}
             <div class="rounded-xl border border-brand-400/20 bg-slate-950/40 p-5">
                 <h3 class="text-sm font-semibold uppercase tracking-[0.2em] text-brand-200">Members</h3>

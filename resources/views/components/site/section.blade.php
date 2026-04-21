@@ -18,6 +18,12 @@
     $paddingClasses = match ($padding) {
         'hero'   => 'py-24 sm:py-32 lg:py-40',
         'lg'     => 'py-20 sm:py-28',
+        /** Large top for match hero; tighter bottom before the next section (e.g. registration). */
+        'lg-hero' => 'pt-20 sm:pt-28 pb-8 sm:pb-10',
+        /** Tight top when stacked directly under match hero / description. */
+        'register' => 'pt-8 sm:pt-10 pb-16 sm:pb-24',
+        /** Match page: hero + stats + description + registration in one band (avoids double section gaps). */
+        'match-main' => 'pt-20 sm:pt-28 pb-12 sm:pb-16',
         'sm'     => 'py-12 sm:py-16',
         default  => 'py-16 sm:py-24',
     };

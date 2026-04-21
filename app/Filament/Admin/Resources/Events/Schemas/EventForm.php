@@ -29,8 +29,7 @@ class EventForm
                         ->required()
                         ->maxLength(200)
                         ->live(onBlur: true)
-                        ->afterStateUpdated(fn ($state, callable $set, $get) =>
-                            $get('slug') ? null : $set('slug', Str::slug((string) $state))),
+                        ->afterStateUpdated(fn ($state, callable $set, $get) => $get('slug') ? null : $set('slug', Str::slug((string) $state))),
 
                     TextInput::make('slug')
                         ->required()
@@ -115,7 +114,14 @@ class EventForm
                             : (int) round(((float) $state) * 100))
                         ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100),
                     TextInput::make('max_entries')->numeric()->label('Max entries'),
-                    TextInput::make('round_count')->numeric()->label('Round count'),
+                    TextInput::make('round_count')
+                        ->numeric()
+                        ->label('Provincial / full course rounds')
+                        ->helperText('SAPRF or provincial match length (full course of fire).'),
+                    TextInput::make('club_round_count')
+                        ->numeric()
+                        ->label('PPRC club course rounds')
+                        ->helperText('Optional shorter club-only course for PPRC members on combined days. Leave empty for a single-course match.'),
                     Toggle::make('registrations_open')->inline(false),
                     DateTimePicker::make('registrations_close_at')
                         ->label('Registrations close at')

@@ -16,7 +16,7 @@
         </div>
     @endif
 
-    <x-site.section padding="lg">
+    <x-site.section padding="match-main">
         <div class="flex flex-col gap-3">
             <div class="flex flex-wrap items-center gap-3">
                 @if ($event->matchFormat)
@@ -37,7 +37,7 @@
             @endif
         </div>
 
-        <dl class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             @if ($event->location_name)
                 <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Venue</dt>
@@ -48,10 +48,25 @@
                 </div>
             @endif
 
-            @if ($event->round_count)
+            @if ($event->round_count || $event->club_round_count)
                 <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Rounds</dt>
-                    <dd class="mt-2 font-medium text-white">{{ $event->round_count }}</dd>
+                    @if ($event->club_round_count !== null)
+                        <dd class="mt-3 space-y-2 text-sm">
+                            @if ($event->round_count)
+                                <div class="flex items-baseline justify-between gap-3">
+                                    <span class="text-slate-400">Provincial / full course</span>
+                                    <span class="font-semibold tabular-nums text-white">{{ $event->round_count }}</span>
+                                </div>
+                            @endif
+                            <div class="flex items-baseline justify-between gap-3">
+                                <span class="text-slate-400">PPRC club course</span>
+                                <span class="font-semibold tabular-nums text-white">{{ $event->club_round_count }}</span>
+                            </div>
+                        </dd>
+                    @else
+                        <dd class="mt-2 font-medium text-white">{{ $event->round_count }}</dd>
+                    @endif
                 </div>
             @endif
 
@@ -94,18 +109,16 @@
                 @endif
             </div>
         </dl>
-    </x-site.section>
 
-    @if ($event->description)
-        <x-site.section tone="muted" padding="default">
-            <div class="prose prose-invert max-w-3xl">
+        @if ($event->description)
+            <div class="prose prose-invert mt-10 max-w-3xl border-t border-white/10 pt-10">
                 {!! $event->description !!}
             </div>
-        </x-site.section>
-    @endif
+        @endif
 
-    <x-site.section padding="default" id="enter">
-        <livewire:site.event-register :event="$event" :key="'evt-reg-'.$event->id" />
+        <div id="enter" @class(['scroll-mt-28', 'mt-10' => filled($event->description), 'mt-8' => ! filled($event->description)])>
+            <livewire:site.event-register :event="$event" :key="'evt-reg-'.$event->id" />
+        </div>
     </x-site.section>
 
     @if ($event->galleryPhotos->isNotEmpty())

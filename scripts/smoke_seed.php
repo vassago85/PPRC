@@ -33,6 +33,7 @@ Event::query()->updateOrCreate(
         'non_member_price_cents' => 50000,
         'max_entries' => 600,
         'round_count' => 60,
+        'club_round_count' => 30,
         'registrations_open' => true,
         'status' => EventStatus::Published,
         'match_director_id' => $u->id,

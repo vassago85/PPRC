@@ -34,6 +34,7 @@ class Event extends Model
         'non_member_price_cents',
         'max_entries',
         'round_count',
+        'club_round_count',
         'registrations_open',
         'registrations_close_at',
         'status',
@@ -57,6 +58,7 @@ class Event extends Model
         'non_member_price_cents' => 'integer',
         'max_entries' => 'integer',
         'round_count' => 'integer',
+        'club_round_count' => 'integer',
         'location_lat' => 'float',
         'location_lng' => 'float',
     ];
