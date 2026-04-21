@@ -1,7 +1,21 @@
+@php
+    $memberCents = $event->memberPriceCents();
+    $nonMemberCents = $event->nonMemberPriceCents();
+    $bannerUrl = $event->bannerUrl();
+@endphp
 <x-site.layout
     :title="$event->title"
     :description="$event->summary ?? 'PPRC match details'"
 >
+    @if ($bannerUrl)
+        <div class="relative overflow-hidden">
+            <div class="aspect-[21/9] w-full sm:aspect-[21/7]">
+                <img src="{{ $bannerUrl }}" alt="{{ $event->title }}" class="h-full w-full object-cover" />
+            </div>
+            <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/10"></div>
+        </div>
+    @endif
+
     <x-site.section padding="lg">
         <div class="flex flex-col gap-3">
             <div class="flex flex-wrap items-center gap-3">
@@ -41,10 +55,23 @@
                 </div>
             @endif
 
-            @if ($event->price_cents !== null)
+            @if ($memberCents !== null || $nonMemberCents !== null)
                 <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Entry fee</dt>
-                    <dd class="mt-2 font-medium text-white">R {{ number_format($event->priceInRands(), 2) }}</dd>
+                    <dd class="mt-2 space-y-1 text-sm">
+                        @if ($memberCents !== null)
+                            <div class="flex items-baseline justify-between gap-3">
+                                <span class="text-slate-400">Members</span>
+                                <span class="font-semibold text-white tabular-nums">R {{ number_format($memberCents / 100, 2) }}</span>
+                            </div>
+                        @endif
+                        @if ($nonMemberCents !== null)
+                            <div class="flex items-baseline justify-between gap-3">
+                                <span class="text-slate-400">Non-members</span>
+                                <span class="font-semibold text-white tabular-nums">R {{ number_format($nonMemberCents / 100, 2) }}</span>
+                            </div>
+                        @endif
+                    </dd>
                 </div>
             @endif
 

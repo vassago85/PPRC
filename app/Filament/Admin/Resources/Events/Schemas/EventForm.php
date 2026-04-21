@@ -6,6 +6,7 @@ use App\Enums\EventStatus;
 use App\Models\MatchFormat;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -44,7 +45,8 @@ class EventForm
                             ->orderBy('sort_order')
                             ->pluck('name', 'id')
                             ->all())
-                        ->required(),
+                        ->required()
+                        ->helperText('PRS (centerfire) or PR22 match.'),
 
                     Select::make('status')
                         ->options(collect(EventStatus::cases())
@@ -57,6 +59,16 @@ class EventForm
                         ->rows(2)
                         ->maxLength(500)
                         ->helperText('One-line summary shown on listings and cards.')
+                        ->columnSpanFull(),
+
+                    FileUpload::make('banner_path')
+                        ->label('Banner image')
+                        ->image()
+                        ->imageEditor()
+                        ->disk('s3')
+                        ->directory('events/banners')
+                        ->maxSize(5120)
+                        ->helperText('Shown on the public match page. Landscape works best (≥ 1600×900).')
                         ->columnSpanFull(),
 
                     RichEditor::make('description')
@@ -84,10 +96,20 @@ class EventForm
             Section::make('Entry')
                 ->columns(3)
                 ->schema([
-                    TextInput::make('price_cents')
-                        ->label('Entry fee (ZAR)')
+                    TextInput::make('member_price_cents')
+                        ->label('Member price (ZAR)')
                         ->numeric()
                         ->prefix('R')
+                        ->helperText('Charged to active PPRC members.')
+                        ->dehydrateStateUsing(fn ($state) => $state === null || $state === ''
+                            ? null
+                            : (int) round(((float) $state) * 100))
+                        ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100),
+                    TextInput::make('non_member_price_cents')
+                        ->label('Non-member price (ZAR)')
+                        ->numeric()
+                        ->prefix('R')
+                        ->helperText('Charged to guests, expired members, and non-PPRC shooters.')
                         ->dehydrateStateUsing(fn ($state) => $state === null || $state === ''
                             ? null
                             : (int) round(((float) $state) * 100))

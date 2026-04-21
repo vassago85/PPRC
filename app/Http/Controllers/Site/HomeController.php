@@ -20,6 +20,7 @@ class HomeController extends Controller
                 'starts_at' => $e->start_date,
                 'location' => $e->location_name,
                 'format' => $e->matchFormat?->short_name ?? $e->matchFormat?->name,
+                'banner_url' => $e->bannerUrl(),
                 'url' => route('matches.show', ['event' => $e->slug]),
             ]);
 

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Event extends Model
@@ -20,6 +21,7 @@ class Event extends Model
         'title',
         'summary',
         'description',
+        'banner_path',
         'start_date',
         'start_time',
         'end_date',
@@ -28,6 +30,8 @@ class Event extends Model
         'location_lat',
         'location_lng',
         'price_cents',
+        'member_price_cents',
+        'non_member_price_cents',
         'max_entries',
         'round_count',
         'registrations_open',
@@ -48,6 +52,8 @@ class Event extends Model
         'registrations_open' => 'boolean',
         'status' => EventStatus::class,
         'price_cents' => 'integer',
+        'member_price_cents' => 'integer',
+        'non_member_price_cents' => 'integer',
         'max_entries' => 'integer',
         'round_count' => 'integer',
         'location_lat' => 'float',
@@ -115,13 +121,41 @@ class Event extends Model
 
     public function priceInRands(): ?float
     {
-        return $this->price_cents !== null ? $this->price_cents / 100 : null;
+        $cents = $this->member_price_cents ?? $this->price_cents;
+
+        return $cents !== null ? $cents / 100 : null;
+    }
+
+    public function memberPriceCents(): ?int
+    {
+        return $this->member_price_cents ?? $this->price_cents;
+    }
+
+    public function nonMemberPriceCents(): ?int
+    {
+        return $this->non_member_price_cents ?? $this->price_cents;
+    }
+
+    /**
+     * Public S3 URL for the banner, if one is attached.
+     */
+    public function bannerUrl(): ?string
+    {
+        if (empty($this->banner_path)) {
+            return null;
+        }
+
+        return Storage::disk('s3')->url($this->banner_path);
     }
 
     /**
      * Resolve the fee (in cents) this member would pay for this event.
-     * Returns 0 for ExCo / committee members (free entry per the 2026 AGM),
-     * otherwise the event's price_cents, otherwise null (price not set).
+     * Precedence:
+     *   1. ExCo / committee members -> 0 (2026 AGM rule).
+     *   2. Active PPRC member -> member_price_cents.
+     *   3. Everyone else (guest, expired, pending, suspended) -> non_member_price_cents.
+     * Falls back to the legacy price_cents when the tiered fields are unset.
+     * Returns null when the match has no price configured at all.
      */
     public function effectivePriceCentsFor(?Member $member): ?int
     {
@@ -129,7 +163,9 @@ class Event extends Model
             return 0;
         }
 
-        return $this->price_cents;
+        $isActiveMember = $member?->status?->value === 'active';
+
+        return $isActiveMember ? $this->memberPriceCents() : $this->nonMemberPriceCents();
     }
 
     public function isRegistrationOpen(): bool

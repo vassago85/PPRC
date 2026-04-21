@@ -10,15 +10,24 @@
     $startsAt = data_get($match, 'starts_at');
     $featured = (bool) data_get($match, 'is_featured', false);
     $format   = data_get($match, 'format'); // optional: "PRS (Centerfire)", "PR22", etc.
+    $banner   = data_get($match, 'banner_url');
 @endphp
 <a href="{{ $url }}"
    {{ $attributes->class([
-        'group block rounded-2xl bg-white/[0.03] border border-white/10 transition duration-200',
+        'group block overflow-hidden rounded-2xl bg-white/[0.03] border border-white/10 transition duration-200',
         'hover:border-brand-400/40 hover:bg-white/[0.05] hover:-translate-y-0.5',
+   ]) }}>
+    @if ($banner && ! $compact)
+        <div class="relative aspect-[16/9] overflow-hidden">
+            <img src="{{ $banner }}" alt="" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+            <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/0 to-slate-950/0"></div>
+        </div>
+    @endif
+    <div @class([
+        'flex items-start gap-4',
         'p-4' => $compact,
         'p-5' => ! $compact,
-   ]) }}>
-    <div class="flex items-start gap-4">
+    ])>
         {{-- Date badge --}}
         <div @class([
             'flex flex-col items-center justify-center rounded-xl bg-brand-500/10 border border-brand-400/20 shrink-0',

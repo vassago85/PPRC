@@ -67,11 +67,16 @@ class RegistrationsRelationManager extends RelationManager
                 TextInput::make('squad_number')->numeric(),
                 TextInput::make('firing_order')->numeric(),
 
+                Toggle::make('is_saprf_entry')
+                    ->label('SAPRF entry')
+                    ->helperText('Shooter pays through the SAPRF website. PPRC doesn\'t charge them.')
+                    ->inline(false),
+
                 TextInput::make('fee_cents')
-                    ->label('Fee (ZAR)')
+                    ->label('Fee override (ZAR)')
                     ->numeric()
                     ->prefix('R')
-                    ->helperText('Leave blank for the default event price. Set to 0 to waive (ExCo / committee members are auto-waived on creation).')
+                    ->helperText('Leave blank to use the match\'s member / non-member price. Set to 0 to waive. ExCo members and SAPRF entries are handled automatically.')
                     ->dehydrateStateUsing(fn ($state) => $state === null || $state === ''
                         ? null
                         : (int) round(((float) $state) * 100))
@@ -107,6 +112,9 @@ class RegistrationsRelationManager extends RelationManager
                 TextColumn::make('fee_display')
                     ->label('Fee')
                     ->state(function (EventRegistration $r) {
+                        if ($r->is_saprf_entry) {
+                            return 'Paid via SAPRF';
+                        }
                         if ($r->isWaived()) {
                             return 'Waived';
                         }
@@ -117,7 +125,12 @@ class RegistrationsRelationManager extends RelationManager
                         return 'R '.number_format($cents / 100, 2);
                     })
                     ->badge()
-                    ->color(fn (EventRegistration $r) => $r->isWaived() ? 'success' : 'gray'),
+                    ->color(fn (EventRegistration $r) => match (true) {
+                        $r->is_saprf_entry => 'info',
+                        $r->isWaived() => 'success',
+                        default => 'gray',
+                    }),
+                IconColumn::make('is_saprf_entry')->boolean()->label('SAPRF')->toggleable(),
                 IconColumn::make('attended')->boolean()->label('Attended'),
                 TextColumn::make('checked_in_at')->dateTime('d M H:i')->label('Checked in')->toggleable(),
             ])
