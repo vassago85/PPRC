@@ -36,8 +36,10 @@
                         and problem-solving.
                     </p>
                     <p>
-                        Targets can range from close distances out to well beyond 1000 metres, and shooters are scored
-                        based on the number of successful hits within a set time.
+                        At PPRC we normally shoot between about 300&nbsp;m and 800&nbsp;m, with stages sometimes
+                        stretching up to around 1000&nbsp;m. Elsewhere, PRS can push farther on some ranges — but the
+                        core idea is the same: varied distances under time pressure. Shooters are scored on successful
+                        hits within the time allowed for each stage.
                     </p>
                 </x-site.faq-item>
 
@@ -162,6 +164,14 @@
                     <p>
                         However, you do not need an optimal calibre to start. Many shooters begin with what they have
                         and upgrade over time as they gain experience.
+                    </p>
+                    <p>
+                        <strong>6.5mm Creedmoor</strong> is a strong choice for newcomers: factory ammunition and
+                        components are widely available and relatively affordable, and there is plenty of load data to
+                        lean on. It carries enough energy to read misses and splashes on steel more easily than many
+                        smaller or milder cartridges, while still being manageable to shoot. In practice it is a
+                        well-rounded &ldquo;do everything&rdquo; option for learning PRS before chasing specialised
+                        match rigs.
                     </p>
                 </x-site.faq-item>
 
