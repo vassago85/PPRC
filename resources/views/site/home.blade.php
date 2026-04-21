@@ -89,6 +89,13 @@
                         </a>
                     </div>
 
+                    <p class="mt-5 text-center text-sm text-slate-400 sm:mt-6 sm:text-left">
+                        New to PRS or PR22?
+                        <a href="{{ route('faqs') }}" class="font-semibold text-brand-300 underline decoration-brand-400/30 underline-offset-4 transition hover:text-brand-200 hover:decoration-brand-200">Read the FAQs</a>
+                        <span class="text-slate-500">&mdash;</span>
+                        <span class="text-slate-500">gear, match day, and getting started.</span>
+                    </p>
+
                     @guest
                         <p class="mt-6 text-sm text-slate-400">
                             Already a member?
@@ -211,7 +218,7 @@
                         membership option, and a committee member will approve your application.
                     </p>
 
-                    <div class="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row">
+                    <div class="mt-7 flex flex-col flex-wrap gap-3 sm:mt-8 sm:flex-row">
                         <a href="{{ url('/register') }}"
                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-6 py-3.5 font-semibold tracking-tight text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-400 sm:w-auto">
                             Become a member
@@ -219,6 +226,10 @@
                         <a href="{{ url('/membership') }}"
                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3.5 font-semibold tracking-tight text-white transition hover:border-white/25 hover:bg-white/5 sm:w-auto">
                             Membership details
+                        </a>
+                        <a href="{{ route('faqs') }}"
+                           class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-6 py-3.5 font-semibold tracking-tight text-white transition hover:border-white/25 hover:bg-white/5 sm:w-auto">
+                            FAQs
                         </a>
                     </div>
                 </div>
@@ -316,6 +327,10 @@
                         Contact the club
                     </a>
                 </div>
+                <p class="mt-6 text-sm text-brand-50/85">
+                    <a href="{{ route('faqs') }}" class="font-semibold text-white underline decoration-white/35 underline-offset-4 transition hover:decoration-white">Frequently asked questions</a>
+                    <span class="text-brand-50/70">&mdash; PRS, PR22, equipment, and what to bring.</span>
+                </p>
             </div>
         </x-site.container>
     </section>
