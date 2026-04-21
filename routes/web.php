@@ -8,6 +8,8 @@ use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\MatchController;
 use App\Http\Controllers\Site\MembershipController;
 use App\Http\Controllers\Site\ResultController;
+use App\Http\Controllers\Site\ShopController;
+use App\Http\Controllers\Site\ShopWaitlistController;
 use App\Http\Controllers\Webhooks\PaystackWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,7 +33,17 @@ Route::get('/matches/{event:slug}', [MatchController::class, 'show'])->name('mat
 Route::redirect('/events', '/matches');
 Route::get('/results', [ResultController::class, 'index'])->name('results');
 Route::view('/gallery', 'site.stubs.gallery')->name('gallery');
-Route::view('/shop', 'site.stubs.shop')->name('shop');
+Route::get('/shop', [ShopController::class, 'index'])->name('shop');
+Route::get('/shop/waitlist/confirm/{token}', [ShopWaitlistController::class, 'confirm'])
+    ->where('token', '[A-Za-z0-9]+')
+    ->name('shop.waitlist.confirm');
+Route::get('/shop/waitlist/unsubscribe/{token}', [ShopWaitlistController::class, 'unsubscribe'])
+    ->where('token', '[A-Za-z0-9]+')
+    ->name('shop.waitlist.unsubscribe');
+Route::post('/shop/waitlist', [ShopWaitlistController::class, 'store'])
+    ->middleware('throttle:10,10')
+    ->name('shop.waitlist.store');
+Route::get('/shop/{run}', [ShopController::class, 'show'])->name('shop.run');
 
 // Contact form (GET to render, POST to send). Throttled to blunt spam bots.
 Route::get('/contact', [ContactController::class, 'show'])->name('contact');
@@ -41,6 +53,7 @@ Route::post('/contact', [ContactController::class, 'submit'])
 
 Route::middleware(['web', 'auth'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/membership', \App\Livewire\Portal\Membership::class)->name('membership');
+    Route::get('/shop/{run}', \App\Livewire\Portal\ShopCheckout::class)->name('shop.run');
     Route::redirect('/', '/portal/membership');
 });
 

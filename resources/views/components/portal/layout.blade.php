@@ -13,6 +13,7 @@
         <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
             <a href="{{ url('/portal/membership') }}" class="font-semibold tracking-tight">PPRC Portal</a>
             <nav class="flex items-center gap-4 text-sm text-slate-600">
+                <a href="{{ route('shop') }}" class="hover:text-slate-900">Club shop</a>
                 <a href="{{ url('/portal/membership') }}" class="hover:text-slate-900">Membership</a>
                 @auth
                     <form method="POST" action="{{ url('/logout') }}" class="inline">
