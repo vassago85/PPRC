@@ -78,6 +78,26 @@ class MembershipTypeForm
                         TagsInput::make('allowed_sub_member_type_slugs')
                             ->placeholder('junior, spouse')
                             ->visible(fn (Get $get) => (bool) $get('allows_sub_members'))
+                            ->formatStateUsing(function ($state): array {
+                                if ($state === null || $state === '') {
+                                    return [];
+                                }
+                                if (is_array($state)) {
+                                    return array_values($state);
+                                }
+                                if ($state instanceof \ArrayObject || $state instanceof \Traversable) {
+                                    return array_values(iterator_to_array($state));
+                                }
+                                if (is_string($state)) {
+                                    $decoded = json_decode($state, true);
+                                    if (is_array($decoded)) {
+                                        return array_values($decoded);
+                                    }
+                                    return array_values(array_filter(array_map('trim', explode(',', $state))));
+                                }
+                                return [];
+                            })
+                            ->dehydrateStateUsing(fn ($state) => is_array($state) ? array_values($state) : [])
                             ->suggestions(fn () => MembershipType::query()
                                 ->where('is_sub_membership', true)
                                 ->pluck('slug')

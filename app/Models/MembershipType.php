@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\AgeRequirementType;
-use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -45,7 +44,7 @@ class MembershipType extends Model
         'assign_membership_number_on_approval' => 'boolean',
         'counts_as_member' => 'boolean',
         'allows_sub_members' => 'boolean',
-        'allowed_sub_member_type_slugs' => AsArrayObject::class,
+        'allowed_sub_member_type_slugs' => 'array',
         'is_sub_membership' => 'boolean',
         'free_while_linked_adult_active' => 'boolean',
         'max_per_parent' => 'integer',
