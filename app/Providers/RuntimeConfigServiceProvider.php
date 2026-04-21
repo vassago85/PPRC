@@ -104,6 +104,9 @@ class RuntimeConfigServiceProvider extends ServiceProvider
         }
         if (filled($url)) {
             $disk['url'] = $url;
+            // Presigned S3 uploads (e.g. Livewire temp if disk were s3) use the internal
+            // endpoint in the signature; swap scheme/host for the browser to this HTTPS URL.
+            $disk['temporary_url'] = rtrim($url, '/');
         }
         if ($usePathStyle !== null) {
             $disk['use_path_style_endpoint'] = (bool) $usePathStyle;

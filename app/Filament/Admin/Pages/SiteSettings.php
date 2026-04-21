@@ -271,7 +271,7 @@ class SiteSettings extends Page
                                             ->maxLength(120),
                                         TextInput::make('storage.url')
                                             ->label('Public URL')
-                                            ->helperText('Where uploaded media is served from. E.g. https://pprc.charsleydigital.co.za/media/pprc-media')
+                                            ->helperText('HTTPS base for public media and for presigned S3 browser uploads (must match your Nginx / MinIO proxy). E.g. https://example.com/media/pprc-media')
                                             ->maxLength(255),
                                         TextInput::make('storage.access_key')
                                             ->label('Access key ID')
