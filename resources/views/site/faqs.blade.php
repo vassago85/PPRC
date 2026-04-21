@@ -48,12 +48,13 @@
                         PR22 is a rimfire version of PRS that uses .22LR rifles.
                     </p>
                     <p>
-                        It follows the same principles as centerfire PRS — including stage-based shooting, positional
-                        challenges, and time limits — but at shorter distances and with significantly lower cost.
+                        It follows the same principles as centerfire PRS — stage-based shooting, positional challenges,
+                        and time limits — at shorter distances. The difficulty is the same: a serious PR22 match is as
+                        demanding as standard PRS.
                     </p>
                     <p>
-                        This makes PR22 one of the most accessible ways to get started in precision rifle shooting
-                        while still developing the same core skills.
+                        While a top-level rimfire rig can cost as much as a serious centerfire rifle, ammunition is
+                        significantly cheaper, so you can shoot and practise much more for less.
                     </p>
                 </x-site.faq-item>
 
