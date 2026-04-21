@@ -118,6 +118,20 @@ class Event extends Model
         return $this->price_cents !== null ? $this->price_cents / 100 : null;
     }
 
+    /**
+     * Resolve the fee (in cents) this member would pay for this event.
+     * Returns 0 for ExCo / committee members (free entry per the 2026 AGM),
+     * otherwise the event's price_cents, otherwise null (price not set).
+     */
+    public function effectivePriceCentsFor(?Member $member): ?int
+    {
+        if ($member?->user?->hasFreeEventEntry()) {
+            return 0;
+        }
+
+        return $this->price_cents;
+    }
+
     public function isRegistrationOpen(): bool
     {
         if (! $this->registrations_open) {

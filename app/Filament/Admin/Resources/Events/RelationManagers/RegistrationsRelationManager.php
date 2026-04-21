@@ -35,18 +35,24 @@ class RegistrationsRelationManager extends RelationManager
                 Select::make('member_id')
                     ->label('Member')
                     ->options(fn () => Member::query()
+                        ->with('user.roles')
                         ->orderBy('last_name')
                         ->orderBy('first_name')
                         ->limit(500)
                         ->get()
-                        ->mapWithKeys(fn ($m) => [
-                            $m->id => trim(($m->first_name ?? '').' '.($m->last_name ?? '')).
-                                ($m->membership_number ? " ({$m->membership_number})" : ''),
-                        ])
+                        ->mapWithKeys(function ($m) {
+                            $base = trim(($m->first_name ?? '').' '.($m->last_name ?? ''))
+                                .($m->membership_number ? " ({$m->membership_number})" : '');
+                            $label = $m->user?->hasFreeEventEntry()
+                                ? $base.'  — ExCo · free entry'
+                                : $base;
+
+                            return [$m->id => $label];
+                        })
                         ->all())
                     ->searchable()
                     ->preload()
-                    ->helperText('Leave blank and fill guest details below for non-members.'),
+                    ->helperText('Leave blank and fill guest details below for non-members. ExCo / committee members are auto-waived.'),
 
                 TextInput::make('guest_name')->maxLength(150),
                 TextInput::make('guest_email')->email()->maxLength(150),
@@ -60,6 +66,17 @@ class RegistrationsRelationManager extends RelationManager
 
                 TextInput::make('squad_number')->numeric(),
                 TextInput::make('firing_order')->numeric(),
+
+                TextInput::make('fee_cents')
+                    ->label('Fee (ZAR)')
+                    ->numeric()
+                    ->prefix('R')
+                    ->helperText('Leave blank for the default event price. Set to 0 to waive (ExCo / committee members are auto-waived on creation).')
+                    ->dehydrateStateUsing(fn ($state) => $state === null || $state === ''
+                        ? null
+                        : (int) round(((float) $state) * 100))
+                    ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100),
+
                 Toggle::make('attended')->inline(false),
 
                 Textarea::make('notes')->rows(2)->columnSpanFull(),
@@ -87,6 +104,20 @@ class RegistrationsRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (?EventRegistrationStatus $s) => $s?->label())
                     ->color(fn (?EventRegistrationStatus $s) => $s?->color() ?? 'gray'),
+                TextColumn::make('fee_display')
+                    ->label('Fee')
+                    ->state(function (EventRegistration $r) {
+                        if ($r->isWaived()) {
+                            return 'Waived';
+                        }
+                        $cents = $r->effectiveFeeCents();
+                        if ($cents === null) {
+                            return '—';
+                        }
+                        return 'R '.number_format($cents / 100, 2);
+                    })
+                    ->badge()
+                    ->color(fn (EventRegistration $r) => $r->isWaived() ? 'success' : 'gray'),
                 IconColumn::make('attended')->boolean()->label('Attended'),
                 TextColumn::make('checked_in_at')->dateTime('d M H:i')->label('Checked in')->toggleable(),
             ])

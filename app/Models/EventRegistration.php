@@ -16,6 +16,7 @@ class EventRegistration extends Model
         'guest_phone',
         'squad_number',
         'firing_order',
+        'fee_cents',
         'status',
         'attended',
         'notes',
@@ -31,7 +32,41 @@ class EventRegistration extends Model
         'status' => EventRegistrationStatus::class,
         'squad_number' => 'integer',
         'firing_order' => 'integer',
+        'fee_cents' => 'integer',
     ];
+
+    /**
+     * Auto-waive the entry fee for committee / ExCo members on creation.
+     * Done in a model observer (rather than in one specific form) so every
+     * registration path — Filament, future public portal, CSV import —
+     * applies the same rule without opt-in.
+     *
+     * Precedence:
+     *   1. If fee_cents was set explicitly (incl. 0), respect it.
+     *   2. Guests (no member_id) pay full event price — fee stays null.
+     *   3. Otherwise, if the linked member's user holds a free-entry role,
+     *      set fee_cents = 0. Leave null for regular members so the event's
+     *      current price_cents is used at invoice time.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (EventRegistration $reg) {
+            if ($reg->fee_cents !== null) {
+                return;
+            }
+            if (! $reg->member_id) {
+                return;
+            }
+
+            $member = $reg->relationLoaded('member')
+                ? $reg->member
+                : Member::find($reg->member_id);
+
+            if ($member?->user?->hasFreeEventEntry()) {
+                $reg->fee_cents = 0;
+            }
+        });
+    }
 
     public function event(): BelongsTo
     {
@@ -55,5 +90,31 @@ class EventRegistration extends Model
         }
 
         return trim((string) $this->guest_name) ?: 'Guest';
+    }
+
+    /**
+     * What this entry actually costs: the explicit override if set,
+     * otherwise the event's current price_cents.
+     */
+    public function effectiveFeeCents(): ?int
+    {
+        if ($this->fee_cents !== null) {
+            return $this->fee_cents;
+        }
+
+        return $this->event?->price_cents;
+    }
+
+    /**
+     * True when the entry is waived (fee explicitly set to 0 against a priced
+     * event). Used to render a "Waived" badge in the UI.
+     */
+    public function isWaived(): bool
+    {
+        if ($this->fee_cents !== 0) {
+            return false;
+        }
+
+        return ($this->event?->price_cents ?? 0) > 0;
     }
 }

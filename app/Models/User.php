@@ -49,6 +49,24 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         'admin',
     ];
 
+    /**
+     * Roles that qualify for free entry at PPRC-hosted events. Per the 2026
+     * AGM, ExCo and other committee / operational position holders don't pay
+     * for club events. Developer is excluded because it's a technical account
+     * (Charsley Digital), not a shooting member.
+     */
+    public const FREE_EVENT_ENTRY_ROLES = [
+        'chairperson',
+        'vice_chair',
+        'treasurer',
+        'secretary',
+        'marketing',
+        'club_captain',
+        'membership_secretary',
+        'match_director',
+        'admin',
+    ];
+
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->hasAnyRole(self::COMMITTEE_ROLES) && $this->hasVerifiedEmail();
@@ -72,6 +90,15 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->hasAnyRole(['developer', 'chairperson', 'vice_chair', 'admin']);
+    }
+
+    /**
+     * Whether this user's event entries should be waived (fee = 0) automatically.
+     * See FREE_EVENT_ENTRY_ROLES for the role list and rationale.
+     */
+    public function hasFreeEventEntry(): bool
+    {
+        return $this->hasAnyRole(self::FREE_EVENT_ENTRY_ROLES);
     }
 
     public function member(): HasOne
