@@ -18,8 +18,8 @@ class RolesAndPermissionsSeeder extends Seeder
      *  - chairperson           Elected (Chairman): finances (bank details, annual prices), role assignment, destructive actions.
      *  - vice_chair            Elected: deputises for the Chair. Same access as chairperson except role assignment + integration secrets.
      *  - treasurer             Elected: confirm/reject EFT proofs, reconcile Paystack, refunds.
-     *  - secretary             Elected: CMS, announcements, Exco page, contact info, enquiries.
-     *  - marketing             Elected: announcements, gallery, homepage content, social-facing pages.
+     *  - secretary             Elected: announcements, Exco page, contact info, enquiries.
+     *  - marketing             Elected: announcements, gallery, social-facing pages.
      *  - club_captain          Elected: day-to-day ops and match coordination. Reports to Chair / Vice Chair, first point of contact for member concerns.
      *  - membership_secretary  Operational: approve memberships, assign numbers, SAPRF whitelist, member imports.
      *  - match_director        Operational: create/publish events, manage registrations + attendance, upload results.
@@ -37,6 +37,7 @@ class RolesAndPermissionsSeeder extends Seeder
     private const RETIRED_PERMISSIONS = [
         'content.pages.manage',
         'content.home.manage',
+        'content.faqs.manage',
     ];
 
     public function run(): void
@@ -92,12 +93,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'shop' => [
                 'shop.products.manage', 'shop.orders.view', 'shop.orders.manage',
             ],
-            // public content (announcements + FAQs + committee roster + contact
-            // info). The generic CMS (pages / homepage_sections) was removed —
-            // the public site is hand-crafted Blade backed by real domain data.
+            // public content (announcements + committee roster + contact info).
+            // The generic CMS (pages / homepage_sections) and DB-backed FAQs
+            // were removed — the public site is hand-crafted Blade backed by
+            // real domain data.
             'content' => [
                 'content.announcements.manage',
-                'content.faqs.manage',
                 'content.exco.manage',
                 'content.contact.manage',
             ],
@@ -165,9 +166,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'shop.orders.view',
         ]);
 
-        // Secretary: announcements, FAQs, committee roster, enquiries.
+        // Secretary: announcements, committee roster, enquiries.
         $secretary->syncPermissions([
-            'content.announcements.manage', 'content.faqs.manage',
+            'content.announcements.manage',
             'content.exco.manage', 'content.contact.manage',
             'enquiries.view', 'enquiries.reply', 'enquiries.assign',
             'enquiries.close', 'enquiries.view_internal',
@@ -176,11 +177,10 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Marketing: public-facing comms and imagery. Owns announcements,
-        // FAQs, committee roster, galleries, and can see events/results to
-        // promote them. Deliberately no member PII or finance access.
+        // committee roster, galleries, and can see events/results to promote
+        // them. Deliberately no member PII or finance access.
         $marketing->syncPermissions([
             'content.announcements.manage',
-            'content.faqs.manage',
             'content.exco.manage',
             'galleries.view', 'galleries.manage', 'galleries.publish',
             'events.view', 'results.view',
@@ -226,7 +226,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'results.view', 'results.manage', 'results.publish',
         ]);
 
-        // Admin: day-to-day ops across events/results/galleries/shop/CMS support.
+        // Admin: day-to-day ops across events/results/galleries/shop/content support.
         $admin->syncPermissions([
             'members.view',
             'memberships.manage', 'memberships.renew',
@@ -235,7 +235,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'results.view', 'results.manage', 'results.publish',
             'galleries.view', 'galleries.manage', 'galleries.publish',
             'shop.products.manage', 'shop.orders.view', 'shop.orders.manage',
-            'content.announcements.manage', 'content.faqs.manage',
+            'content.announcements.manage',
             'enquiries.view', 'enquiries.reply',
         ]);
     }

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Announcement;
 use App\Models\ExcoMember;
-use App\Models\Faq;
 use App\Models\SiteSetting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -14,7 +13,6 @@ class SiteContentSeeder extends Seeder
     public function run(): void
     {
         $this->seedAnnouncements();
-        $this->seedFaqs();
         $this->seedExco();
         $this->seedContactSettings();
         $this->seedIntegrationSettings();
@@ -28,27 +26,6 @@ class SiteContentSeeder extends Seeder
     protected function seedAnnouncements(): void
     {
         // Intentionally empty.
-    }
-
-    /**
-     * Keep FAQs minimal and factual. We only seed questions whose answers can
-     * be stated without inventing club policy. The committee can add more via
-     * the admin once they've confirmed the specifics.
-     */
-    protected function seedFaqs(): void
-    {
-        $rows = [
-            [
-                'category' => 'membership',
-                'question' => 'How do I join PPRC?',
-                'answer' => 'Register an account on the website, choose a membership option, and a committee member will review and approve your application.',
-                'sort_order' => 10,
-            ],
-        ];
-
-        foreach ($rows as $r) {
-            Faq::updateOrCreate(['question' => $r['question']], $r);
-        }
     }
 
     /**
