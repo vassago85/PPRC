@@ -7,7 +7,7 @@
     title="PRS Academy"
     description="PPRC PRS Academy — structured 6-week precision rifle training in Pretoria, Gauteng. Practical PRS coaching and weekly range sessions to build a repeatable match process — serious foundations, not a shortcut to the top of the leaderboard."
 >
-<div class="pb-28 lg:pb-0">
+<div class="academy-page pb-28 lg:pb-0">
     {{-- Hero: bold, performance-led, supports future background image via layered surfaces --}}
     <section class="relative isolate overflow-hidden border-b border-white/10 bg-slate-950">
         <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
@@ -19,7 +19,7 @@
             ></div>
         </div>
 
-        <x-site.container class="relative py-20 sm:py-28 lg:py-32">
+        <x-site.container class="academy-hero-reveal relative py-20 sm:py-28 lg:py-32">
             <div class="flex flex-wrap items-center gap-3">
                 <span class="inline-flex items-center gap-2 rounded-full border border-amber-400/25 bg-amber-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-100">
                     <span class="size-1.5 rounded-full bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.6)]" aria-hidden="true"></span>
@@ -42,10 +42,10 @@
             </p>
 
             <div class="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <x-site.button href="{{ $contactApply }}" variant="primary" size="lg" class="shadow-lg shadow-black/40">
+                <x-site.button href="{{ $contactApply }}" variant="primary" size="lg" class="shadow-lg shadow-black/40 motion-safe:transition motion-safe:hover:brightness-110 motion-safe:active:scale-[0.98]">
                     Apply / Enquire Now
                 </x-site.button>
-                <x-site.button href="#program" variant="secondary" size="lg">
+                <x-site.button href="#program" variant="secondary" size="lg" class="motion-safe:transition motion-safe:hover:bg-white/15 motion-safe:active:scale-[0.98]">
                     View Program
                 </x-site.button>
             </div>
@@ -65,8 +65,8 @@
             </p>
         </div>
 
-        <div class="mx-auto mt-14 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <x-site.card tone="raised" padding="lg" class="ring-1 ring-white/5">
+        <div class="mx-auto mt-14 grid max-w-5xl items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <x-site.card tone="raised" padding="lg" class="academy-card-hover ring-1 ring-white/5 motion-safe:hover:border-white/20">
                 <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-brand-400/30 bg-brand-500/10">
                     <svg class="size-5 text-brand-200" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5a2.25 2.25 0 0 0 2.25-2.25m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5a2.25 2.25 0 0 1 2.25 2.25v7.5" />
@@ -77,7 +77,7 @@
                 <p class="mt-2 text-sm text-slate-400">Structured progression from fundamentals to match execution — honest standards, realistic expectations.</p>
             </x-site.card>
 
-            <x-site.card tone="raised" padding="lg" class="ring-1 ring-white/5">
+            <x-site.card tone="raised" padding="lg" class="academy-card-hover ring-1 ring-white/5 motion-safe:hover:border-white/20">
                 <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/[0.06]">
                     <svg class="size-5 text-slate-200" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -89,7 +89,7 @@
                 <p class="mt-2 text-sm text-slate-400">Instructor-led online sessions each week, plus a same-week practical range day to apply what you learned.</p>
             </x-site.card>
 
-            <x-site.card tone="raised" padding="lg" class="ring-1 ring-amber-400/15 sm:col-span-2 lg:col-span-1">
+            <x-site.card tone="raised" padding="lg" class="academy-card-hover ring-1 ring-amber-400/15 motion-safe:hover:border-amber-400/35 sm:col-span-2 lg:col-span-1">
                 <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-500/10">
                     <svg class="size-5 text-amber-200" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
@@ -100,7 +100,7 @@
                 <p class="mt-2 text-sm text-slate-400">Small cohort — coaching stays sharp and personal.</p>
             </x-site.card>
 
-            <x-site.card tone="raised" padding="lg" class="border-brand-400/25 bg-gradient-to-br from-brand-950/40 to-slate-950 ring-1 ring-brand-400/20 sm:col-span-2 lg:col-span-2">
+            <x-site.card tone="raised" padding="lg" class="academy-card-hover border-brand-400/25 bg-gradient-to-br from-brand-950/40 to-slate-950 ring-1 ring-brand-400/20 motion-safe:hover:border-brand-400/45 sm:col-span-2 lg:col-span-2">
                 <div class="grid gap-8 sm:grid-cols-2 sm:items-end">
                     <div>
                         <div class="flex h-10 w-10 items-center justify-center rounded-lg border border-brand-400/40 bg-brand-500/15">
@@ -138,7 +138,7 @@
                     'Shooters who’ve shot a match and realised they’re not as good as they thought — and want to fix that systematically.',
                     'Anyone who wants a clear process for match day — not a promise of podium finishes, but the discipline to build scores over time.',
                 ] as $line)
-                    <li class="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-5 ring-1 ring-white/5 sm:p-6">
+                    <li class="academy-card-hover flex gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-5 ring-1 ring-white/5 motion-safe:hover:border-white/20 sm:p-6">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-brand-400/35 bg-brand-500/10">
                             <svg class="size-5 text-brand-200" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -156,7 +156,7 @@
         <div class="mx-auto max-w-3xl text-center">
             <x-site.eyebrow>Readiness</x-site.eyebrow>
             <h2 class="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">What you require</h2>
-            <p class="mt-4 text-slate-400">Gear and ammunition baseline so every session stays technical — not a equipment rescue clinic.</p>
+            <p class="mt-4 text-slate-400">Gear and ammunition baseline so every session stays technical — not an equipment rescue clinic.</p>
         </div>
 
         <div class="mx-auto mt-12 grid max-w-5xl gap-4 sm:grid-cols-2">
@@ -170,7 +170,7 @@
                 @php
                     [$title, $body, $kind] = $item;
                 @endphp
-                <div class="flex gap-4 rounded-2xl border border-white/10 bg-slate-950/50 p-6 ring-1 ring-white/5">
+                <div class="academy-card-hover flex gap-4 rounded-2xl border border-white/10 bg-slate-950/50 p-6 ring-1 ring-white/5 motion-safe:hover:border-white/20">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-brand-200">
                         @if ($kind === 'scope')
                             <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
@@ -202,7 +202,7 @@
             <h2 class="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">What you get</h2>
         </div>
 
-        <div class="mx-auto mt-12 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="mx-auto mt-12 grid max-w-5xl items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
             @foreach ([
                 ['Weekly live online coaching', 'Theory, diagnostics, and Q&A with clear action items for the range.'],
                 ['Weekly practical range sessions', 'Apply the same week — no “classroom only” drift.'],
@@ -210,7 +210,7 @@
                 ['Academy training manual', 'Reference material you can keep when the pressure is on.'],
                 ['Real PRS insights', 'What actually matters on the clock — not generic rifle advice.'],
             ] as [$t, $d])
-                <x-site.card tone="raised" padding="lg" class="ring-1 ring-white/5">
+                <x-site.card tone="raised" padding="lg" class="academy-card-hover ring-1 ring-white/5 motion-safe:hover:border-white/20">
                     <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-500/15 text-brand-200">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -220,8 +220,10 @@
                     <p class="mt-2 text-sm leading-relaxed text-slate-400">{{ $d }}</p>
                 </x-site.card>
             @endforeach
+        </div>
 
-            <div class="rounded-2xl border-2 border-brand-400/40 bg-gradient-to-br from-brand-950/50 to-slate-900 p-8 ring-1 ring-brand-400/25 sm:col-span-2 lg:col-span-1">
+        <div class="mx-auto mt-4 max-w-5xl">
+            <div class="academy-card-hover rounded-2xl border-2 border-brand-400/40 bg-gradient-to-br from-brand-950/50 to-slate-900 p-8 ring-1 ring-brand-400/25 motion-safe:hover:border-brand-400/60">
                 <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-200">Outcome</p>
                 <p class="mt-3 text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">Match-ready by Week 6</p>
                 <p class="mt-4 text-sm leading-relaxed text-slate-300">
@@ -258,7 +260,7 @@
                         <div class="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-brand-400/50 bg-slate-950 text-xs font-bold text-brand-100 shadow-[0_0_20px_-4px_rgba(46,151,212,0.5)] sm:h-10 sm:w-10 sm:text-sm">
                             {{ $loop->iteration }}
                         </div>
-                        <div class="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/60 p-5 ring-1 ring-white/5 sm:p-6">
+                        <div class="academy-card-hover min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/60 p-5 ring-1 ring-white/5 motion-safe:hover:border-white/20 sm:p-6">
                             <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-200/90">{{ $wk }}</p>
                             <h3 class="mt-1 text-lg font-semibold text-white sm:text-xl">{{ $title }}</h3>
                             <p class="mt-2 text-sm leading-relaxed text-slate-400 sm:text-base">{{ $desc }}</p>
@@ -271,7 +273,7 @@
 
     {{-- Coaching team placeholder --}}
     <x-site.section padding="default" id="coaches">
-        <div class="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center ring-1 ring-white/5 sm:p-10">
+        <div class="academy-card-hover mx-auto max-w-3xl rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center ring-1 ring-white/5 motion-safe:hover:border-white/20 sm:p-10">
             <x-site.eyebrow>Instruction</x-site.eyebrow>
             <h2 class="mt-3 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Coaching team</h2>
             <p class="mt-4 text-sm leading-relaxed text-slate-400 sm:text-base">
@@ -324,7 +326,7 @@
 
     {{-- Final CTA --}}
     <x-site.section padding="lg" id="enquire">
-        <div class="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-brand-950/40 p-8 ring-1 ring-white/10 sm:p-12 lg:p-14">
+        <div class="academy-card-hover relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-slate-950 to-brand-950/40 p-8 ring-1 ring-white/10 motion-safe:hover:border-white/20 sm:p-12 lg:p-14">
             <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-brand-500/20 blur-3xl" aria-hidden="true"></div>
             <div class="relative mx-auto max-w-3xl text-center">
                 <h2 class="text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
@@ -335,10 +337,10 @@
                     We are not selling a podium shortcut; we are selling intent, process, and range time that still has to earn its place on the scoresheet.
                 </p>
                 <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                    <x-site.button href="{{ $contactApply }}" variant="primary" size="lg" class="min-w-[220px] shadow-lg shadow-black/30">
+                    <x-site.button href="{{ $contactApply }}" variant="primary" size="lg" class="min-w-[220px] shadow-lg shadow-black/30 motion-safe:transition motion-safe:hover:brightness-110 motion-safe:active:scale-[0.98]">
                         Apply / Enquire Now
                     </x-site.button>
-                    <x-site.button href="{{ $contactGeneral }}" variant="secondary" size="lg" class="min-w-[220px]">
+                    <x-site.button href="{{ $contactGeneral }}" variant="secondary" size="lg" class="min-w-[220px] motion-safe:transition motion-safe:hover:bg-white/15 motion-safe:active:scale-[0.98]">
                         Contact Us
                     </x-site.button>
                 </div>
@@ -364,10 +366,10 @@
         aria-label="Academy actions"
     >
         <div class="mx-auto flex max-w-lg gap-2">
-            <x-site.button href="{{ $contactApply }}" variant="primary" size="sm" class="min-w-0 flex-1 justify-center">
+            <x-site.button href="{{ $contactApply }}" variant="primary" size="sm" class="min-w-0 flex-1 justify-center motion-safe:transition motion-safe:active:scale-[0.98]">
                 Apply / Enquire
             </x-site.button>
-            <x-site.button href="#program" variant="secondary" size="sm" class="min-w-0 flex-1 justify-center">
+            <x-site.button href="#program" variant="secondary" size="sm" class="min-w-0 flex-1 justify-center motion-safe:transition motion-safe:active:scale-[0.98]">
                 Program
             </x-site.button>
         </div>

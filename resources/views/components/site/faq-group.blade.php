@@ -4,11 +4,13 @@
     'description' => null,
 ])
 {{--
-    FAQ group: a titled section with a stack of collapsible <x-site.faq-item>s.
+    FAQ group: a titled region with a stack of collapsible <x-site.faq-item>s.
     The Alpine `open` state lives on this wrapper so only one item per group
     can be expanded at a time. Items toggle via `open === '<slug-id>'`.
 --}}
-<section
+<div
+    role="region"
+    aria-label="{{ $title }}"
     x-data="{ open: null }"
     {{ $attributes->class(['space-y-6']) }}
 >
@@ -24,7 +26,7 @@
         @endif
     </header>
 
-    <div class="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5">
+    <div class="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] divide-y divide-white/5 motion-safe:transition motion-safe:duration-300 motion-safe:hover:border-white/20 motion-safe:hover:shadow-[0_24px_60px_-28px_rgba(0,0,0,0.45)] motion-reduce:hover:shadow-none">
         {{ $slot }}
     </div>
-</section>
+</div>

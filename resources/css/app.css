@@ -49,6 +49,124 @@
     [wire\:loading].is-busy {
         @apply cursor-wait opacity-70;
     }
+
+    /**
+     * PPRC PRS Academy — subtle motion (hover + light entrance). Scoped so the
+     * rest of the site stays unchanged. Respects prefers-reduced-motion.
+     */
+    @keyframes academy-hero-in {
+        from {
+            opacity: 0;
+            transform: translateY(14px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes academy-section-in {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .academy-hero-reveal > * {
+            opacity: 0;
+            animation: academy-hero-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .academy-hero-reveal > *:nth-child(1) {
+            animation-delay: 0ms;
+        }
+        .academy-hero-reveal > *:nth-child(2) {
+            animation-delay: 55ms;
+        }
+        .academy-hero-reveal > *:nth-child(3) {
+            animation-delay: 110ms;
+        }
+        .academy-hero-reveal > *:nth-child(4) {
+            animation-delay: 165ms;
+        }
+        .academy-hero-reveal > *:nth-child(5) {
+            animation-delay: 220ms;
+        }
+        .academy-hero-reveal > *:nth-child(6) {
+            animation-delay: 275ms;
+        }
+        .academy-hero-reveal > *:nth-child(7) {
+            animation-delay: 330ms;
+        }
+
+        .academy-page > section:nth-of-type(n + 2) {
+            opacity: 0;
+            animation: academy-section-in 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .academy-page > section:nth-of-type(2) {
+            animation-delay: 0.08s;
+        }
+        .academy-page > section:nth-of-type(3) {
+            animation-delay: 0.12s;
+        }
+        .academy-page > section:nth-of-type(4) {
+            animation-delay: 0.16s;
+        }
+        .academy-page > section:nth-of-type(5) {
+            animation-delay: 0.2s;
+        }
+        .academy-page > section:nth-of-type(6) {
+            animation-delay: 0.24s;
+        }
+        .academy-page > section:nth-of-type(7) {
+            animation-delay: 0.28s;
+        }
+        .academy-page > section:nth-of-type(8) {
+            animation-delay: 0.32s;
+        }
+        .academy-page > section:nth-of-type(9) {
+            animation-delay: 0.36s;
+        }
+        .academy-page > section:nth-of-type(10) {
+            animation-delay: 0.4s;
+        }
+
+        .academy-card-hover {
+            transition:
+                transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 280ms cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 280ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .academy-card-hover:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 26px 55px -22px rgb(0 0 0 / 0.55);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .academy-hero-reveal > *,
+        .academy-page > section:nth-of-type(n + 2) {
+            opacity: 1;
+            animation: none;
+            transform: none;
+        }
+
+        .academy-card-hover {
+            transition: border-color 180ms ease, background-color 180ms ease;
+        }
+
+        .academy-card-hover:hover {
+            transform: none;
+        }
+    }
 }
 
 @layer utilities {
