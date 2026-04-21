@@ -88,7 +88,8 @@
                         <li>A rifle suitable for precision shooting</li>
                         <li>Quality ammunition</li>
                         <li>A scope with adjustable turrets</li>
-                        <li>A bipod or shooting support</li>
+                        <li>A <strong>barricade bag</strong> (purpose-built shooting support for props &mdash; not a hunting day-pack or everyday backpack standing in for a bag)</li>
+                        <li>A <strong>bipod</strong> and/or rear bag for prone and supported shots (a bipod is often needed on at least some stages)</li>
                         <li>Eye and ear protection</li>
                     </ul>
                     <p>
@@ -115,13 +116,29 @@
                         <li>Rifle and ammunition</li>
                         <li>Scope</li>
                         <li>Magazine(s)</li>
-                        <li>Bipod or shooting bag</li>
+                        <li>
+                            <strong>Barricade bag</strong> &mdash; treat this as <strong>essential</strong> for PRS-style
+                            stages. You will build positions on barricades, tyres, tank traps, and awkward props; a
+                            purpose-built barricade / rear support bag is what you need. A <strong>hunting pack,
+                            cross-body bag, or soft “range tote” is not a substitute</strong> &mdash; it will not wedge,
+                            squeeze, and stabilise the rifle the way match shooters actually shoot.
+                        </li>
+                        <li>
+                            <strong>Bipod</strong> &mdash; bring one if you have it. It is <strong>sometimes</strong>
+                            the right tool for prone or low props; on other stages you will live out of your bag. Most
+                            people run <strong>both</strong> a bipod and a barricade bag.
+                        </li>
                         <li>Eye protection</li>
                         <li>Ear protection</li>
                         <li>Water</li>
                         <li>Weather-appropriate clothing</li>
                         <li>Sun protection such as a cap, sunscreen, and sleeves if needed</li>
                     </ul>
+                    <p>
+                        On the line, the <strong>barricade bag gets used constantly</strong>; the bipod comes out when
+                        the stage or position calls for it. Showing up with only a hunting-style bag is a common first-match
+                        mistake &mdash; bring kit built for positional shooting, not field stalking.
+                    </p>
                     <p>
                         Sun protection matters. Even in winter, a full day on the range can be harsh, so bring a cap,
                         sunscreen, and clothing that gives you proper coverage.

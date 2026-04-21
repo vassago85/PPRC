@@ -163,7 +163,7 @@
             @foreach ([
                 ['Rifle suitable for PRS', '.308 / 6mm / 6.5 Creedmoor — chassis preferred.', 'scope'],
                 ['Scope with exposed turrets', 'FFP preferred for consistent holds and corrections.', 'adjust'],
-                ['Bipod + rear bag', 'Stable front and rear support for positional work.', 'support'],
+                ['Bipod + barricade bag', 'Bipod for prone / low props; a proper barricade bag for props (not a hunting pack as your only support).', 'support'],
                 ['Ballistic calculator', 'App or Kestrel — you’ll use it every week.', 'calc'],
                 ['Ammunition', '±50 rounds per week for meaningful repetition.', 'ammo'],
             ] as $item)
