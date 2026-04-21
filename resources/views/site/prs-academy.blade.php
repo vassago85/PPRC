@@ -5,7 +5,7 @@
 
 <x-site.layout
     title="PRS Academy"
-    description="PPRC PRS Academy — structured 6-week precision rifle training in Pretoria, Gauteng. Practical PRS coaching, weekly range sessions, and beginner-to-match-ready progression for serious South African shooters."
+    description="PPRC PRS Academy — structured 6-week precision rifle training in Pretoria, Gauteng. Practical PRS coaching and weekly range sessions to build a repeatable match process — serious foundations, not a shortcut to the top of the leaderboard."
 >
 <div class="pb-28 lg:pb-0">
     {{-- Hero: bold, performance-led, supports future background image via layered surfaces --}}
@@ -74,7 +74,7 @@
                 </div>
                 <p class="mt-5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Duration</p>
                 <p class="mt-1 text-2xl font-semibold tracking-tight text-white">6 weeks</p>
-                <p class="mt-2 text-sm text-slate-400">Structured progression from fundamentals to match execution.</p>
+                <p class="mt-2 text-sm text-slate-400">Structured progression from fundamentals to match execution — honest standards, realistic expectations.</p>
             </x-site.card>
 
             <x-site.card tone="raised" padding="lg" class="ring-1 ring-white/5">
@@ -136,7 +136,7 @@
                 @foreach ([
                     'New shooters who want to get into PRS the right way — with structure, not random range tips.',
                     'Shooters who’ve shot a match and realised they’re not as good as they thought — and want to fix that systematically.',
-                    'Anyone serious about becoming match-ready fast, with coaching that respects both the clock and the conditions.',
+                    'Anyone who wants a clear process for match day — not a promise of podium finishes, but the discipline to build scores over time.',
                 ] as $line)
                     <li class="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-5 ring-1 ring-white/5 sm:p-6">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-brand-400/35 bg-brand-500/10">
@@ -225,7 +225,8 @@
                 <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-200">Outcome</p>
                 <p class="mt-3 text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl">Match-ready by Week 6</p>
                 <p class="mt-4 text-sm leading-relaxed text-slate-300">
-                    Full stages, time pressure, and evaluation — built to prepare you for real PRS competition in South Africa.
+                    Full stages, time pressure, and evaluation — so you can enter a real PRS match with a repeatable system instead of guessing.
+                    Six weeks will not put you in the hunt for the top ten; climbing the leaderboard still takes reps, matches, and refinement long after the academy ends.
                 </p>
             </div>
         </div>
@@ -302,7 +303,14 @@
             <x-site.faq-item question="What happens after Week 6?">
                 <p>
                     You should be able to enter a club or provincial PRS match with a clear plan for zero, DOPE, positions,
-                    wind, and stage execution. PPRC match calendars are published on this site when registrations open.
+                    wind, and stage execution — not as a favourite for the win, but as a shooter who knows what to do on each stage.
+                    PPRC match calendars are published on this site when registrations open.
+                </p>
+            </x-site.faq-item>
+            <x-site.faq-item question="Will six weeks make me a top-ten shooter?">
+                <p>
+                    No. The academy is six weeks of focused foundations and match-style pressure — enough to remove a lot of blind spots and bad habits,
+                    not enough to shortcut years of match mileage and fine-tuning. The goal is an honest baseline and a process you can keep building on.
                 </p>
             </x-site.faq-item>
             <x-site.faq-item question="Is equipment included?">
@@ -323,8 +331,8 @@
                     Stop guessing. Start shooting with intent.
                 </h2>
                 <p class="mt-6 text-base leading-relaxed text-slate-300 sm:text-lg">
-                    Limited intake. Structured coaching. Serious progression — built to move you from fundamentals to
-                    match execution under real PRS pressure.
+                    Limited intake. Structured coaching. Serious progression — from fundamentals to match execution under real PRS pressure.
+                    We are not selling a podium shortcut; we are selling intent, process, and range time that still has to earn its place on the scoresheet.
                 </p>
                 <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
                     <x-site.button href="{{ $contactApply }}" variant="primary" size="lg" class="min-w-[220px] shadow-lg shadow-black/30">
