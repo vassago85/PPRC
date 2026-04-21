@@ -34,24 +34,36 @@
                 {{-- COPY + CTAs. On mobile this comes second (logo treatment
                      first); on desktop it sits on the left (7-col). --}}
                 <div class="order-2 lg:order-1 lg:col-span-7">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-slate-200 backdrop-blur">
-                        <span class="relative flex h-1.5 w-1.5">
-                            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-60"></span>
-                            <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-400"></span>
-                        </span>
-                        <span class="text-[11px] font-semibold uppercase tracking-[0.2em]">Est. 2023 &middot; Pretoria</span>
+                    {{-- Pill: centered on mobile/tablet, left-aligned on desktop
+                         to sit nicely next to the right-column logo treatment. --}}
+                    <div class="flex justify-center lg:justify-start">
+                        <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-slate-200 backdrop-blur">
+                            <span class="relative flex h-1.5 w-1.5">
+                                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-60"></span>
+                                <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-400"></span>
+                            </span>
+                            <span class="text-[11px] font-semibold uppercase tracking-[0.2em]">Est. 2023 &middot; Pretoria</span>
+                        </div>
                     </div>
 
                     <h1 class="mt-5 text-[2.15rem] font-semibold leading-[1.1] tracking-tight text-white sm:mt-6 sm:text-5xl sm:leading-[1.05] xl:text-6xl">
-                        Precision rifle,<br class="hidden sm:block">
-                        built for <span class="text-brand-400">shooters.</span>
+                        A home for PRS shooters.
+                        <span class="mt-2 block text-brand-400">Grow. Belong. Compete.</span>
                     </h1>
+
+                    {{-- Small highlight sub-line: disciplines we host. Sits between
+                         the headline and body copy as a quick factual signal. --}}
+                    <p class="mt-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-brand-300 sm:text-[13px]">
+                        <span class="h-px w-8 bg-brand-400/60" aria-hidden="true"></span>
+                        <span>PRS (Centerfire) &amp; PR22 matches</span>
+                    </p>
 
                     <div class="mt-6 max-w-xl space-y-4 text-base leading-relaxed text-slate-300 sm:mt-7 sm:text-lg">
                         <p>
                             PPRC is a precision rifle club in Pretoria, Gauteng, established in 2023 by
                             <span class="text-white">Dirk Pio</span>,
                             <span class="text-white">Warren Britnell</span>,
+                            <span class="text-white">Natasha Britnell</span>,
                             <span class="text-white">JC Robertson</span>, and
                             <span class="text-white">Leon Goosen</span> &mdash; built by shooters with
                             the goal of growing the sport and helping develop people who want to shoot PRS.
