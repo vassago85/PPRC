@@ -259,7 +259,7 @@ class SiteSettings extends Page
                                         TextInput::make('storage.endpoint')
                                             ->label('Endpoint URL')
                                             ->placeholder('http://pprc-minio:9000')
-                                            ->helperText('Internal Docker hostname when running on the same host; or a public S3 URL.')
+                                            ->helperText('S3 API URL the **server** uses (e.g. internal http://pprc-minio:9000 in Docker). Admin uploads use HTTPS to the app first, then PHP writes here — do not rely on the browser reaching this host.')
                                             ->maxLength(255),
                                         TextInput::make('storage.region')
                                             ->label('Region')
