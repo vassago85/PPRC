@@ -32,6 +32,8 @@ Route::get('/news/{slug}', [AnnouncementController::class, 'show'])->name('annou
 
 Route::get('/faqs', FaqController::class)->name('faqs');
 
+Route::view('/prs-academy', 'site.prs-academy')->name('prs.academy');
+
 Route::get('/matches', [MatchController::class, 'index'])->name('matches');
 Route::get('/matches/{event:slug}', [MatchController::class, 'show'])->name('matches.show');
 Route::get('/membership/certificate/{token}', [CertificateController::class, 'show'])

@@ -112,6 +112,7 @@
                                     name="subject"
                                     label="Subject (optional)"
                                     placeholder="Membership, matches, something else…"
+                                    :value="request('subject', '')"
                                 />
                             </div>
 
