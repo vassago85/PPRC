@@ -184,6 +184,7 @@ class ImportSsmmMembers extends Command
                         // Random unguessable password. Members set their own when they
                         // click the welcome-invite setup link.
                         'password' => Hash::make(Str::random(48)),
+                        'created_via_import' => true,
                     ],
                 );
                 $wasNewUser = $user->wasRecentlyCreated;

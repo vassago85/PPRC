@@ -54,6 +54,8 @@ class UpdateUserProfileInformation implements UpdatesUserProfileInformation
             'name' => $input['name'],
             'email' => $input['email'],
             'email_verified_at' => null,
+            // Changing email invalidates the "import trust" shortcut; new address needs a PIN.
+            'created_via_import' => false,
         ])->save();
 
         $user->sendEmailVerificationNotification();

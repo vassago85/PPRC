@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\EmailVerificationPinController;
 use App\Http\Controllers\Site\AboutController;
 use App\Http\Controllers\Site\AnnouncementController;
 use App\Http\Controllers\Site\ContactController;
@@ -11,6 +12,8 @@ use App\Http\Controllers\Site\ResultController;
 use App\Http\Controllers\Site\ShopController;
 use App\Http\Controllers\Site\ShopWaitlistController;
 use App\Http\Controllers\Webhooks\PaystackWebhookController;
+use App\Livewire\Portal\Membership;
+use App\Livewire\Portal\ShopCheckout;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -51,9 +54,20 @@ Route::post('/contact', [ContactController::class, 'submit'])
     ->middleware('throttle:5,10')
     ->name('contact.submit');
 
-Route::middleware(['web', 'auth'])->prefix('portal')->name('portal.')->group(function () {
-    Route::get('/membership', \App\Livewire\Portal\Membership::class)->name('membership');
-    Route::get('/shop/{run}', \App\Livewire\Portal\ShopCheckout::class)->name('shop.run');
+Route::middleware(['web', 'auth'])->group(function () {
+    Route::get('/email/verify', [EmailVerificationPinController::class, 'show'])
+        ->name('verification.notice');
+    Route::post('/email/verify-pin', [EmailVerificationPinController::class, 'verify'])
+        ->middleware('throttle:12,1')
+        ->name('verification.pin.verify');
+    Route::post('/email/verification-notification', [EmailVerificationPinController::class, 'resend'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+});
+
+Route::middleware(['web', 'auth', 'verified'])->prefix('portal')->name('portal.')->group(function () {
+    Route::get('/membership', Membership::class)->name('membership');
+    Route::get('/shop/{run}', ShopCheckout::class)->name('shop.run');
     Route::redirect('/', '/portal/membership');
 });
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Auth\EmailVerificationPinService;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -15,8 +16,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
+#[Fillable(['name', 'email', 'password', 'created_via_import', 'email_verification_pin_hash', 'email_verification_pin_expires_at'])]
+#[Hidden(['password', 'remember_token', 'email_verification_pin_hash'])]
 class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -26,8 +27,35 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_pin_expires_at' => 'datetime',
+            'created_via_import' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * PIN-based verification (replaces the default signed URL notification).
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        if ($this->hasVerifiedEmail()) {
+            return;
+        }
+
+        if ($this->created_via_import) {
+            return;
+        }
+
+        app(EmailVerificationPinService::class)->issueAndSend($this);
+    }
+
+    public function markEmailAsVerified(): bool
+    {
+        return $this->forceFill([
+            'email_verified_at' => $this->freshTimestamp(),
+            'email_verification_pin_hash' => null,
+            'email_verification_pin_expires_at' => null,
+        ])->save();
     }
 
     /**

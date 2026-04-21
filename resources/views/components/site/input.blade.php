@@ -7,6 +7,9 @@
     'autocomplete' => null,
     'autofocus' => false,
     'placeholder' => null,
+    'maxlength' => null,
+    'pattern' => null,
+    'inputmode' => null,
 ])
 <div>
     @if ($label)
@@ -23,6 +26,9 @@
         @if ($autofocus) autofocus @endif
         @if ($autocomplete) autocomplete="{{ $autocomplete }}" @endif
         @if ($placeholder) placeholder="{{ $placeholder }}" @endif
+        @if ($maxlength !== null) maxlength="{{ $maxlength }}" @endif
+        @if ($pattern) pattern="{{ $pattern }}" @endif
+        @if ($inputmode) inputmode="{{ $inputmode }}" @endif
         {{ $attributes->class([
             'mt-2 block w-full rounded-md bg-white/5 border border-white/10 px-3.5 py-2.5 text-white placeholder:text-slate-500',
             'focus:outline-none focus:border-white/30 focus:bg-white/[0.07]',

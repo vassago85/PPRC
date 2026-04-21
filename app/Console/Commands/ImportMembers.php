@@ -103,7 +103,7 @@ class ImportMembers extends Command
 
                 $user = User::firstOrCreate(
                     ['email' => $email],
-                    ['name' => $name, 'password' => Hash::make($defaultPassword)],
+                    ['name' => $name, 'password' => Hash::make($defaultPassword), 'created_via_import' => true],
                 );
                 $wasNewUser = $user->wasRecentlyCreated;
 
