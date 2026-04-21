@@ -3,6 +3,7 @@
         ['label' => 'Home',       'href' => url('/')],
         ['label' => 'About',      'href' => url('/about')],
         ['label' => 'Membership', 'href' => url('/membership')],
+        ['label' => 'FAQs',       'href' => url('/faqs')],
         ['label' => 'Matches',    'href' => url('/matches')],
         ['label' => 'Results',    'href' => url('/results')],
         ['label' => 'Shop',       'href' => url('/shop')],
