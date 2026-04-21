@@ -10,6 +10,7 @@ use App\Models\Member;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 class EventRegister extends Component
@@ -23,6 +24,10 @@ class EventRegister extends Component
     public string $guestPhone = '';
 
     public string $pin = '';
+
+    public string $division = '';
+
+    public string $category = '';
 
     /** guest | pin | done */
     public string $guestStep = 'guest';
@@ -67,11 +72,11 @@ class EventRegister extends Component
 
     public function sendGuestPin(): void
     {
-        $this->validate([
+        $this->validate(array_merge([
             'guestName' => ['required', 'string', 'max:150'],
             'guestEmail' => ['required', 'email', 'max:150'],
             'guestPhone' => ['nullable', 'string', 'max:32'],
-        ]);
+        ], $this->registrationFieldRules()));
 
         $email = strtolower(trim($this->guestEmail));
 
@@ -127,11 +132,11 @@ class EventRegister extends Component
 
     public function registerGuest(): void
     {
-        $this->validate([
+        $this->validate(array_merge([
             'guestName' => ['required', 'string', 'max:150'],
             'guestEmail' => ['required', 'email', 'max:150'],
             'guestPhone' => ['nullable', 'string', 'max:32'],
-        ]);
+        ], $this->registrationFieldRules()));
 
         if (! $this->event->isRegistrationOpen()) {
             $this->addError('guestEmail', 'Registrations are not open for this match.');
@@ -155,6 +160,8 @@ class EventRegister extends Component
                 'guest_name' => $this->guestName,
                 'guest_email' => $email,
                 'guest_phone' => $this->guestPhone ?: null,
+                'division' => $this->normalizedDivision(),
+                'category' => $this->normalizedCategory(),
                 'status' => EventRegistrationStatus::Registered,
                 'registered_at' => now(),
             ]);
@@ -193,12 +200,16 @@ class EventRegister extends Component
             return;
         }
 
+        $this->validate($this->registrationFieldRules());
+
         EventRegistration::create([
             'event_id' => $this->event->id,
             'member_id' => $member->id,
             'guest_name' => null,
             'guest_email' => null,
             'guest_phone' => null,
+            'division' => $this->normalizedDivision(),
+            'category' => $this->normalizedCategory(),
             'status' => EventRegistrationStatus::Registered,
             'registered_at' => now(),
         ]);
@@ -214,6 +225,52 @@ class EventRegister extends Component
     private function verifiedCacheKey(string $emailLower): string
     {
         return 'evt-reg-verified:'.$this->event->id.':'.$emailLower;
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    private function registrationFieldRules(): array
+    {
+        $rules = [];
+        $divisions = $this->event->registrationDivisionChoices();
+        $categories = $this->event->registrationCategoryChoices();
+
+        if ($this->event->collectsDivisionAtRegistration()) {
+            $rules['division'] = $divisions === []
+                ? ['required', 'string', 'max:80']
+                : ['required', 'string', 'max:80', Rule::in($divisions)];
+        } else {
+            $rules['division'] = ['nullable', 'string', 'max:80'];
+        }
+
+        if ($this->event->collectsCategoryAtRegistration()) {
+            $rules['category'] = $categories === []
+                ? ['required', 'string', 'max:80']
+                : ['required', 'string', 'max:80', Rule::in($categories)];
+        } else {
+            $rules['category'] = ['nullable', 'string', 'max:80'];
+        }
+
+        return $rules;
+    }
+
+    private function normalizedDivision(): ?string
+    {
+        if (! $this->event->collectsDivisionAtRegistration()) {
+            return null;
+        }
+
+        return $this->division === '' ? null : $this->division;
+    }
+
+    private function normalizedCategory(): ?string
+    {
+        if (! $this->event->collectsCategoryAtRegistration()) {
+            return null;
+        }
+
+        return $this->category === '' ? null : $this->category;
     }
 
     public function render()

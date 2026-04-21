@@ -58,6 +58,21 @@ class RegistrationsRelationManager extends RelationManager
                 TextInput::make('guest_email')->email()->maxLength(150),
                 TextInput::make('guest_phone')->tel()->maxLength(32),
 
+                Select::make('division')
+                    ->label('Division')
+                    ->options(fn () => collect($this->getOwnerRecord()->registrationDivisionChoices())
+                        ->mapWithKeys(fn (string $v) => [$v => $v])
+                        ->all())
+                    ->searchable()
+                    ->nullable(),
+                Select::make('category')
+                    ->label('Category')
+                    ->options(fn () => collect($this->getOwnerRecord()->registrationCategoryChoices())
+                        ->mapWithKeys(fn (string $v) => [$v => $v])
+                        ->all())
+                    ->searchable()
+                    ->nullable(),
+
                 Select::make('status')
                     ->options(collect(EventRegistrationStatus::cases())
                         ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all())
@@ -122,6 +137,7 @@ class RegistrationsRelationManager extends RelationManager
                         if ($cents === null) {
                             return '—';
                         }
+
                         return 'R '.number_format($cents / 100, 2);
                     })
                     ->badge()
@@ -130,6 +146,8 @@ class RegistrationsRelationManager extends RelationManager
                         $r->isWaived() => 'success',
                         default => 'gray',
                     }),
+                TextColumn::make('division')->label('Div.')->toggleable(),
+                TextColumn::make('category')->label('Cat.')->toggleable(),
                 IconColumn::make('is_saprf_entry')->boolean()->label('SAPRF')->toggleable(),
                 IconColumn::make('attended')->boolean()->label('Attended'),
                 TextColumn::make('checked_in_at')->dateTime('d M H:i')->label('Checked in')->toggleable(),

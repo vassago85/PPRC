@@ -14,6 +14,8 @@ class EventRegistration extends Model
         'guest_name',
         'guest_email',
         'guest_phone',
+        'division',
+        'category',
         'squad_number',
         'firing_order',
         'fee_cents',

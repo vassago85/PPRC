@@ -35,6 +35,10 @@ class Event extends Model
         'max_entries',
         'round_count',
         'club_round_count',
+        'registration_division_options',
+        'registration_category_options',
+        'registration_require_division',
+        'registration_require_category',
         'registrations_open',
         'registrations_close_at',
         'status',
@@ -59,6 +63,10 @@ class Event extends Model
         'max_entries' => 'integer',
         'round_count' => 'integer',
         'club_round_count' => 'integer',
+        'registration_division_options' => 'array',
+        'registration_category_options' => 'array',
+        'registration_require_division' => 'boolean',
+        'registration_require_category' => 'boolean',
         'location_lat' => 'float',
         'location_lng' => 'float',
     ];
@@ -238,6 +246,47 @@ class Event extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Division labels offered on the public registration form (SAPRF-style
+     * defaults unless the match director sets a custom list, e.g. "Club Open").
+     *
+     * @return list<string>
+     */
+    public function registrationDivisionChoices(): array
+    {
+        $opts = $this->registration_division_options;
+        if (is_array($opts) && $opts !== []) {
+            return array_values(array_filter(array_map(fn ($v) => (string) $v, $opts), fn (string $v) => $v !== ''));
+        }
+
+        return config('saprf_registration.equipment_divisions', []);
+    }
+
+    /**
+     * Category labels (Open sub-tracks, etc.) unless overridden per event.
+     *
+     * @return list<string>
+     */
+    public function registrationCategoryChoices(): array
+    {
+        $opts = $this->registration_category_options;
+        if (is_array($opts) && $opts !== []) {
+            return array_values(array_filter(array_map(fn ($v) => (string) $v, $opts), fn (string $v) => $v !== ''));
+        }
+
+        return config('saprf_registration.registration_categories', []);
+    }
+
+    public function collectsDivisionAtRegistration(): bool
+    {
+        return (bool) $this->registration_require_division;
+    }
+
+    public function collectsCategoryAtRegistration(): bool
+    {
+        return (bool) $this->registration_require_category;
     }
 
     private static function uniqueSlugFrom(string $title): string

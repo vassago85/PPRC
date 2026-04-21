@@ -9,6 +9,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
@@ -126,6 +127,34 @@ class EventForm
                     DateTimePicker::make('registrations_close_at')
                         ->label('Registrations close at')
                         ->seconds(false),
+                ]),
+
+            Section::make('Registration: division & category')
+                ->description('Defaults follow SAPRF equipment divisions (Classic, Factory, Limited, Open) and standard categories (General, Ladies, Junior, Senior, Mil/LEO, Not applicable). Leave the tag lists empty to use those defaults, or add your own tags to replace the list entirely (e.g. only “Club Open”).')
+                ->schema([
+                    Toggle::make('registration_require_division')
+                        ->label('Require division on public registration')
+                        ->default(true)
+                        ->inline(false),
+                    Toggle::make('registration_require_category')
+                        ->label('Require category on public registration')
+                        ->helperText('Turn on for provincial/Open matches where shooters must declare Ladies / Junior / etc.')
+                        ->default(false)
+                        ->inline(false),
+                    TagsInput::make('registration_division_options')
+                        ->label('Custom division list (optional)')
+                        ->placeholder('Empty = SAPRF Classic / Factory / Limited / Open')
+                        ->suggestions(config('saprf_registration.equipment_divisions', []))
+                        ->formatStateUsing(fn ($state) => is_array($state) ? array_values($state) : [])
+                        ->dehydrateStateUsing(fn ($state) => empty($state) ? null : array_values((array) $state))
+                        ->columnSpanFull(),
+                    TagsInput::make('registration_category_options')
+                        ->label('Custom category list (optional)')
+                        ->placeholder('Empty = SAPRF-style category list')
+                        ->suggestions(config('saprf_registration.registration_categories', []))
+                        ->formatStateUsing(fn ($state) => is_array($state) ? array_values($state) : [])
+                        ->dehydrateStateUsing(fn ($state) => empty($state) ? null : array_values((array) $state))
+                        ->columnSpanFull(),
                 ]),
 
             Section::make('Ownership & publishing')

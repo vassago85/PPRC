@@ -50,6 +50,36 @@
                                 <span class="text-slate-500">entry</span>
                             @endif
                         </p>
+                        @if ($event->collectsDivisionAtRegistration() || $event->collectsCategoryAtRegistration())
+                            @php($regSelectClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30')
+                            <div class="mt-4 space-y-3 border-t border-white/10 pt-4">
+                                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Division &amp; category</p>
+                                @if ($event->collectsDivisionAtRegistration())
+                                    <div>
+                                        <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Division</label>
+                                        <select wire:model="division" @required($event->collectsDivisionAtRegistration()) class="{{ $regSelectClass }}">
+                                            <option value="">Select…</option>
+                                            @foreach ($event->registrationDivisionChoices() as $d)
+                                                <option value="{{ $d }}">{{ $d }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('division') <p class="mt-1 text-xs text-red-300">{{ $message }}</p> @enderror
+                                    </div>
+                                @endif
+                                @if ($event->collectsCategoryAtRegistration())
+                                    <div>
+                                        <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Category</label>
+                                        <select wire:model="category" @required($event->collectsCategoryAtRegistration()) class="{{ $regSelectClass }}">
+                                            <option value="">Select…</option>
+                                            @foreach ($event->registrationCategoryChoices() as $c)
+                                                <option value="{{ $c }}">{{ $c }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('category') <p class="mt-1 text-xs text-red-300">{{ $message }}</p> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
                         <button
                             type="button"
                             wire:click="registerMember"
@@ -131,6 +161,36 @@
                             <input type="tel" wire:model="guestPhone" class="mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
                             @error('guestPhone') <p class="mt-1 text-xs text-red-300">{{ $message }}</p> @enderror
                         </div>
+                        @if ($event->collectsDivisionAtRegistration() || $event->collectsCategoryAtRegistration())
+                            @php($regSelectClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30')
+                            <div class="space-y-3 border-t border-white/10 pt-4">
+                                <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Division &amp; category</p>
+                                @if ($event->collectsDivisionAtRegistration())
+                                    <div>
+                                        <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Division</label>
+                                        <select wire:model="division" @required($event->collectsDivisionAtRegistration()) class="{{ $regSelectClass }}">
+                                            <option value="">Select…</option>
+                                            @foreach ($event->registrationDivisionChoices() as $d)
+                                                <option value="{{ $d }}">{{ $d }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('division') <p class="mt-1 text-xs text-red-300">{{ $message }}</p> @enderror
+                                    </div>
+                                @endif
+                                @if ($event->collectsCategoryAtRegistration())
+                                    <div>
+                                        <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Category</label>
+                                        <select wire:model="category" @required($event->collectsCategoryAtRegistration()) class="{{ $regSelectClass }}">
+                                            <option value="">Select…</option>
+                                            @foreach ($event->registrationCategoryChoices() as $c)
+                                                <option value="{{ $c }}">{{ $c }}</option>
+                                            @endforeach
+                                        </select>
+                                        @error('category') <p class="mt-1 text-xs text-red-300">{{ $message }}</p> @enderror
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
                         @php($guestFee = $event->effectivePriceCentsFor(null))
                         @if ($guestFee !== null)
                             <p class="text-sm text-slate-400">
