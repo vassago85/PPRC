@@ -29,9 +29,21 @@ class RolesAndPermissionsSeeder extends Seeder
      * A user can hold multiple roles (Spatie supports it). Chairperson / Vice
      * Chair / developer are the only roles that can reassign other roles.
      */
+    /**
+     * Obsolete permission names removed from the catalogue. We delete them on
+     * each run so reseed cleans them out on environments that had older
+     * versions of this seeder applied.
+     */
+    private const RETIRED_PERMISSIONS = [
+        'content.pages.manage',
+        'content.home.manage',
+    ];
+
     public function run(): void
     {
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Permission::whereIn('name', self::RETIRED_PERMISSIONS)->delete();
 
         // Permission catalogue -----------------------------------------------
         $groups = [
@@ -80,10 +92,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'shop' => [
                 'shop.products.manage', 'shop.orders.view', 'shop.orders.manage',
             ],
-            // public CMS
+            // public content (announcements + FAQs + committee roster + contact
+            // info). The generic CMS (pages / homepage_sections) was removed —
+            // the public site is hand-crafted Blade backed by real domain data.
             'content' => [
-                'content.pages.manage',
-                'content.home.manage',
                 'content.announcements.manage',
                 'content.faqs.manage',
                 'content.exco.manage',
@@ -153,9 +165,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'shop.orders.view',
         ]);
 
-        // Secretary: CMS + announcements + enquiries.
+        // Secretary: announcements, FAQs, committee roster, enquiries.
         $secretary->syncPermissions([
-            'content.pages.manage', 'content.home.manage',
             'content.announcements.manage', 'content.faqs.manage',
             'content.exco.manage', 'content.contact.manage',
             'enquiries.view', 'enquiries.reply', 'enquiries.assign',
@@ -165,11 +176,10 @@ class RolesAndPermissionsSeeder extends Seeder
         ]);
 
         // Marketing: public-facing comms and imagery. Owns announcements,
-        // homepage sections, galleries, and can see events/results to promote
-        // them. Deliberately no member PII or finance access.
+        // FAQs, committee roster, galleries, and can see events/results to
+        // promote them. Deliberately no member PII or finance access.
         $marketing->syncPermissions([
             'content.announcements.manage',
-            'content.home.manage',
             'content.faqs.manage',
             'content.exco.manage',
             'galleries.view', 'galleries.manage', 'galleries.publish',

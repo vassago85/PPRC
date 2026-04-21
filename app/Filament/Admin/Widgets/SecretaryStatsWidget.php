@@ -4,10 +4,9 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Models\Announcement;
 use App\Models\EmailLog;
-use App\Models\Page;
+use App\Models\ExcoMember;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\Schema;
 
 class SecretaryStatsWidget extends BaseWidget
 {
@@ -26,12 +25,7 @@ class SecretaryStatsWidget extends BaseWidget
             ->where('is_published', false)
             ->count();
 
-        $publishedPages = Page::query()
-            ->when(
-                Schema::hasColumn('pages', 'is_published'),
-                fn ($q) => $q->where('is_published', true),
-            )
-            ->count();
+        $excoCount = ExcoMember::query()->where('is_current', true)->count();
 
         $emailsThisMonth = EmailLog::query()
             ->where('created_at', '>=', now()->startOfMonth())
@@ -43,9 +37,9 @@ class SecretaryStatsWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-megaphone')
                 ->color('info'),
 
-            Stat::make('Published pages', number_format($publishedPages))
-                ->description('CMS content on public site')
-                ->descriptionIcon('heroicon-m-document-text')
+            Stat::make('Committee members', number_format($excoCount))
+                ->description('shown on /about')
+                ->descriptionIcon('heroicon-m-user-group')
                 ->color('gray'),
 
             Stat::make('Emails sent this month', number_format($emailsThisMonth))

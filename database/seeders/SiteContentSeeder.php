@@ -5,8 +5,6 @@ namespace Database\Seeders;
 use App\Models\Announcement;
 use App\Models\ExcoMember;
 use App\Models\Faq;
-use App\Models\HomepageSection;
-use App\Models\Page;
 use App\Models\SiteSetting;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -15,78 +13,11 @@ class SiteContentSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->seedHomepage();
-        $this->seedPages();
         $this->seedAnnouncements();
         $this->seedFaqs();
         $this->seedExco();
         $this->seedContactSettings();
         $this->seedIntegrationSettings();
-    }
-
-    /**
-     * The homepage is hand-built in resources/views/site/home.blade.php so the
-     * visible copy stays 1:1 with pretoriaprc.co.za. We intentionally do NOT
-     * seed HomepageSection rows here — the admin can still create optional
-     * sections via Filament if they want to extend the page later, but we
-     * never want the hand-crafted landing page to be overridden by seed data
-     * that contains placeholder stats.
-     */
-    protected function seedHomepage(): void
-    {
-        // Remove any previously-seeded demo sections (fabricated stats etc.)
-        // so a re-seed on an existing database cleans them out.
-        HomepageSection::query()
-            ->whereIn('key', ['hero', 'stats', 'features', 'events_teaser', 'cta'])
-            ->delete();
-    }
-
-    protected function seedPages(): void
-    {
-        $pages = [
-            [
-                // Content pulled from https://pretoriaprc.co.za/about/
-                'slug' => 'about',
-                'title' => 'About PPRC',
-                'subtitle' => 'Started in 2023 by precision rifle shooters, for precision rifle shooters.',
-                'excerpt' => 'A precision rifle club based in Pretoria, Gauteng.',
-                'body' => <<<'HTML'
-<p>Welcome to Pretoria Precision Rifle Club (PPRC).</p>
-<p>We are a Precision Rifle Club based in Pretoria, Gauteng that was started in 2023 by Precision Rifle Shooters, for Precision Rifle Shooters.</p>
-<p>Our vision is to create a family/club environment for existing and future precision rifle shooters, with the purpose of uniting together and building a sustainable environment where every shooter can grow, belong and compete in this wonderful sport of PRS.</p>
-HTML,
-                'is_published' => true,
-                'published_at' => now(),
-                'show_in_nav' => true,
-                'nav_sort_order' => 10,
-            ],
-            [
-                // The public pretoriaprc.co.za/membership page only exposes a
-                // portal widget; it does not publish tier pricing. We keep
-                // the public membership page minimal and push members to the
-                // portal for details.
-                'slug' => 'membership',
-                'title' => 'Membership',
-                'subtitle' => 'Join Pretoria Precision Rifle Club.',
-                'excerpt' => 'Register an account and a committee member will approve your application.',
-                'body' => <<<'HTML'
-<p>Membership at PPRC is managed through the member portal. Register an account, choose a membership option and submit your application — a committee member will approve it and issue your membership number.</p>
-<p>Payment is by bank EFT (with proof of payment uploaded to the portal) or by card via Paystack.</p>
-HTML,
-                'is_published' => true,
-                'published_at' => now(),
-                'show_in_nav' => true,
-                'nav_sort_order' => 20,
-            ],
-        ];
-
-        foreach ($pages as $p) {
-            Page::updateOrCreate(['slug' => $p['slug']], $p);
-        }
-
-        // The /contact URL is served by the dedicated Site\ContactController
-        // (form + email delivery), so any previously-seeded CMS page must go.
-        Page::where('slug', 'contact')->delete();
     }
 
     /**
