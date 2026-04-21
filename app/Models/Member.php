@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\MemberStatus;
-use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -47,7 +46,7 @@ class Member extends Model
         'join_date' => 'date',
         'expiry_date' => 'date',
         'saprf_verified_at' => 'datetime',
-        'shooting_disciplines' => AsArrayObject::class,
+        'shooting_disciplines' => 'array',
         'status' => MemberStatus::class,
     ];
 

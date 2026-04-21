@@ -78,6 +78,23 @@ class MemberForm
                     ->schema([
                         TagsInput::make('shooting_disciplines')
                             ->suggestions(['PRS', 'NRL', 'F-Class', 'Benchrest', 'Sporting Rifle'])
+                            ->formatStateUsing(function ($state) {
+                                if ($state === null || $state === '') {
+                                    return [];
+                                }
+                                if (is_array($state)) {
+                                    return array_values($state);
+                                }
+                                if (is_string($state)) {
+                                    $decoded = json_decode($state, true);
+                                    return is_array($decoded) ? array_values($decoded) : [];
+                                }
+                                if ($state instanceof \Traversable) {
+                                    return array_values(iterator_to_array($state));
+                                }
+                                return [];
+                            })
+                            ->dehydrateStateUsing(fn ($state) => is_array($state) ? array_values($state) : [])
                             ->columnSpanFull(),
                         DatePicker::make('join_date')->native(false)->displayFormat('d M Y'),
                         DatePicker::make('expiry_date')->native(false)->displayFormat('d M Y'),
