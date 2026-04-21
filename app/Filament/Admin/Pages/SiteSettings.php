@@ -165,7 +165,7 @@ class SiteSettings extends Page
                             ->icon(Heroicon::OutlinedBanknotes)
                             ->schema([
                                 Section::make('Club bank account')
-                                    ->description('Shown to members on the EFT payment screen. Only treasurer/chairperson may change these.')
+                                    ->description('Shown to members on the EFT payment screen. Editable by roles with payment settings access (e.g. treasurer, chair, vice chair).')
                                     ->columns(2)
                                     ->schema([
                                         TextInput::make('bank.account_name')

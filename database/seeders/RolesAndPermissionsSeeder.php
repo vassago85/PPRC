@@ -14,18 +14,20 @@ class RolesAndPermissionsSeeder extends Seeder
      * labels (for clarity, reporting, and free-event-entry rules), but the
      * **permission model is intentionally flat**:
      *
-     *  - Every Filament committee role (vice_chair, treasurer, secretary,
-     *    marketing, club_captain, membership_secretary, match_director, admin)
-     *    receives the same broad admin permission bundle.
-     *  - **Chairperson** gets that bundle plus `settings.roles.assign`, which
-     *    gates assigning Spatie roles to users and managing the public Exco
-     *    roster (see `UserForm` + `ExcoMemberResource`).
+     *  - **Chairperson** and **vice_chair** share the same **leadership** bundle:
+     *    full committee admin except `settings.integrations.manage`, including
+     *    `settings.roles.assign` (Spatie role assignment + public Exco roster;
+     *    see `UserForm` + `ExcoMemberResource`).
+     *  - Every other Filament committee role (treasurer, secretary, marketing,
+     *    club_captain, membership_secretary, match_director, admin) receives a
+     *    broad admin bundle **without** `settings.roles.assign` or integration
+     *    secrets.
      *  - **Developer** keeps full access including `settings.integrations.manage`
      *    (Mailgun / S3 / Paystack secrets in Site settings).
      *  - **member** remains a portal-only role with no admin permissions.
      *
-     * Spatie still supports multiple roles per user; only the Chair (and
-     * developer) may change role assignments.
+     * Spatie still supports multiple roles per user; chairperson, vice_chair,
+     * and developer may change role assignments (`settings.roles.assign`).
      */
     /**
      * Obsolete permission names removed from the catalogue. We delete them on
@@ -134,9 +136,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $developer->syncPermissions(Permission::all());
 
-        // Chair: same as general committee admin, plus assigning Spatie roles /
-        // managing the public Exco roster (`settings.roles.assign`). No raw
-        // integration secrets — those stay with `developer` only.
+        // Chair + Vice Chair: full admin except raw integration secrets
+        // (`settings.integrations.manage` stays developer-only). Includes
+        // `settings.roles.assign` for Spatie roles and the public Exco roster.
         $chairPermissions = Permission::query()
             ->whereNotIn('name', [
                 'settings.integrations.manage',
@@ -144,8 +146,9 @@ class RolesAndPermissionsSeeder extends Seeder
             ->get();
 
         $chairperson->syncPermissions($chairPermissions);
+        $viceChair->syncPermissions($chairPermissions);
 
-        // All other committee admin roles share one flat bundle.
+        // Remaining committee admin roles: same broad bundle, no role assignment.
         $generalCommitteeAdmin = Permission::query()
             ->whereNotIn('name', [
                 'settings.integrations.manage',
@@ -154,7 +157,6 @@ class RolesAndPermissionsSeeder extends Seeder
             ->get();
 
         foreach ([
-            $viceChair,
             $treasurer,
             $secretary,
             $marketing,

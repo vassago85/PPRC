@@ -90,7 +90,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     /**
      * Broad “committee admin” flag — any Filament committee role qualifies.
      * Fine-grained UI is still driven by Spatie permissions where it matters
-     * (e.g. only the chairperson holds the `settings.roles.assign` permission).
+     * (e.g. chairperson and vice_chair hold `settings.roles.assign`).
      */
     public function isAdmin(): bool
     {
