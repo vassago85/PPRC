@@ -22,3 +22,9 @@
     --color-brand-900: #1c4e69;
     --color-brand-950: #123245;
 }
+
+/* Hide elements flagged with Alpine's x-cloak until Alpine has initialised,
+   preventing FAQ accordion panels (and similar) from flashing open on load. */
+[x-cloak] {
+    display: none !important;
+}
