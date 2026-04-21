@@ -125,12 +125,14 @@ class EventForm
             Section::make('Ownership & publishing')
                 ->columns(2)
                 ->schema([
-                    Select::make('match_director_id')
+                    TextInput::make('match_director_name')
                         ->label('Match director')
-                        ->relationship('matchDirector', 'name')
-                        ->searchable()
-                        ->preload(),
-                    DateTimePicker::make('published_at')->seconds(false),
+                        ->maxLength(150)
+                        ->helperText('Any name shown on listings and the public match page. Does not need to be a user in this system.')
+                        ->columnSpanFull(),
+                    DateTimePicker::make('published_at')
+                        ->seconds(false)
+                        ->helperText('Optional. If you leave this empty and set status to Published or Completed, a publish time is recorded automatically when you save.'),
                     DateTimePicker::make('results_published_at')->seconds(false),
                 ]),
         ]);

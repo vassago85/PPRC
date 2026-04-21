@@ -38,6 +38,7 @@ class Event extends Model
         'registrations_close_at',
         'status',
         'match_director_id',
+        'match_director_name',
         'created_by_user_id',
         'published_at',
         'results_published_at',
@@ -67,6 +68,53 @@ class Event extends Model
                 $event->slug = self::uniqueSlugFrom($event->title);
             }
         });
+
+        // Public listings use scopePublished(), which requires published_at.
+        // Filament often sets status to Published via the form without touching
+        // this timestamp — ensure it is never missing for published/completed.
+        static::saving(function (Event $event) {
+            $status = $event->status instanceof EventStatus
+                ? $event->status
+                : EventStatus::tryFrom((string) $event->status);
+
+            if ($status === null) {
+                return;
+            }
+
+            if (in_array($status, [EventStatus::Published, EventStatus::Completed], true)
+                && $event->published_at === null) {
+                $event->published_at = now();
+            }
+        });
+    }
+
+    /**
+     * Label shown in admin and on the public match page. Prefer the free-text
+     * field; fall back to the linked user account when present (legacy data).
+     */
+    public function matchDirectorDisplay(): string
+    {
+        $n = trim((string) ($this->match_director_name ?? ''));
+
+        if ($n !== '') {
+            return $n;
+        }
+
+        return $this->matchDirector?->name ?? '';
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        if ($this->published_at === null) {
+            return false;
+        }
+
+        $status = $this->status instanceof EventStatus
+            ? $this->status
+            : EventStatus::tryFrom((string) $this->status);
+
+        return $status !== null
+            && in_array($status, [EventStatus::Published, EventStatus::Completed], true);
     }
 
     public function getRouteKeyName(): string

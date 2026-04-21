@@ -33,10 +33,7 @@ class MatchController extends Controller
 
     public function show(Event $event)
     {
-        abort_unless(
-            $event->published_at !== null && in_array($event->status->value, ['published', 'completed']),
-            404,
-        );
+        abort_unless($event->isPubliclyVisible(), 404);
 
         $event->loadCount('registrations');
         $event->load('matchFormat', 'results');
