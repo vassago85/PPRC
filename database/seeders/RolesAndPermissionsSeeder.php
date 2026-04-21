@@ -10,24 +10,22 @@ use Spatie\Permission\PermissionRegistrar;
 class RolesAndPermissionsSeeder extends Seeder
 {
     /**
-     * Role model for PPRC — aligned with the elected ExCo positions from the
-     * 2026 AGM (Chairman, Vice Chair, Treasurer, Secretary, Marketing, Club
-     * Captain) plus operational / support roles.
+     * Role model for PPRC — elected ExCo and operational seats still exist as
+     * labels (for clarity, reporting, and free-event-entry rules), but the
+     * **permission model is intentionally flat**:
      *
-     *  - developer             Charsley Digital: full access incl. integrations/secrets.
-     *  - chairperson           Elected (Chairman): finances (bank details, annual prices), role assignment, destructive actions.
-     *  - vice_chair            Elected: deputises for the Chair. Same access as chairperson except role assignment + integration secrets.
-     *  - treasurer             Elected: confirm/reject EFT proofs, reconcile Paystack, refunds.
-     *  - secretary             Elected: announcements, Exco page, contact info, enquiries.
-     *  - marketing             Elected: announcements, gallery, social-facing pages.
-     *  - club_captain          Elected: day-to-day ops and match coordination. Reports to Chair / Vice Chair, first point of contact for member concerns.
-     *  - membership_secretary  Operational: approve memberships, assign numbers, SAPRF whitelist, member imports.
-     *  - match_director        Operational: create/publish events, manage registrations + attendance, upload results.
-     *  - admin                 Any committee member: events, results, galleries, shop (day-to-day ops).
-     *  - member                Paid member: portal only (no Spatie perms; gated by policies + auth scope).
+     *  - Every Filament committee role (vice_chair, treasurer, secretary,
+     *    marketing, club_captain, membership_secretary, match_director, admin)
+     *    receives the same broad admin permission bundle.
+     *  - **Chairperson** gets that bundle plus `settings.roles.assign`, which
+     *    gates assigning Spatie roles to users and managing the public Exco
+     *    roster (see `UserForm` + `ExcoMemberResource`).
+     *  - **Developer** keeps full access including `settings.integrations.manage`
+     *    (Mailgun / S3 / Paystack secrets in Site settings).
+     *  - **member** remains a portal-only role with no admin permissions.
      *
-     * A user can hold multiple roles (Spatie supports it). Chairperson / Vice
-     * Chair / developer are the only roles that can reassign other roles.
+     * Spatie still supports multiple roles per user; only the Chair (and
+     * developer) may change role assignments.
      */
     /**
      * Obsolete permission names removed from the catalogue. We delete them on
@@ -38,6 +36,7 @@ class RolesAndPermissionsSeeder extends Seeder
         'content.pages.manage',
         'content.home.manage',
         'content.faqs.manage',
+        'content.exco.manage',
     ];
 
     public function run(): void
@@ -99,7 +98,6 @@ class RolesAndPermissionsSeeder extends Seeder
             // real domain data.
             'content' => [
                 'content.announcements.manage',
-                'content.exco.manage',
                 'content.contact.manage',
             ],
             // system
@@ -134,109 +132,38 @@ class RolesAndPermissionsSeeder extends Seeder
         $admin = Role::findOrCreate('admin', 'web');
         Role::findOrCreate('member', 'web');
 
-        // Developer: everything.
         $developer->syncPermissions(Permission::all());
 
-        // Chairperson: everything except pure dev/integration secrets.
-        $chairperson->syncPermissions(
-            Permission::whereNotIn('name', [
+        // Chair: same as general committee admin, plus assigning Spatie roles /
+        // managing the public Exco roster (`settings.roles.assign`). No raw
+        // integration secrets — those stay with `developer` only.
+        $chairPermissions = Permission::query()
+            ->whereNotIn('name', [
                 'settings.integrations.manage',
-            ])->get()
-        );
+            ])
+            ->get();
 
-        // Vice Chair: deputises for the Chair. Same broad access as chairperson
-        // but without the ability to change integration secrets or reassign
-        // roles — those are reserved for chairperson + developer so there's
-        // always exactly one person with final authority over account access.
-        $viceChair->syncPermissions(
-            Permission::whereNotIn('name', [
+        $chairperson->syncPermissions($chairPermissions);
+
+        // All other committee admin roles share one flat bundle.
+        $generalCommitteeAdmin = Permission::query()
+            ->whereNotIn('name', [
                 'settings.integrations.manage',
                 'settings.roles.assign',
-                'users.manage',
-            ])->get()
-        );
+            ])
+            ->get();
 
-        // Treasurer: finance-heavy, read-only on most other domains.
-        $treasurer->syncPermissions([
-            'payments.view', 'payments.paystack.init', 'payments.eft.confirm',
-            'payments.refund.request',
-            'members.view',
-            'memberships.manage', 'memberships.renew',
-            'events.view', 'results.view',
-            'shop.orders.view',
-        ]);
-
-        // Secretary: announcements, committee roster, enquiries.
-        $secretary->syncPermissions([
-            'content.announcements.manage',
-            'content.exco.manage', 'content.contact.manage',
-            'enquiries.view', 'enquiries.reply', 'enquiries.assign',
-            'enquiries.close', 'enquiries.view_internal',
-            'members.view',
-            'events.view', 'results.view', 'galleries.view',
-        ]);
-
-        // Marketing: public-facing comms and imagery. Owns announcements,
-        // committee roster, galleries, and can see events/results to promote
-        // them. Deliberately no member PII or finance access.
-        $marketing->syncPermissions([
-            'content.announcements.manage',
-            'content.exco.manage',
-            'galleries.view', 'galleries.manage', 'galleries.publish',
-            'events.view', 'results.view',
-        ]);
-
-        // Club Captain: day-to-day ops and match coordination. Reports to the
-        // Chair / Vice Chair and is the first point of contact for member
-        // concerns, so they need to see members, handle enquiries, and run
-        // the match lifecycle alongside the Match Director.
-        $clubCaptain->syncPermissions([
-            'members.view',
-            'memberships.manage', 'memberships.renew',
-            'events.view', 'events.manage', 'events.publish',
-            'events.registrations.manage', 'events.attendance.manage',
-            'results.view', 'results.manage', 'results.publish',
-            'galleries.view', 'galleries.manage', 'galleries.publish',
-            'enquiries.view', 'enquiries.reply', 'enquiries.assign',
-            'enquiries.close',
-            'content.announcements.manage',
-        ]);
-
-        // Membership secretary: member lifecycle + SAPRF whitelist.
-        $membershipSecretary->syncPermissions([
-            'members.view', 'members.update', 'members.notes',
-            'members.import', 'members.submembers.manage',
-            'saprf.whitelist.manage',
-            'memberships.manage', 'memberships.approve',
-            'memberships.number.assign', 'memberships.renew',
-            'memberships.types.manage',
-            'payments.view', 'payments.eft.confirm',
-            'enquiries.view', 'enquiries.reply',
-        ]);
-
-        // Match director: owns the match lifecycle end-to-end. Can create and
-        // publish events, manage registrations and attendance on match day,
-        // and upload/publish results. Gets members.view so they can see who
-        // entered and attach results to the right member. Deliberately has
-        // no access to finance, CMS, shop, or member editing.
-        $matchDirector->syncPermissions([
-            'members.view',
-            'events.view', 'events.manage', 'events.publish',
-            'events.registrations.manage', 'events.attendance.manage',
-            'results.view', 'results.manage', 'results.publish',
-        ]);
-
-        // Admin: day-to-day ops across events/results/galleries/shop/content support.
-        $admin->syncPermissions([
-            'members.view',
-            'memberships.manage', 'memberships.renew',
-            'events.view', 'events.manage', 'events.publish',
-            'events.registrations.manage', 'events.attendance.manage',
-            'results.view', 'results.manage', 'results.publish',
-            'galleries.view', 'galleries.manage', 'galleries.publish',
-            'shop.products.manage', 'shop.orders.view', 'shop.orders.manage',
-            'content.announcements.manage',
-            'enquiries.view', 'enquiries.reply',
-        ]);
+        foreach ([
+            $viceChair,
+            $treasurer,
+            $secretary,
+            $marketing,
+            $clubCaptain,
+            $membershipSecretary,
+            $matchDirector,
+            $admin,
+        ] as $role) {
+            $role->syncPermissions($generalCommitteeAdmin);
+        }
     }
 }

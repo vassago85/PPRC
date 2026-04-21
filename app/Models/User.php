@@ -87,9 +87,14 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->hasAnyRole(self::COMMITTEE_ROLES);
     }
 
+    /**
+     * Broad “committee admin” flag — any Filament committee role qualifies.
+     * Fine-grained UI is still driven by Spatie permissions where it matters
+     * (e.g. only the chairperson holds the `settings.roles.assign` permission).
+     */
     public function isAdmin(): bool
     {
-        return $this->hasAnyRole(['developer', 'chairperson', 'vice_chair', 'admin']);
+        return $this->hasAnyRole(self::COMMITTEE_ROLES);
     }
 
     /**

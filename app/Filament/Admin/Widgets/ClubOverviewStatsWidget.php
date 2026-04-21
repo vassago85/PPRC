@@ -11,7 +11,7 @@ use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 /**
- * Chairperson-level club health dashboard.
+ * Club-wide health stats for anyone with member-directory access.
  */
 class ClubOverviewStatsWidget extends BaseWidget
 {
@@ -19,7 +19,7 @@ class ClubOverviewStatsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return (bool) auth()->user()?->hasAnyRole(['developer', 'chairperson', 'vice_chair']);
+        return (bool) auth()->user()?->can('members.view');
     }
 
     protected function getStats(): array

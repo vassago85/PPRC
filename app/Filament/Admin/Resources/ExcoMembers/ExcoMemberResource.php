@@ -35,7 +35,9 @@ class ExcoMemberResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return (bool) auth()->user()?->can('content.exco.manage');
+        // Same gate as assigning Spatie roles: only Chair (+ developer) appoints
+        // the public committee roster shown on /about.
+        return (bool) auth()->user()?->can('settings.roles.assign');
     }
 
     public static function shouldRegisterNavigation(): bool

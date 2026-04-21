@@ -26,7 +26,8 @@ class UserForm
                 ]),
 
             Section::make('Roles')
-                ->description('Each role grants a bundle of permissions. Multiple roles may be assigned.')
+                ->description('Spatie roles control admin access and member perks (e.g. free match entry). Only the Chair (or a developer account) can change role assignments — everyone else sees this section hidden.')
+                ->visible(fn () => (bool) auth()->user()?->can('settings.roles.assign'))
                 ->schema([
                     CheckboxList::make('roles')
                         ->relationship('roles', 'name')
