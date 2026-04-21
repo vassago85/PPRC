@@ -6,7 +6,6 @@ use App\Models\Announcement;
 use App\Models\ExcoMember;
 use App\Models\SiteSetting;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class SiteContentSeeder extends Seeder
 {
@@ -29,26 +28,37 @@ class SiteContentSeeder extends Seeder
     }
 
     /**
-     * Committee members extracted from https://pretoriaprc.co.za/about/
-     * Only positions that actually appear on the live site are seeded.
+     * Current Executive Committee — 2026 AGM (10 February 2026), section 11
+     * Elections. Six unopposed nominees; outgoing ExCo (Dirk Pio, JC Robertson,
+     * Leon Goosen) stepped aside. Names and titles are taken verbatim from the
+     * official minutes the club supplied.
+     *
+     * Public /about pulls `is_current` rows only. Re-seeding updates positions
+     * in place and retires any stale titles (e.g. old "Vice Chairman" wording).
      */
     protected function seedExco(): void
     {
-        // Wipe any previously-seeded placeholder committee rows so the live
-        // list always matches the source site on a re-seed.
-        ExcoMember::query()
-            ->whereIn('position', ['Chairperson', 'Vice Chairperson', 'Treasurer', 'Membership Secretary', 'Events Coordinator'])
-            ->delete();
-
         $rows = [
-            ['full_name' => 'Dirk Pio',         'position' => 'Chairman',            'sort_order' => 10, 'is_current' => true],
-            ['full_name' => 'Warren Britnell',  'position' => 'Vice Chairman',       'sort_order' => 20, 'is_current' => true],
-            ['full_name' => 'JC Robertson',     'position' => 'Secretary',           'sort_order' => 30, 'is_current' => true],
-            ['full_name' => 'Leon Goosen',      'position' => 'Marketing & Tech',    'sort_order' => 40, 'is_current' => true],
+            ['full_name' => 'Warren Britnell',    'position' => 'Chairman',     'sort_order' => 10, 'is_current' => true],
+            ['full_name' => 'Paul Charsley',     'position' => 'Vice Chair',   'sort_order' => 20, 'is_current' => true],
+            ['full_name' => 'Natasha Britnell',  'position' => 'Treasurer',    'sort_order' => 30, 'is_current' => true],
+            ['full_name' => 'Coenie van Tonder', 'position' => 'Secretary',    'sort_order' => 40, 'is_current' => true],
+            ['full_name' => 'Sean Swarts',       'position' => 'Marketing',    'sort_order' => 50, 'is_current' => true],
+            ['full_name' => 'Eddie Kinnear',     'position' => 'Club Captain', 'sort_order' => 60, 'is_current' => true],
         ];
 
+        $positions = array_column($rows, 'position');
+
+        ExcoMember::query()
+            ->where('is_current', true)
+            ->whereNotIn('position', $positions)
+            ->update(['is_current' => false]);
+
         foreach ($rows as $r) {
-            ExcoMember::updateOrCreate(['position' => $r['position']], $r);
+            ExcoMember::updateOrCreate(
+                ['position' => $r['position']],
+                $r,
+            );
         }
     }
 

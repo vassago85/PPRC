@@ -20,17 +20,19 @@ class DatabaseSeeder extends Seeder
             SiteContentSeeder::class,
         ]);
 
+        // Display names mirror the 2026 AGM elected ExCo where applicable; emails
+        // remain stable dev inboxes for local/staging login.
         $committee = [
-            ['dev@pretoriaprc.co.za',         'PPRC Developer',            'developer'],
-            ['chair@pretoriaprc.co.za',       'PPRC Chairperson',          'chairperson'],
-            ['vicechair@pretoriaprc.co.za',   'PPRC Vice Chair',           'vice_chair'],
-            ['treasurer@pretoriaprc.co.za',   'PPRC Treasurer',            'treasurer'],
-            ['secretary@pretoriaprc.co.za',   'PPRC Secretary',            'secretary'],
-            ['marketing@pretoriaprc.co.za',   'PPRC Marketing',            'marketing'],
-            ['captain@pretoriaprc.co.za',     'PPRC Club Captain',         'club_captain'],
-            ['membership@pretoriaprc.co.za',  'PPRC Membership Secretary', 'membership_secretary'],
-            ['matches@pretoriaprc.co.za',     'PPRC Match Director',       'match_director'],
-            ['admin@pretoriaprc.co.za',       'PPRC Admin',                'admin'],
+            ['dev@pretoriaprc.co.za',         'PPRC Developer',               'developer'],
+            ['chair@pretoriaprc.co.za',       'Warren Britnell (Chair)',     'chairperson'],
+            ['vicechair@pretoriaprc.co.za',   'Paul Charsley (Vice Chair)',  'vice_chair'],
+            ['treasurer@pretoriaprc.co.za',   'Natasha Britnell (Treasurer)', 'treasurer'],
+            ['secretary@pretoriaprc.co.za',   'Coenie van Tonder (Secretary)', 'secretary'],
+            ['marketing@pretoriaprc.co.za',   'Sean Swarts (Marketing)',    'marketing'],
+            ['captain@pretoriaprc.co.za',     'Eddie Kinnear (Club Captain)', 'club_captain'],
+            ['membership@pretoriaprc.co.za',  'PPRC Membership Secretary',  'membership_secretary'],
+            ['matches@pretoriaprc.co.za',     'PPRC Match Director',        'match_director'],
+            ['admin@pretoriaprc.co.za',       'PPRC Admin',                 'admin'],
         ];
 
         foreach ($committee as [$email, $name, $role]) {
