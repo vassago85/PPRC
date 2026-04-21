@@ -32,10 +32,21 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     /**
      * Any committee role can access the Filament admin panel. Fine-grained
      * gating is done by Spatie permissions on individual resources/actions.
+     *
+     * Order matches the 2026 AGM minutes (elected ExCo positions first, then
+     * operational roles) so the list is easy to cross-check against a seat.
      */
     public const COMMITTEE_ROLES = [
-        'developer', 'chairperson', 'treasurer', 'secretary',
-        'membership_secretary', 'match_director', 'admin',
+        'developer',
+        'chairperson',
+        'vice_chair',
+        'treasurer',
+        'secretary',
+        'marketing',
+        'club_captain',
+        'membership_secretary',
+        'match_director',
+        'admin',
     ];
 
     public function canAccessPanel(Panel $panel): bool
@@ -60,7 +71,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 
     public function isAdmin(): bool
     {
-        return $this->hasAnyRole(['developer', 'chairperson', 'admin']);
+        return $this->hasAnyRole(['developer', 'chairperson', 'vice_chair', 'admin']);
     }
 
     public function member(): HasOne

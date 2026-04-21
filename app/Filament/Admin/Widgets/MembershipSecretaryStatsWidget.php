@@ -15,7 +15,9 @@ class MembershipSecretaryStatsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return (bool) auth()->user()?->hasAnyRole(['membership_secretary', 'developer', 'chairperson']);
+        // Gate on the action-you-can-take permission so anyone who can approve
+        // memberships (membership_secretary, chairperson, vice_chair) sees this.
+        return (bool) auth()->user()?->can('memberships.approve');
     }
 
     protected function getStats(): array

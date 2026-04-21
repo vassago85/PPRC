@@ -1,0 +1,22 @@
+﻿Roles: add AGM-elected positions (vice_chair, marketing, club_captain)
+
+Aligns the role catalogue with the 2026 AGM minutes. Chairperson, Treasurer,
+Secretary, and Match Director already existed; this adds the three remaining
+elected positions and widens COMMITTEE_ROLES so they can reach the admin panel.
+
+- vice_chair: deputises for the Chair. Same broad perms as chairperson minus
+  integration secrets, role assignment, and user management (which stay with
+  chairperson + developer so there is one unambiguous owner of account access).
+- marketing: announcements, homepage sections, FAQs, exco page, galleries,
+  plus read-only events/results. No member PII or finance access.
+- club_captain: day-to-day ops and match coordination. Events + results +
+  galleries full lifecycle, memberships.manage, enquiries, announcements.
+
+Widget gating updated so the new roles see the right stats:
+- ClubOverviewStatsWidget now includes vice_chair.
+- MembershipSecretaryStatsWidget now gates on memberships.approve permission
+  instead of a hardcoded role list, so any role that can approve (including
+  chairperson / vice_chair) sees it.
+
+DatabaseSeeder seeds dev users for vice_chair / marketing / club_captain so
+the new roles can be tested locally.

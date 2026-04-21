@@ -19,7 +19,7 @@ class ClubOverviewStatsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        return (bool) auth()->user()?->hasAnyRole(['developer', 'chairperson']);
+        return (bool) auth()->user()?->hasAnyRole(['developer', 'chairperson', 'vice_chair']);
     }
 
     protected function getStats(): array

@@ -10,18 +10,24 @@ use Spatie\Permission\PermissionRegistrar;
 class RolesAndPermissionsSeeder extends Seeder
 {
     /**
-     * Role model for PPRC:
-     *  - developer          Charsley Digital: full access incl. integrations/secrets.
-     *  - chairperson        Elected: finances (bank details, annual prices), role assignment, destructive actions.
-     *  - treasurer          Elected: confirm/reject EFT proofs, reconcile Paystack, refunds.
-     *  - secretary          Elected: CMS, announcements, Exco page, contact info, enquiries.
-     *  - membership_secretary  Elected: approve memberships, assign numbers, SAPRF whitelist, member imports.
-     *  - match_director     Runs matches: create/publish events, manage registrations + attendance, upload results.
-     *  - admin              Any committee member: events, results, galleries, shop (day-to-day ops).
-     *  - member             Paid member: portal only (no Spatie perms; gated by policies + auth scope).
+     * Role model for PPRC — aligned with the elected ExCo positions from the
+     * 2026 AGM (Chairman, Vice Chair, Treasurer, Secretary, Marketing, Club
+     * Captain) plus operational / support roles.
      *
-     * A user can hold multiple roles (Spatie supports it). Chairperson/developer
-     * are the only roles that can reassign other roles.
+     *  - developer             Charsley Digital: full access incl. integrations/secrets.
+     *  - chairperson           Elected (Chairman): finances (bank details, annual prices), role assignment, destructive actions.
+     *  - vice_chair            Elected: deputises for the Chair. Same access as chairperson except role assignment + integration secrets.
+     *  - treasurer             Elected: confirm/reject EFT proofs, reconcile Paystack, refunds.
+     *  - secretary             Elected: CMS, announcements, Exco page, contact info, enquiries.
+     *  - marketing             Elected: announcements, gallery, homepage content, social-facing pages.
+     *  - club_captain          Elected: day-to-day ops and match coordination. Reports to Chair / Vice Chair, first point of contact for member concerns.
+     *  - membership_secretary  Operational: approve memberships, assign numbers, SAPRF whitelist, member imports.
+     *  - match_director        Operational: create/publish events, manage registrations + attendance, upload results.
+     *  - admin                 Any committee member: events, results, galleries, shop (day-to-day ops).
+     *  - member                Paid member: portal only (no Spatie perms; gated by policies + auth scope).
+     *
+     * A user can hold multiple roles (Spatie supports it). Chairperson / Vice
+     * Chair / developer are the only roles that can reassign other roles.
      */
     public function run(): void
     {
@@ -105,8 +111,11 @@ class RolesAndPermissionsSeeder extends Seeder
         // Role definitions ---------------------------------------------------
         $developer = Role::findOrCreate('developer', 'web');
         $chairperson = Role::findOrCreate('chairperson', 'web');
+        $viceChair = Role::findOrCreate('vice_chair', 'web');
         $treasurer = Role::findOrCreate('treasurer', 'web');
         $secretary = Role::findOrCreate('secretary', 'web');
+        $marketing = Role::findOrCreate('marketing', 'web');
+        $clubCaptain = Role::findOrCreate('club_captain', 'web');
         $membershipSecretary = Role::findOrCreate('membership_secretary', 'web');
         $matchDirector = Role::findOrCreate('match_director', 'web');
         $admin = Role::findOrCreate('admin', 'web');
@@ -119,6 +128,18 @@ class RolesAndPermissionsSeeder extends Seeder
         $chairperson->syncPermissions(
             Permission::whereNotIn('name', [
                 'settings.integrations.manage',
+            ])->get()
+        );
+
+        // Vice Chair: deputises for the Chair. Same broad access as chairperson
+        // but without the ability to change integration secrets or reassign
+        // roles — those are reserved for chairperson + developer so there's
+        // always exactly one person with final authority over account access.
+        $viceChair->syncPermissions(
+            Permission::whereNotIn('name', [
+                'settings.integrations.manage',
+                'settings.roles.assign',
+                'users.manage',
             ])->get()
         );
 
@@ -141,6 +162,34 @@ class RolesAndPermissionsSeeder extends Seeder
             'enquiries.close', 'enquiries.view_internal',
             'members.view',
             'events.view', 'results.view', 'galleries.view',
+        ]);
+
+        // Marketing: public-facing comms and imagery. Owns announcements,
+        // homepage sections, galleries, and can see events/results to promote
+        // them. Deliberately no member PII or finance access.
+        $marketing->syncPermissions([
+            'content.announcements.manage',
+            'content.home.manage',
+            'content.faqs.manage',
+            'content.exco.manage',
+            'galleries.view', 'galleries.manage', 'galleries.publish',
+            'events.view', 'results.view',
+        ]);
+
+        // Club Captain: day-to-day ops and match coordination. Reports to the
+        // Chair / Vice Chair and is the first point of contact for member
+        // concerns, so they need to see members, handle enquiries, and run
+        // the match lifecycle alongside the Match Director.
+        $clubCaptain->syncPermissions([
+            'members.view',
+            'memberships.manage', 'memberships.renew',
+            'events.view', 'events.manage', 'events.publish',
+            'events.registrations.manage', 'events.attendance.manage',
+            'results.view', 'results.manage', 'results.publish',
+            'galleries.view', 'galleries.manage', 'galleries.publish',
+            'enquiries.view', 'enquiries.reply', 'enquiries.assign',
+            'enquiries.close',
+            'content.announcements.manage',
         ]);
 
         // Membership secretary: member lifecycle + SAPRF whitelist.
