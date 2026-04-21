@@ -29,6 +29,16 @@ class PageResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('content.pages.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return PageForm::configure($schema);

@@ -33,6 +33,16 @@ class ExcoMemberResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Exco members';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('content.exco.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ExcoMemberForm::configure($schema);

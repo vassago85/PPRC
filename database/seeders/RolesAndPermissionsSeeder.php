@@ -89,6 +89,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 'settings.integrations.manage',
                 'settings.roles.assign',
             ],
+            // user management (login accounts, role assignment)
+            'users' => [
+                'users.view',
+                'users.manage',
+            ],
         ];
 
         foreach ($groups as $list) {

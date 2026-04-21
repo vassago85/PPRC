@@ -31,6 +31,16 @@ class FaqResource extends Resource
 
     protected static ?string $pluralModelLabel = 'FAQs';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('content.faqs.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return FaqForm::configure($schema);

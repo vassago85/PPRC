@@ -29,6 +29,16 @@ class AnnouncementResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('content.announcements.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return AnnouncementForm::configure($schema);

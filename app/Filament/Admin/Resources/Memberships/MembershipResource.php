@@ -27,6 +27,16 @@ class MembershipResource extends Resource
 
     protected static ?int $navigationSort = 15;
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('memberships.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return MembershipForm::configure($schema);

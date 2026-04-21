@@ -1,0 +1,39 @@
+Admin dashboard: resource gating, events/results domain, users, widgets
+
+Gate every Filament resource with canViewAny() + shouldRegisterNavigation()
+keyed to its underlying Spatie permission so committee members only see what
+they can actually manage.
+
+Events domain:
+- match_formats, events, event_registrations, event_results migrations
+- Event, EventRegistration, EventResult, MatchFormat models with enum casts
+- EventPolicy + EventResultPolicy wired to Spatie perms
+- MatchFormatsSeeder with PRS (Centerfire), PR22, Training
+- Filament EventResource with EventForm, EventsTable, publish/complete actions,
+  registrations relation manager, and a results relation manager with a CSV
+  upload modal backed by EventResultsCsvImporter (BOM-safe, member matching
+  by id/email/membership_number, dedupe on re-import)
+
+Public site:
+- /matches, /matches/{slug}, /results replace static stubs with real Event /
+  EventResult data
+- HomeController pulls live upcoming matches + recent results into the
+  existing match-card and result-card components
+
+UserResource:
+- New Access control > Users resource gated on users.manage, with CheckboxList
+  role picker and one-click email verification action
+- RolesAndPermissionsSeeder adds users.view / users.manage (developer +
+  chairperson only by default via the whereNotIn rule)
+
+Role-aware dashboard widgets:
+- ClubOverviewStatsWidget (chairperson/developer): active members, active
+  memberships, upcoming matches
+- TreasurerStatsWidget: proofs to verify, memberships awaiting approval,
+  revenue this month
+- MembershipSecretaryStatsWidget: approvals pending, expiring in 30 days,
+  new members this month
+- MatchDirectorStatsWidget: upcoming, drafts, results to publish
+- SecretaryStatsWidget: live announcements, published pages, emails this
+  month
+- Each widget gates itself via canView() so roles only see their own stats

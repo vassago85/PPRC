@@ -1,0 +1,125 @@
+<x-site.layout
+    :title="$event->title"
+    :description="$event->summary ?? 'PPRC match details'"
+>
+    <x-site.section padding="lg">
+        <div class="flex flex-col gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+                @if ($event->matchFormat)
+                    <span class="inline-flex items-center rounded-full border border-brand-400/30 bg-brand-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-brand-200">
+                        {{ $event->matchFormat->name }}
+                    </span>
+                @endif
+                <span class="text-sm text-slate-400">
+                    {{ $event->start_date?->format('l, d F Y') }}
+                    @if ($event->start_time)
+                        &middot; {{ \Carbon\Carbon::parse($event->start_time)->format('H:i') }}
+                    @endif
+                </span>
+            </div>
+            <h1 class="text-4xl font-semibold tracking-tight sm:text-5xl">{{ $event->title }}</h1>
+            @if ($event->summary)
+                <p class="max-w-3xl text-lg text-slate-300">{{ $event->summary }}</p>
+            @endif
+        </div>
+
+        <dl class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            @if ($event->location_name)
+                <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Venue</dt>
+                    <dd class="mt-2 font-medium text-white">{{ $event->location_name }}</dd>
+                    @if ($event->location_address)
+                        <dd class="mt-1 text-sm text-slate-400">{{ $event->location_address }}</dd>
+                    @endif
+                </div>
+            @endif
+
+            @if ($event->round_count)
+                <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Rounds</dt>
+                    <dd class="mt-2 font-medium text-white">{{ $event->round_count }}</dd>
+                </div>
+            @endif
+
+            @if ($event->price_cents !== null)
+                <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                    <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Entry fee</dt>
+                    <dd class="mt-2 font-medium text-white">R {{ number_format($event->priceInRands(), 2) }}</dd>
+                </div>
+            @endif
+
+            <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Entries</dt>
+                <dd class="mt-2 font-medium text-white">
+                    {{ $event->registrations_count ?? 0 }}@if ($event->max_entries) / {{ $event->max_entries }}@endif
+                </dd>
+                @if ($event->isRegistrationOpen())
+                    <dd class="mt-1 text-sm text-success-300">Registrations open</dd>
+                @elseif ($event->registrations_open === false)
+                    <dd class="mt-1 text-sm text-slate-400">Registrations closed</dd>
+                @endif
+            </div>
+        </dl>
+    </x-site.section>
+
+    @if ($event->description)
+        <x-site.section tone="muted" padding="default">
+            <div class="prose prose-invert max-w-3xl">
+                {!! $event->description !!}
+            </div>
+        </x-site.section>
+    @endif
+
+    <x-site.section padding="default" id="results">
+        <div class="mb-8 flex items-end justify-between gap-4">
+            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Results</h2>
+            @if ($resultsPublished)
+                <span class="text-sm text-slate-500">Published {{ $event->results_published_at?->format('d M Y') }}</span>
+            @endif
+        </div>
+
+        @if (! $resultsPublished)
+            <x-site.card padding="lg" class="text-center border-dashed">
+                <p class="text-slate-300">Results for this match haven't been published yet.</p>
+                <p class="mt-2 text-sm text-slate-500">Placings will appear here after the match director publishes them.</p>
+            </x-site.card>
+        @elseif ($results->isEmpty())
+            <x-site.card padding="lg" class="text-center border-dashed">
+                <p class="text-slate-300">No results were recorded for this match.</p>
+            </x-site.card>
+        @else
+            <div class="overflow-hidden rounded-2xl border border-white/10">
+                <table class="min-w-full divide-y divide-white/10 text-sm">
+                    <thead class="bg-white/[0.03] text-left text-xs uppercase tracking-[0.16em] text-slate-400">
+                        <tr>
+                            <th class="px-4 py-3 font-semibold">#</th>
+                            <th class="px-4 py-3 font-semibold">Shooter</th>
+                            <th class="px-4 py-3 font-semibold">Division</th>
+                            <th class="px-4 py-3 font-semibold">Class</th>
+                            <th class="px-4 py-3 text-right font-semibold">Score</th>
+                            <th class="px-4 py-3 text-right font-semibold">%</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5 bg-slate-950/40">
+                        @foreach ($results as $r)
+                            <tr class="hover:bg-white/[0.02]">
+                                <td class="px-4 py-3 font-semibold text-white">{{ $r->rank ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-200">{{ $r->shooter_name }}</td>
+                                <td class="px-4 py-3 text-slate-400">{{ $r->division ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-400">{{ $r->class ?? '—' }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums text-slate-200">{{ $r->displayScore() }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums text-slate-400">
+                                    @if ($r->score_percentage !== null)
+                                        {{ number_format((float) $r->score_percentage, 2) }}%
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </x-site.section>
+</x-site.layout>

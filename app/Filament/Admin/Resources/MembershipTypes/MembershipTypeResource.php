@@ -27,6 +27,16 @@ class MembershipTypeResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('memberships.types.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return MembershipTypeForm::configure($schema);

@@ -31,6 +31,16 @@ class SaprfShooterResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'membership_number';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('saprf.whitelist.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return SaprfShooterForm::configure($schema);

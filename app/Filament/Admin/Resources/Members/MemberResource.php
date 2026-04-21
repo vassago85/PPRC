@@ -29,6 +29,16 @@ class MemberResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'membership_number';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('members.view');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return MemberForm::configure($schema);

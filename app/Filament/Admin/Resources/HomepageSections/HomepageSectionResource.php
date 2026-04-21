@@ -29,6 +29,16 @@ class HomepageSectionResource extends Resource
 
     protected static ?string $modelLabel = 'homepage section';
 
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('content.home.manage');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return HomepageSectionForm::configure($schema);

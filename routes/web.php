@@ -5,7 +5,9 @@ use App\Http\Controllers\Site\ContactController;
 use App\Http\Controllers\Site\ExcoController;
 use App\Http\Controllers\Site\FaqController;
 use App\Http\Controllers\Site\HomeController;
+use App\Http\Controllers\Site\MatchController;
 use App\Http\Controllers\Site\PageController;
+use App\Http\Controllers\Site\ResultController;
 use App\Http\Controllers\Webhooks\PaystackWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,9 +20,10 @@ Route::get('/exco', ExcoController::class)->name('exco');
 Route::get('/committee', ExcoController::class);
 Route::get('/faqs', FaqController::class)->name('faqs');
 
-Route::view('/matches', 'site.stubs.matches')->name('matches');
+Route::get('/matches', [MatchController::class, 'index'])->name('matches');
+Route::get('/matches/{event:slug}', [MatchController::class, 'show'])->name('matches.show');
 Route::redirect('/events', '/matches');
-Route::view('/results', 'site.stubs.results')->name('results');
+Route::get('/results', [ResultController::class, 'index'])->name('results');
 Route::view('/gallery', 'site.stubs.gallery')->name('gallery');
 Route::view('/shop', 'site.stubs.shop')->name('shop');
 
