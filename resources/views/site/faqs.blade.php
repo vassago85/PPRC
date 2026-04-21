@@ -1,6 +1,6 @@
 <x-site.layout
     title="Frequently Asked Questions"
-    description="Everything you need to know about PRS shooting, PR22, equipment, and getting started with Pretoria Precision Rifle Club."
+    description="PRS and PR22 FAQs for Pretoria Precision Rifle Club — equipment, MOA vs MRAD, ballistic apps and weather meters, membership, and match day."
 >
     {{-- Page intro --}}
     <x-site.section padding="lg">
@@ -147,7 +147,7 @@
             <x-site.faq-group
                 eyebrow="Kit"
                 title="Equipment"
-                description="Calibres, optics, and the gear decisions most shooters ask about first."
+                description="Calibres, optics, MOA vs MRAD, ballistic solvers, and the gear decisions most shooters ask about first."
             >
                 <x-site.faq-item question="What are the best calibres for PRS?">
                     <p>
@@ -206,6 +206,70 @@
                     <p>
                         In PRS-style shooting, most competitors prefer FFP because stages often require quick
                         adjustments without changing magnification.
+                    </p>
+                </x-site.faq-item>
+
+                <x-site.faq-item question="MOA vs MRAD (mils) — what should I buy for PRS?">
+                    <p>
+                        <strong>MOA</strong> (minute of angle) and <strong>MRAD</strong> (milliradians, usually called
+                        &ldquo;mils&rdquo; on turrets and reticles) are two different ways of dividing clicks and
+                        subtensions. Both are perfectly usable if you commit to one system and learn it properly.
+                    </p>
+                    <p>
+                        In practice, <strong>most PRS shooters worldwide run MRAD scopes</strong>. Squad chatter,
+                        coaching, and quick corrections on the clock are overwhelmingly in tenths of a mil: wind calls,
+                        elevation changes, and &ldquo;spotter language&rdquo; all line up faster when everyone shares the
+                        same angular unit.
+                    </p>
+                    <p>
+                        If you are <strong>still choosing an optic for PRS</strong>, MRAD is usually the easier match to
+                        how matches are taught and discussed: the mental arithmetic lines up neatly with metric thinking
+                        (for example 0.1&nbsp;mil clicks), and you spend less time translating when someone gives you a
+                        correction in mils.
+                    </p>
+                    <p>
+                        Ballistically, <strong>similar calibres are often remarkably close in angular space</strong>
+                        once you are talking mils on target &mdash; what changes is mainly velocity and drop, not the
+                        language the squad uses for a correction. MOA shooters absolutely still compete; the point is
+                        that MRAD tends to fit the <em>conversation</em> of modern PRS with less friction.
+                    </p>
+                </x-site.faq-item>
+
+                <x-site.faq-item question="What ballistic calculators or weather tools do PRS shooters use?">
+                    <p>
+                        You do not need the most expensive solver on day one, but you <strong>do</strong> need a
+                        repeatable way to build a drop chart, confirm truing, and read wind &mdash; whether that is an
+                        app, a dedicated meter, or both.
+                    </p>
+                    <p>
+                        <strong>Phone and tablet apps</strong> (examples shooters commonly use) include
+                        <strong>Hornady 4DOF</strong>, <strong>Applied Ballistics Quantum</strong> (AB&rsquo;s current
+                        mobile solver with profile management and Bluetooth links to supported hardware), and
+                        <strong>GeoBallistics</strong> (standalone ballistics platform with its own app ecosystem).
+                    </p>
+                    <p>
+                        <strong>Kestrel</strong> handheld weather meters with Applied Ballistics firmware remain a
+                        <strong>field-proven</strong> choice: wind, air density, and a trusted solver in one unit you can
+                        keep on a tripod or in a pocket between stages.
+                    </p>
+                    <p>
+                        <strong>Calypso</strong> builds compact <strong>ultrasonic wind meters</strong>, including
+                        Applied Ballistics&ndash;oriented models that stream wind data over Bluetooth into compatible
+                        apps &mdash; a lightweight way to feed live wind into an AB-style workflow without carrying a
+                        full weather station.
+                    </p>
+                    <p>
+                        <strong>Vortex</strong> also now offers ballistic <strong>weather meters</strong> such as the
+                        <strong>ACE</strong>, which combine environmental sensors with <strong>GeoBallistics</strong>
+                        integration (solver, profiles, and app connectivity in the GeoBallistics family). That gives
+                        shooters another credible option alongside traditional Kestrel + app setups.
+                    </p>
+                    <p>
+                        PPRC does not endorse a single brand; models and firmware change. Use this list as a map of what
+                        experienced shooters mean when they say &ldquo;4DOF&rdquo;, &ldquo;AB Quantum&rdquo;,
+                        &ldquo;Kestrel with AB&rdquo;, &ldquo;Calypso into the app&rdquo;, or &ldquo;GeoBallistics on the
+                        Vortex meter&rdquo; &mdash; then pick what fits your budget, your phone, and how you like to work
+                        on the range.
                     </p>
                 </x-site.faq-item>
             </x-site.faq-group>
