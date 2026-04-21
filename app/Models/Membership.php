@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Membership extends Model
 {
@@ -28,6 +29,8 @@ class Membership extends Model
         'approved_at',
         'approved_by_user_id',
         'admin_notes',
+        'certificate_token',
+        'certificate_issued_at',
     ];
 
     protected $casts = [
@@ -36,6 +39,7 @@ class Membership extends Model
         'approved_at' => 'datetime',
         'status' => MembershipStatus::class,
         'price_cents_snapshot' => 'integer',
+        'certificate_issued_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -46,6 +50,13 @@ class Membership extends Model
             }
 
             app(MembershipNumberAssignment::class)->syncForActiveMembership($membership);
+
+            if (empty($membership->certificate_token)) {
+                $membership->forceFill([
+                    'certificate_token' => Str::lower(Str::random(40)),
+                    'certificate_issued_at' => $membership->certificate_issued_at ?? now(),
+                ])->saveQuietly();
+            }
         });
     }
 

@@ -74,6 +74,16 @@ class Membership extends Component
             : collect();
     }
 
+    #[Computed]
+    public function clubBadges()
+    {
+        $member = $this->member();
+
+        return $member
+            ? $member->clubBadges()->orderBy('club_badges.sort_order')->get()
+            : collect();
+    }
+
     public function renew(MembershipIssuer $issuer): void
     {
         $this->validate(['renewIntoTypeId' => ['required', 'exists:membership_types,id']]);

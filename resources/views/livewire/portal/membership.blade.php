@@ -42,12 +42,31 @@
                     </div>
                 </dl>
 
+                @if ($m->status === App\Enums\MembershipStatus::Active && $m->certificate_token)
+                    <div class="mt-6 rounded-lg border border-brand-200/80 bg-brand-50/60 p-4 text-sm text-slate-800">
+                        <p class="font-medium text-slate-900">Membership certificate</p>
+                        <p class="mt-1 text-slate-600">Print or save a PDF for range or employer checks.</p>
+                        <a
+                            href="{{ route('membership.certificate.show', ['token' => $m->certificate_token]) }}"
+                            target="_blank"
+                            rel="noopener"
+                            class="mt-3 inline-flex items-center rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500"
+                        >Open certificate</a>
+                    </div>
+                @endif
+
                 @if ($m->status === App\Enums\MembershipStatus::PendingPayment)
                     @php($pending = $m->payments->firstWhere('status', App\Enums\PaymentStatus::Pending))
                     @if (! $pending)
                         <div class="mt-6">
-                            <button wire:click="startEftPayment({{ $m->id }})" class="inline-flex items-center rounded-md bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-800">
-                                Generate EFT reference
+                            <button
+                                type="button"
+                                wire:click="startEftPayment({{ $m->id }})"
+                                wire:loading.attr="disabled"
+                                class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 disabled:opacity-60"
+                            >
+                                <span wire:loading.remove wire:target="startEftPayment({{ $m->id }})">Generate EFT reference</span>
+                                <span wire:loading wire:target="startEftPayment({{ $m->id }})" class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                             </button>
                         </div>
                     @else
@@ -59,8 +78,14 @@
 
                             <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
                                 <input type="file" wire:model="proofUpload" class="text-sm" />
-                                <button wire:click="uploadProof({{ $pending->id }})" class="rounded-md bg-emerald-600 text-white px-3 py-1.5 text-sm hover:bg-emerald-500">
-                                    Upload proof
+                                <button
+                                    type="button"
+                                    wire:click="uploadProof({{ $pending->id }})"
+                                    wire:loading.attr="disabled"
+                                    class="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
+                                >
+                                    <span wire:loading.remove wire:target="uploadProof({{ $pending->id }})">Upload proof</span>
+                                    <span wire:loading wire:target="uploadProof({{ $pending->id }})" class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                                 </button>
                             </div>
                             @error('proofUpload') <p class="text-xs text-red-600 mt-2">{{ $message }}</p> @enderror
@@ -71,6 +96,20 @@
                 <p class="mt-4 text-sm text-slate-600">You have no current membership.</p>
             @endif
         </section>
+
+        @if ($this->clubBadges->isNotEmpty())
+            <section class="rounded-lg border border-slate-200 bg-white p-6">
+                <h2 class="text-lg font-medium text-slate-900">Club badges</h2>
+                <p class="mt-1 text-sm text-slate-600">Recognition from the committee for contributions and roles.</p>
+                <ul class="mt-4 flex flex-wrap gap-2">
+                    @foreach ($this->clubBadges as $badge)
+                        <li class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-800">
+                            {{ $badge->name }}
+                        </li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
 
         <section class="rounded-lg border border-slate-200 bg-white p-6">
             <h2 class="text-lg font-medium text-slate-900">Renew / upgrade</h2>
@@ -86,8 +125,14 @@
                         @endforeach
                     </select>
                 </div>
-                <button wire:click="renew" class="rounded-md bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-800">
-                    Request membership
+                <button
+                    type="button"
+                    wire:click="renew"
+                    wire:loading.attr="disabled"
+                    class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                    <span wire:loading.remove wire:target="renew">Request membership</span>
+                    <span wire:loading wire:target="renew" class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                 </button>
             </div>
             @error('renewIntoTypeId') <p class="text-xs text-red-600 mt-2">{{ $message }}</p> @enderror

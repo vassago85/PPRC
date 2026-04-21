@@ -2,16 +2,19 @@
 
 namespace App\Models;
 
+use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
+use Database\Factories\MemberFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Member extends Model
 {
-    /** @use HasFactory<\Database\Factories\MemberFactory> */
+    /** @use HasFactory<MemberFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -70,6 +73,13 @@ class Member extends Model
         return $this->hasMany(Membership::class);
     }
 
+    public function clubBadges(): BelongsToMany
+    {
+        return $this->belongsToMany(ClubBadge::class, 'club_badge_member')
+            ->withPivot(['awarded_at', 'notes'])
+            ->withTimestamps();
+    }
+
     public function currentMembership(): ?Membership
     {
         return $this->memberships()
@@ -81,7 +91,7 @@ class Member extends Model
     public function hasActiveMembership(): bool
     {
         return $this->memberships()
-            ->where('status', \App\Enums\MembershipStatus::Active->value)
+            ->where('status', MembershipStatus::Active->value)
             ->where('period_end', '>=', now()->toDateString())
             ->exists();
     }

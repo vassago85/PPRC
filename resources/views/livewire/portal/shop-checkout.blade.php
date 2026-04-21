@@ -93,8 +93,14 @@
 
             @if ($o->status === \App\Enums\ShopOrderStatus::Draft || ($o->status === \App\Enums\ShopOrderStatus::PendingPayment && ! $o->eft_reference))
                 <div class="flex justify-end">
-                    <button type="button" wire:click="placeOrder" class="inline-flex items-center rounded-md bg-slate-900 text-white px-5 py-2.5 text-sm font-medium hover:bg-slate-800">
-                        Place order &amp; show bank details
+                    <button
+                        type="button"
+                        wire:click="placeOrder"
+                        wire:loading.attr="disabled"
+                        class="inline-flex items-center gap-2 rounded-md bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                    >
+                        <span wire:loading.remove wire:target="placeOrder">Place order &amp; show bank details</span>
+                        <span wire:loading wire:target="placeOrder" class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                     </button>
                 </div>
             @endif
@@ -123,8 +129,14 @@
                             <p class="text-slate-700 mb-2">Upload proof of payment (PDF or image, max 8&nbsp;MB)</p>
                             <div class="flex flex-col sm:flex-row sm:items-center gap-3">
                                 <input type="file" wire:model="proofUpload" class="text-sm" />
-                                <button type="button" wire:click="uploadProof" class="rounded-md bg-emerald-600 text-white px-3 py-1.5 text-sm hover:bg-emerald-500">
-                                    Upload proof
+                                <button
+                                    type="button"
+                                    wire:click="uploadProof"
+                                    wire:loading.attr="disabled"
+                                    class="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-60"
+                                >
+                                    <span wire:loading.remove wire:target="uploadProof">Upload proof</span>
+                                    <span wire:loading wire:target="uploadProof" class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span>
                                 </button>
                             </div>
                             @error('proofUpload') <p class="text-xs text-red-600 mt-2">{{ $message }}</p> @enderror

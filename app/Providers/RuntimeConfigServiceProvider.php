@@ -44,11 +44,18 @@ class RuntimeConfigServiceProvider extends ServiceProvider
 
     protected function applyMailConfig(): void
     {
+        $transport = (string) SiteSetting::get('mail.transport', '');
         $domain = SiteSetting::get('mail.mailgun.domain');
         $secret = SiteSetting::get('mail.mailgun.secret');
         $endpoint = SiteSetting::get('mail.mailgun.endpoint');
         $fromAddress = SiteSetting::get('mail.from.address');
         $fromName = SiteSetting::get('mail.from.name');
+
+        $smtpHost = SiteSetting::get('mail.smtp.host');
+        $smtpPort = SiteSetting::get('mail.smtp.port');
+        $smtpUser = SiteSetting::get('mail.smtp.username');
+        $smtpPass = SiteSetting::get('mail.smtp.password');
+        $smtpEnc = SiteSetting::get('mail.smtp.encryption');
 
         if (filled($domain)) {
             config(['services.mailgun.domain' => $domain]);
@@ -69,9 +76,44 @@ class RuntimeConfigServiceProvider extends ServiceProvider
             ]);
         }
 
-        // If Mailgun creds are present, prefer Mailgun as the default mailer.
-        if (filled($domain) && filled($secret)) {
-            config(['mail.default' => 'mailgun']);
+        $smtpMailer = config('mail.mailers.smtp', []);
+        if (filled($smtpHost)) {
+            $smtpMailer['host'] = $smtpHost;
+        }
+        if (filled($smtpPort)) {
+            $smtpMailer['port'] = (int) $smtpPort;
+        }
+        if (filled($smtpUser)) {
+            $smtpMailer['username'] = $smtpUser;
+        }
+        if (filled($smtpPass)) {
+            $smtpMailer['password'] = $smtpPass;
+        }
+        if ($smtpEnc !== null && $smtpEnc !== '') {
+            $smtpMailer['encryption'] = $smtpEnc;
+        }
+        config(['mail.mailers.smtp' => $smtpMailer]);
+
+        $mailgunReady = filled($domain) && filled($secret);
+        $smtpReady = filled($smtpHost);
+
+        $default = match ($transport) {
+            'log' => 'log',
+            'smtp' => $smtpReady ? 'smtp' : null,
+            'mailgun' => $mailgunReady ? 'mailgun' : null,
+            default => null,
+        };
+
+        if ($default === null) {
+            if ($mailgunReady) {
+                $default = 'mailgun';
+            } elseif ($smtpReady) {
+                $default = 'smtp';
+            }
+        }
+
+        if ($default !== null) {
+            config(['mail.default' => $default]);
         }
     }
 

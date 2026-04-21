@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\EmailVerificationPinController;
 use App\Http\Controllers\Site\AboutController;
 use App\Http\Controllers\Site\AnnouncementController;
+use App\Http\Controllers\Site\CertificateController;
 use App\Http\Controllers\Site\ContactController;
 use App\Http\Controllers\Site\FaqController;
 use App\Http\Controllers\Site\HomeController;
@@ -33,6 +34,9 @@ Route::get('/faqs', FaqController::class)->name('faqs');
 
 Route::get('/matches', [MatchController::class, 'index'])->name('matches');
 Route::get('/matches/{event:slug}', [MatchController::class, 'show'])->name('matches.show');
+Route::get('/membership/certificate/{token}', [CertificateController::class, 'show'])
+    ->where('token', '[a-zA-Z0-9]+')
+    ->name('membership.certificate.show');
 Route::redirect('/events', '/matches');
 Route::get('/results', [ResultController::class, 'index'])->name('results');
 Route::view('/gallery', 'site.stubs.gallery')->name('gallery');
@@ -68,6 +72,8 @@ Route::middleware(['web', 'auth'])->group(function () {
 Route::middleware(['web', 'auth', 'verified'])->prefix('portal')->name('portal.')->group(function () {
     Route::get('/membership', Membership::class)->name('membership');
     Route::get('/shop/{run}', ShopCheckout::class)->name('shop.run');
+    Route::view('/account/profile', 'portal.account.profile')->name('account.profile');
+    Route::view('/account/password', 'portal.account.password')->name('account.password');
     Route::redirect('/', '/portal/membership');
 });
 

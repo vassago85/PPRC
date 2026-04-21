@@ -13,6 +13,7 @@
         <meta name="description" content="{{ $description }}">
     @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @livewireStyles
 </head>
 <body class="min-h-full flex flex-col font-sans text-white bg-slate-950 selection:bg-white selection:text-slate-950">
     <x-site.header />
@@ -20,5 +21,6 @@
         {{ $slot }}
     </main>
     <x-site.footer />
+    @livewireScripts
 </body>
 </html>

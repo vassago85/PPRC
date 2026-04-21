@@ -104,6 +104,36 @@
         </x-site.section>
     @endif
 
+    <x-site.section padding="default" id="enter">
+        <livewire:site.event-register :event="$event" :key="'evt-reg-'.$event->id" />
+    </x-site.section>
+
+    @if ($event->galleryPhotos->isNotEmpty())
+        <x-site.section padding="default" id="gallery">
+            <div class="mb-8 flex items-end justify-between gap-4">
+                <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Gallery</h2>
+                <span class="text-sm text-slate-500">{{ $event->galleryPhotos->count() }} photos</span>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach ($event->galleryPhotos as $photo)
+                    <figure class="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                        <div class="aspect-[4/3] overflow-hidden">
+                            <img
+                                src="{{ $photo->publicUrl() }}"
+                                alt="{{ $photo->caption ?: $event->title }}"
+                                class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                                loading="lazy"
+                            />
+                        </div>
+                        @if ($photo->caption)
+                            <figcaption class="px-4 py-3 text-sm text-slate-400">{{ $photo->caption }}</figcaption>
+                        @endif
+                    </figure>
+                @endforeach
+            </div>
+        </x-site.section>
+    @endif
+
     <x-site.section padding="default" id="results">
         <div class="mb-8 flex items-end justify-between gap-4">
             <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Results</h2>

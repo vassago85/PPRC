@@ -6,8 +6,8 @@ use App\Models\SiteSetting;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -18,6 +18,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
@@ -81,13 +82,19 @@ class SiteSettings extends Page
                 'notes' => (string) SiteSetting::get('payments.bank.notes', ''),
             ],
 
-            // Mailgun
+            // Email delivery (runtime overrides — see RuntimeConfigServiceProvider)
             'mail' => [
+                'transport' => (string) SiteSetting::get('mail.transport', ''),
                 'from_address' => (string) SiteSetting::get('mail.from.address', ''),
                 'from_name' => (string) SiteSetting::get('mail.from.name', 'PPRC'),
                 'mailgun_domain' => (string) SiteSetting::get('mail.mailgun.domain', ''),
                 'mailgun_secret' => (string) SiteSetting::get('mail.mailgun.secret', ''),
                 'mailgun_endpoint' => (string) SiteSetting::get('mail.mailgun.endpoint', 'api.mailgun.net'),
+                'smtp_host' => (string) SiteSetting::get('mail.smtp.host', ''),
+                'smtp_port' => (string) SiteSetting::get('mail.smtp.port', '587'),
+                'smtp_username' => (string) SiteSetting::get('mail.smtp.username', ''),
+                'smtp_password' => (string) SiteSetting::get('mail.smtp.password', ''),
+                'smtp_encryption' => (string) SiteSetting::get('mail.smtp.encryption', 'tls'),
             ],
 
             // S3 / MinIO
@@ -205,10 +212,24 @@ class SiteSettings extends Page
                                     ]),
                             ]),
 
-                        Tab::make('Email (Mailgun)')
+                        Tab::make('Email delivery')
                             ->icon(Heroicon::OutlinedPaperAirplane)
                             ->visible($canManageIntegrations)
                             ->schema([
+                                Section::make('Transport')
+                                    ->description('Automatic prefers Mailgun when domain + secret are set; otherwise SMTP when a host is configured; otherwise your .env default mailer.')
+                                    ->schema([
+                                        Select::make('mail.transport')
+                                            ->label('Mailer preference')
+                                            ->options([
+                                                '' => 'Automatic',
+                                                'mailgun' => 'Mailgun',
+                                                'smtp' => 'SMTP',
+                                                'log' => 'Log only (local testing)',
+                                            ])
+                                            ->native(false),
+                                    ]),
+
                                 Section::make('From address')
                                     ->columns(2)
                                     ->schema([
@@ -245,6 +266,36 @@ class SiteSettings extends Page
                                             ->dehydrated(fn ($state) => filled($state))
                                             ->helperText('Leave blank to keep the current value.')
                                             ->columnSpanFull(),
+                                    ]),
+
+                                Section::make('SMTP relay')
+                                    ->description('Used when SMTP is chosen, or automatic mode with no Mailgun credentials.')
+                                    ->columns(2)
+                                    ->schema([
+                                        TextInput::make('mail.smtp_host')
+                                            ->label('Host')
+                                            ->maxLength(120),
+                                        TextInput::make('mail.smtp_port')
+                                            ->label('Port')
+                                            ->numeric()
+                                            ->default(587),
+                                        TextInput::make('mail.smtp_username')
+                                            ->label('Username')
+                                            ->maxLength(120),
+                                        TextInput::make('mail.smtp_password')
+                                            ->label('Password')
+                                            ->password()
+                                            ->revealable()
+                                            ->dehydrated(fn ($state) => filled($state))
+                                            ->helperText('Leave blank to keep the current value.'),
+                                        Select::make('mail.smtp_encryption')
+                                            ->label('Encryption')
+                                            ->options([
+                                                'tls' => 'TLS',
+                                                'ssl' => 'SSL',
+                                                '' => 'None',
+                                            ])
+                                            ->default('tls'),
                                     ]),
                             ]),
 
@@ -344,7 +395,7 @@ class SiteSettings extends Page
                 ->livewireSubmitHandler('save')
                 ->footer([
                     Actions::make($this->getFormActions())
-                        ->alignment(\Filament\Support\Enums\Alignment::End)
+                        ->alignment(Alignment::End)
                         ->key('form-actions'),
                 ]),
         ]);
@@ -389,12 +440,18 @@ class SiteSettings extends Page
             ['bank.reference_format', 'payments.bank.reference_format', 'payments', 'Reference format',  false, false],
             ['bank.notes',            'payments.bank.notes',            'payments', 'Bank notes',        false, false],
 
-            // --- Mailgun -----------------------------------------------------
+            // --- Email delivery ---------------------------------------------
+            ['mail.transport',        'mail.transport',          'mail', 'Mail transport',   false, false],
             ['mail.from_address',     'mail.from.address',       'mail', 'From address',     false, false],
             ['mail.from_name',        'mail.from.name',          'mail', 'From name',        false, false],
             ['mail.mailgun_domain',   'mail.mailgun.domain',     'mail', 'Mailgun domain',   false, false],
             ['mail.mailgun_endpoint', 'mail.mailgun.endpoint',   'mail', 'Mailgun endpoint', false, false],
             ['mail.mailgun_secret',   'mail.mailgun.secret',     'mail', 'Mailgun secret',   true,  true],
+            ['mail.smtp_host',        'mail.smtp.host',          'mail', 'SMTP host',        false, false],
+            ['mail.smtp_port',        'mail.smtp.port',          'mail', 'SMTP port',        false, false],
+            ['mail.smtp_username',    'mail.smtp.username',      'mail', 'SMTP username',    false, false],
+            ['mail.smtp_password',    'mail.smtp.password',      'mail', 'SMTP password',    true,  true],
+            ['mail.smtp_encryption',  'mail.smtp.encryption',    'mail', 'SMTP encryption',  false, false],
 
             // --- Storage -----------------------------------------------------
             ['storage.endpoint',       'storage.s3.endpoint',        'storage', 'S3 endpoint',       false, false],

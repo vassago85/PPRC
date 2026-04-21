@@ -9,16 +9,18 @@
     @livewireStyles
 </head>
 <body class="min-h-full font-sans text-slate-900">
-    <header class="bg-white border-b border-slate-200">
-        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-            <a href="{{ url('/portal/membership') }}" class="font-semibold tracking-tight">PPRC Portal</a>
-            <nav class="flex items-center gap-4 text-sm text-slate-600">
-                <a href="{{ route('shop') }}" class="hover:text-slate-900">Club shop</a>
-                <a href="{{ url('/portal/membership') }}" class="hover:text-slate-900">Membership</a>
+    <header class="border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
+        <div class="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <a href="{{ route('portal.membership') }}" class="text-base font-semibold tracking-tight text-slate-900">PPRC Portal</a>
+            <nav class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-600">
+                <a href="{{ route('portal.membership') }}" class="motion-safe transition hover:text-slate-900">Membership</a>
+                <a href="{{ route('shop') }}" class="motion-safe transition hover:text-slate-900">Club shop</a>
                 @auth
+                    <a href="{{ route('portal.account.profile') }}" class="motion-safe transition hover:text-slate-900">Profile</a>
+                    <a href="{{ route('portal.account.password') }}" class="motion-safe transition hover:text-slate-900">Password</a>
                     <form method="POST" action="{{ url('/logout') }}" class="inline">
                         @csrf
-                        <button type="submit" class="hover:text-slate-900">Sign out</button>
+                        <button type="submit" class="motion-safe text-slate-500 transition hover:text-slate-900">Sign out</button>
                     </form>
                 @endauth
             </nav>

@@ -17,13 +17,14 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             MembershipTypesSeeder::class,
             MatchFormatsSeeder::class,
+            ClubBadgesSeeder::class,
             SiteContentSeeder::class,
         ]);
 
         // Display names mirror the 2026 AGM elected ExCo where applicable; emails
         // remain stable dev inboxes for local/staging login.
         $committee = [
-            ['dev@pretoriaprc.co.za',         'PPRC Developer',               'developer'],
+            ['paul@charsley.co.za',           'Paul Charsley (Developer)',   'developer'],
             ['chair@pretoriaprc.co.za',       'Warren Britnell (Chair)',     'chairperson'],
             ['vicechair@pretoriaprc.co.za',   'Paul Charsley (Vice Chair)',  'vice_chair'],
             ['treasurer@pretoriaprc.co.za',   'Natasha Britnell (Treasurer)', 'treasurer'],
@@ -46,5 +47,7 @@ class DatabaseSeeder extends Seeder
             );
             $user->syncRoles([$role]);
         }
+
+        $this->call(PaulCharsleyTestMemberSeeder::class);
     }
 }

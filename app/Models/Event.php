@@ -147,6 +147,11 @@ class Event extends Model
         return $this->hasMany(EventResult::class);
     }
 
+    public function galleryPhotos(): HasMany
+    {
+        return $this->hasMany(EventGalleryPhoto::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function scopePublished(Builder $query): Builder
     {
         return $query->whereIn('status', [EventStatus::Published->value, EventStatus::Completed->value])

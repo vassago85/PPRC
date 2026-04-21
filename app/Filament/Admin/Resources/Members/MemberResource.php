@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Members;
 use App\Filament\Admin\Resources\Members\Pages\CreateMember;
 use App\Filament\Admin\Resources\Members\Pages\EditMember;
 use App\Filament\Admin\Resources\Members\Pages\ListMembers;
+use App\Filament\Admin\Resources\Members\RelationManagers\ClubBadgesRelationManager;
 use App\Filament\Admin\Resources\Members\RelationManagers\MembershipsRelationManager;
 use App\Filament\Admin\Resources\Members\RelationManagers\SubMembersRelationManager;
 use App\Filament\Admin\Resources\Members\Schemas\MemberForm;
@@ -54,6 +55,7 @@ class MemberResource extends Resource
         return [
             MembershipsRelationManager::class,
             SubMembersRelationManager::class,
+            ClubBadgesRelationManager::class,
         ];
     }
 

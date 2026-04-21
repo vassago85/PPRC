@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Events;
 use App\Filament\Admin\Resources\Events\Pages\CreateEvent;
 use App\Filament\Admin\Resources\Events\Pages\EditEvent;
 use App\Filament\Admin\Resources\Events\Pages\ListEvents;
+use App\Filament\Admin\Resources\Events\RelationManagers\GalleryPhotosRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\RegistrationsRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\ResultsRelationManager;
 use App\Filament\Admin\Resources\Events\Schemas\EventForm;
@@ -60,6 +61,7 @@ class EventResource extends Resource
         return [
             RegistrationsRelationManager::class,
             ResultsRelationManager::class,
+            GalleryPhotosRelationManager::class,
         ];
     }
 

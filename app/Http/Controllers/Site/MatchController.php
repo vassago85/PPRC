@@ -36,7 +36,7 @@ class MatchController extends Controller
         abort_unless($event->isPubliclyVisible(), 404);
 
         $event->loadCount('registrations');
-        $event->load('matchFormat', 'results');
+        $event->load(['matchFormat', 'results', 'galleryPhotos']);
 
         return view('site.matches.show', [
             'event' => $event,
