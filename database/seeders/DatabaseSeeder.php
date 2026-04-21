@@ -20,12 +20,13 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $committee = [
-            ['dev@pretoriaprc.co.za',         'PPRC Developer',           'developer'],
-            ['chair@pretoriaprc.co.za',       'PPRC Chairperson',         'chairperson'],
-            ['treasurer@pretoriaprc.co.za',   'PPRC Treasurer',           'treasurer'],
-            ['secretary@pretoriaprc.co.za',   'PPRC Secretary',           'secretary'],
+            ['dev@pretoriaprc.co.za',         'PPRC Developer',            'developer'],
+            ['chair@pretoriaprc.co.za',       'PPRC Chairperson',          'chairperson'],
+            ['treasurer@pretoriaprc.co.za',   'PPRC Treasurer',            'treasurer'],
+            ['secretary@pretoriaprc.co.za',   'PPRC Secretary',            'secretary'],
             ['membership@pretoriaprc.co.za',  'PPRC Membership Secretary', 'membership_secretary'],
-            ['admin@pretoriaprc.co.za',       'PPRC Admin',               'admin'],
+            ['matches@pretoriaprc.co.za',     'PPRC Match Director',       'match_director'],
+            ['admin@pretoriaprc.co.za',       'PPRC Admin',                'admin'],
         ];
 
         foreach ($committee as [$email, $name, $role]) {

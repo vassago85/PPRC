@@ -16,6 +16,7 @@ class RolesAndPermissionsSeeder extends Seeder
      *  - treasurer          Elected: confirm/reject EFT proofs, reconcile Paystack, refunds.
      *  - secretary          Elected: CMS, announcements, Exco page, contact info, enquiries.
      *  - membership_secretary  Elected: approve memberships, assign numbers, SAPRF whitelist, member imports.
+     *  - match_director     Runs matches: create/publish events, manage registrations + attendance, upload results.
      *  - admin              Any committee member: events, results, galleries, shop (day-to-day ops).
      *  - member             Paid member: portal only (no Spatie perms; gated by policies + auth scope).
      *
@@ -102,6 +103,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $treasurer = Role::findOrCreate('treasurer', 'web');
         $secretary = Role::findOrCreate('secretary', 'web');
         $membershipSecretary = Role::findOrCreate('membership_secretary', 'web');
+        $matchDirector = Role::findOrCreate('match_director', 'web');
         $admin = Role::findOrCreate('admin', 'web');
         Role::findOrCreate('member', 'web');
 
@@ -146,6 +148,18 @@ class RolesAndPermissionsSeeder extends Seeder
             'memberships.types.manage',
             'payments.view', 'payments.eft.confirm',
             'enquiries.view', 'enquiries.reply',
+        ]);
+
+        // Match director: owns the match lifecycle end-to-end. Can create and
+        // publish events, manage registrations and attendance on match day,
+        // and upload/publish results. Gets members.view so they can see who
+        // entered and attach results to the right member. Deliberately has
+        // no access to finance, CMS, shop, or member editing.
+        $matchDirector->syncPermissions([
+            'members.view',
+            'events.view', 'events.manage', 'events.publish',
+            'events.registrations.manage', 'events.attendance.manage',
+            'results.view', 'results.manage', 'results.publish',
         ]);
 
         // Admin: day-to-day ops across events/results/galleries/shop/CMS support.

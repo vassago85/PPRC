@@ -35,7 +35,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
      */
     public const COMMITTEE_ROLES = [
         'developer', 'chairperson', 'treasurer', 'secretary',
-        'membership_secretary', 'admin',
+        'membership_secretary', 'match_director', 'admin',
     ];
 
     public function canAccessPanel(Panel $panel): bool

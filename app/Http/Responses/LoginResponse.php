@@ -2,6 +2,7 @@
 
 namespace App\Http\Responses;
 
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
@@ -10,16 +11,15 @@ class LoginResponse implements LoginResponseContract
     /**
      * Role-aware post-login redirect.
      *
-     * - Developers + any admin-style role go to the Filament panel.
-     * - Everyone else goes to the member portal.
+     * - Developers + any committee role (matches User::COMMITTEE_ROLES which
+     *   gates Filament panel access) go to the admin panel.
+     * - Everyone else (plain members) goes to the member portal.
      */
     public function toResponse($request): RedirectResponse
     {
         $user = $request->user();
 
-        $adminRoles = ['developer', 'admin', 'chairperson', 'secretary', 'treasurer', 'editor'];
-
-        if ($user && $user->hasAnyRole($adminRoles)) {
+        if ($user && $user->hasAnyRole(User::COMMITTEE_ROLES)) {
             return redirect()->intended('/admin');
         }
 
