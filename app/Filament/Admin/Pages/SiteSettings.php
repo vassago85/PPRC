@@ -36,6 +36,10 @@ use UnitEnum;
  * encrypts anything flagged `is_secret`. RuntimeConfigServiceProvider
  * reads these back on boot and overrides config() so the DB values
  * actually take effect at runtime (no .env changes required after deploy).
+ *
+ * Form fields are intentionally optional so you can save one area at a time
+ * (e.g. mail only while testing). Empty values persist; features that need
+ * a setting should fail gracefully or show in-app guidance until configured.
  */
 class SiteSettings extends Page
 {
@@ -140,8 +144,8 @@ class SiteSettings extends Page
                                         TextInput::make('contact.email')
                                             ->label('Contact email')
                                             ->email()
-                                            ->required()
-                                            ->helperText('Where public contact-form submissions are delivered.')
+                                            ->nullable()
+                                            ->helperText('Where public contact-form submissions are delivered. Optional until you enable the contact page.')
                                             ->maxLength(255),
                                         TextInput::make('contact.physical_address')
                                             ->label('Physical address')
@@ -155,16 +159,19 @@ class SiteSettings extends Page
                                         TextInput::make('contact.social.facebook')
                                             ->label('Facebook URL')
                                             ->url()
+                                            ->nullable()
                                             ->prefix('https://')
                                             ->maxLength(255),
                                         TextInput::make('contact.social.instagram')
                                             ->label('Instagram URL')
                                             ->url()
+                                            ->nullable()
                                             ->prefix('https://')
                                             ->maxLength(255),
                                         TextInput::make('contact.social.whatsapp')
                                             ->label('WhatsApp link (optional)')
                                             ->url()
+                                            ->nullable()
                                             ->prefix('https://')
                                             ->maxLength(255),
                                     ]),
@@ -174,20 +181,17 @@ class SiteSettings extends Page
                             ->icon(Heroicon::OutlinedBanknotes)
                             ->schema([
                                 Section::make('Club bank account')
-                                    ->description('Shown to members on the EFT payment screen. Editable by roles with payment settings access (e.g. treasurer, chair, vice chair).')
+                                    ->description('Shown to members on the EFT payment screen. Editable by roles with payment settings access (e.g. treasurer, chair, vice chair). Leave blank while testing; fill before members rely on EFT instructions.')
                                     ->columns(2)
                                     ->schema([
                                         TextInput::make('bank.account_name')
                                             ->label('Account name')
-                                            ->required()
                                             ->maxLength(120),
                                         TextInput::make('bank.bank')
                                             ->label('Bank')
-                                            ->required()
                                             ->maxLength(80),
                                         TextInput::make('bank.account_number')
                                             ->label('Account number')
-                                            ->required()
                                             ->maxLength(40),
                                         TextInput::make('bank.branch_code')
                                             ->label('Branch code')
@@ -238,6 +242,7 @@ class SiteSettings extends Page
                                         TextInput::make('mail.from_address')
                                             ->label('From email')
                                             ->email()
+                                            ->nullable()
                                             ->placeholder('no-reply@pretoriaprc.co.za')
                                             ->maxLength(255),
                                         TextInput::make('mail.from_name')
@@ -280,6 +285,7 @@ class SiteSettings extends Page
                                         TextInput::make('mail.smtp_port')
                                             ->label('Port')
                                             ->numeric()
+                                            ->nullable()
                                             ->default(587),
                                         TextInput::make('mail.smtp_username')
                                             ->label('Username')
