@@ -44,6 +44,10 @@ class RuntimeConfigServiceProvider extends ServiceProvider
 
     protected function applyMailConfig(): void
     {
+        if (blank(config('mail.mailers.mailgun'))) {
+            config(['mail.mailers.mailgun' => ['transport' => 'mailgun']]);
+        }
+
         $transport = (string) SiteSetting::get('mail.transport', '');
         $domain = SiteSetting::get('mail.mailgun.domain');
         $secret = SiteSetting::get('mail.mailgun.secret');
@@ -94,8 +98,11 @@ class RuntimeConfigServiceProvider extends ServiceProvider
         }
         config(['mail.mailers.smtp' => $smtpMailer]);
 
-        $mailgunReady = filled($domain) && filled($secret);
-        $smtpReady = filled($smtpHost);
+        // Use merged config so .env-only secrets still pair with a domain saved in Site settings.
+        $mailgunReady = filled((string) config('services.mailgun.domain'))
+            && filled((string) config('services.mailgun.secret'));
+
+        $smtpReady = filled((string) (config('mail.mailers.smtp.host') ?? ''));
 
         $default = match ($transport) {
             'log' => 'log',

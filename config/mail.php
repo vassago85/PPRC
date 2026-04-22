@@ -49,6 +49,14 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        /*
+         * Domain, secret, and endpoint are read from config('services.mailgun').
+         * RuntimeConfigServiceProvider overwrites those from Site settings when set.
+         */
+        'mailgun' => [
+            'transport' => 'mailgun',
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
