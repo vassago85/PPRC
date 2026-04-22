@@ -320,8 +320,8 @@ class SiteSettings extends Page
                                             ->maxLength(80),
                                         TextInput::make('storage.bucket')
                                             ->label('Bucket')
-                                            ->required()
-                                            ->maxLength(120),
+                                            ->maxLength(120)
+                                            ->helperText('Set when you use S3/MinIO for media. Leave empty until then — you can still save other tabs (e.g. email) without it.'),
                                         TextInput::make('storage.url')
                                             ->label('Public URL')
                                             ->helperText('HTTPS base for public media and for presigned S3 browser uploads (must match your Nginx / MinIO proxy). E.g. https://example.com/media/pprc-media')
