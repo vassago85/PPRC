@@ -307,18 +307,18 @@ class SiteSettings extends Page
                                     ]),
                             ]),
 
-                        Tab::make('Storage (S3 / MinIO)')
+                        Tab::make('Storage (S3 / R2 / MinIO)')
                             ->icon(Heroicon::OutlinedCloud)
                             ->visible($canManageIntegrations)
                             ->schema([
                                 Section::make('S3-compatible storage')
-                                    ->description('Works with AWS S3, MinIO, Wasabi, DigitalOcean Spaces, etc. For MinIO, set the endpoint to your MinIO URL and keep "Use path style" enabled.')
+                                    ->description('Same fields for any S3 API: AWS S3, Cloudflare R2, MinIO, Wasabi, DigitalOcean Spaces, etc. R2: endpoint https://<ACCOUNT_ID>.r2.cloudflarestorage.com, region often auto, Public URL = R2 custom domain or public bucket URL. MinIO: your MinIO URL and path style on.')
                                     ->columns(2)
                                     ->schema([
                                         TextInput::make('storage.endpoint')
                                             ->label('Endpoint URL')
-                                            ->placeholder('http://pprc-minio:9000')
-                                            ->helperText('S3 API URL the **server** uses (e.g. internal http://pprc-minio:9000 in Docker). Admin uploads use HTTPS to the app first, then PHP writes here — do not rely on the browser reaching this host.')
+                                            ->placeholder('https://…r2.cloudflarestorage.com or http://pprc-minio:9000')
+                                            ->helperText('S3 API base URL the **server** uses (R2 account endpoint, MinIO internal URL, AWS regional endpoint, etc.). The browser does not need to reach this host for admin uploads.')
                                             ->maxLength(255),
                                         TextInput::make('storage.region')
                                             ->label('Region')
