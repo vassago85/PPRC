@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Mail\SiteConfigTestMail;
 use App\Models\SiteSetting;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -20,6 +21,7 @@ use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Facades\Mail;
 use UnitEnum;
 
 /**
@@ -405,6 +407,43 @@ class SiteSettings extends Page
     protected function getFormActions(): array
     {
         return [
+            Action::make('sendTestEmail')
+                ->label('Send test email')
+                ->icon(Heroicon::OutlinedPaperAirplane)
+                ->color('gray')
+                ->modalHeading('Send a test email')
+                ->modalDescription('Uses the mail configuration already saved to the database (plus .env where keys are empty). Save changes first if you just edited Mailgun or SMTP.')
+                ->modalSubmitActionLabel('Send')
+                ->fillForm(fn (): array => [
+                    'to' => (string) (auth()->user()?->email ?? ''),
+                ])
+                ->schema([
+                    TextInput::make('to')
+                        ->label('Recipient')
+                        ->email()
+                        ->required()
+                        ->maxLength(255),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        Mail::to($data['to'])->send(new SiteConfigTestMail(auth()->user()));
+
+                        Notification::make()
+                            ->success()
+                            ->title('Test email sent')
+                            ->body('Check the inbox (and spam) for the recipient you entered.')
+                            ->send();
+                    } catch (\Throwable $e) {
+                        report($e);
+
+                        Notification::make()
+                            ->danger()
+                            ->title('Could not send test email')
+                            ->body($e->getMessage())
+                            ->persistent()
+                            ->send();
+                    }
+                }),
             Action::make('save')
                 ->label('Save changes')
                 ->submit('save')
