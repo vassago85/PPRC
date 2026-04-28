@@ -14,6 +14,17 @@
         <p class="mt-1 text-sm text-slate-400">Your event registrations — upcoming and past.</p>
     </div>
 
+    @if (session('flash'))
+        <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            {{ session('flash') }}
+        </div>
+    @endif
+    @if (session('flash_error'))
+        <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {{ session('flash_error') }}
+        </div>
+    @endif
+
     @foreach (['Upcoming' => $this->upcoming, 'Past' => $this->past] as $label => $items)
         <section class="space-y-3">
             <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">{{ $label }}</h2>
@@ -32,6 +43,9 @@
                                     <th class="px-6 py-3 font-medium">Date</th>
                                     <th class="px-6 py-3 font-medium">Location</th>
                                     <th class="px-6 py-3 font-medium">Status</th>
+                                    @if ($label === 'Upcoming')
+                                        <th class="px-6 py-3 font-medium"></th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/5">
@@ -47,6 +61,19 @@
                                                 {{ $reg->status->label() }}
                                             </span>
                                         </td>
+                                        @if ($label === 'Upcoming')
+                                            <td class="px-6 py-4 text-right">
+                                                @if ($reg->status !== App\Enums\EventRegistrationStatus::Cancelled)
+                                                    <button
+                                                        type="button"
+                                                        wire:click="withdraw({{ $reg->id }})"
+                                                        wire:confirm="Withdraw from {{ $reg->event->title }}?"
+                                                        wire:loading.attr="disabled"
+                                                        class="text-xs font-medium text-red-400 transition hover:text-red-300 disabled:opacity-50"
+                                                    >Withdraw</button>
+                                                @endif
+                                            </td>
+                                        @endif
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -62,7 +89,17 @@
                                         {{ $reg->status->label() }}
                                     </span>
                                 </div>
-                                <p class="mt-1 text-xs text-slate-500">{{ $reg->event->start_date->format('d M Y') }}@if ($reg->event->location_name) · {{ $reg->event->location_name }}@endif</p>
+                                <div class="mt-1 flex items-center justify-between">
+                                    <p class="text-xs text-slate-500">{{ $reg->event->start_date->format('d M Y') }}@if ($reg->event->location_name) · {{ $reg->event->location_name }}@endif</p>
+                                    @if ($label === 'Upcoming' && $reg->status !== App\Enums\EventRegistrationStatus::Cancelled)
+                                        <button
+                                            type="button"
+                                            wire:click="withdraw({{ $reg->id }})"
+                                            wire:confirm="Withdraw from {{ $reg->event->title }}?"
+                                            class="text-xs font-medium text-red-400 hover:text-red-300"
+                                        >Withdraw</button>
+                                    @endif
+                                </div>
                             </div>
                         @endforeach
                     </div>

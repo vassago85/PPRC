@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Portal;
 
+use App\Enums\EventRegistrationStatus;
 use App\Models\EventRegistration;
 use App\Models\Member;
 use Illuminate\Support\Collection;
@@ -50,6 +51,24 @@ class MyRegistrations extends Component
         return $this->registrations->filter(
             fn (EventRegistration $r) => $r->event->start_date->lt(today())
         )->values();
+    }
+
+    public function withdraw(int $registrationId): void
+    {
+        $reg = EventRegistration::query()
+            ->where('member_id', $this->member->id)
+            ->whereHas('event', fn ($q) => $q->where('start_date', '>=', today()))
+            ->findOrFail($registrationId);
+
+        if ($reg->status === EventRegistrationStatus::Cancelled) {
+            session()->flash('flash_error', 'This registration is already cancelled.');
+            return;
+        }
+
+        $reg->update(['status' => EventRegistrationStatus::Cancelled]);
+
+        unset($this->registrations, $this->upcoming, $this->past);
+        session()->flash('flash', 'Withdrawn from ' . $reg->event->title . '.');
     }
 
     public function render(): mixed
