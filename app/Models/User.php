@@ -51,11 +51,17 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 
     public function markEmailAsVerified(): bool
     {
-        return $this->forceFill([
+        $saved = $this->forceFill([
             'email_verified_at' => $this->freshTimestamp(),
             'email_verification_pin_hash' => null,
             'email_verification_pin_expires_at' => null,
         ])->save();
+
+        if ($saved && $this->member) {
+            app(\App\Services\Membership\MemberService::class)->markVerified($this->member);
+        }
+
+        return $saved;
     }
 
     /**

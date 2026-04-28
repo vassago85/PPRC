@@ -172,6 +172,11 @@ class ImportMembers extends Command
             ['warnings', $stats['warnings']],
         ]);
 
+        if (! $dryRun) {
+            $this->info('Recomputing membership number sequence...');
+            $this->call('members:seed-sequence');
+        }
+
         return self::SUCCESS;
     }
 }

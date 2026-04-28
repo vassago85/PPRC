@@ -10,6 +10,9 @@ use App\Models\Membership as MembershipModel;
 use App\Models\MembershipPayment;
 use App\Models\MembershipType;
 use App\Services\Membership\MembershipIssuer;
+use App\Services\Membership\MembershipTypeService;
+use App\Services\Membership\PaymentReferenceGenerator;
+use App\Services\Membership\RenewalService;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -47,12 +50,7 @@ class Membership extends Component
     #[Computed]
     public function types()
     {
-        return MembershipType::query()
-            ->where('is_active', true)
-            ->where('show_on_registration', true)
-            ->where('is_sub_membership', false)
-            ->orderBy('sort_order')
-            ->get();
+        return app(MembershipTypeService::class)->activeForRegistration();
     }
 
     #[Computed]
@@ -84,7 +82,7 @@ class Membership extends Component
             : collect();
     }
 
-    public function renew(MembershipIssuer $issuer): void
+    public function renew(RenewalService $renewal): void
     {
         $this->validate(['renewIntoTypeId' => ['required', 'exists:membership_types,id']]);
 
@@ -98,15 +96,7 @@ class Membership extends Component
         );
 
         $type = MembershipType::findOrFail($this->renewIntoTypeId);
-        $membership = $issuer->issue($member, $type);
-
-        if ($type->allows_sub_members && $membership->status === MembershipStatus::Active) {
-            $issuer->autoRenewLinkedFreeSubMembers(
-                $member,
-                Carbon::parse($membership->period_start),
-                Carbon::parse($membership->period_end),
-            );
-        }
+        $renewal->renew($member, $type);
 
         $this->renewIntoTypeId = null;
         session()->flash('flash', 'Membership requested. Please pay to activate.');
@@ -125,7 +115,7 @@ class Membership extends Component
             [
                 'amount_cents' => $membership->price_cents_snapshot,
                 'currency' => 'ZAR',
-                'reference' => 'PPRC-MEM-'.$membership->id.'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)),
+                'reference' => app(PaymentReferenceGenerator::class)->generate(),
             ],
         );
 

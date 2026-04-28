@@ -92,7 +92,10 @@ class Member extends Model
     {
         return $this->memberships()
             ->where('status', MembershipStatus::Active->value)
-            ->where('period_end', '>=', now()->toDateString())
+            ->where(fn ($q) => $q
+                ->whereNull('period_end')
+                ->orWhere('period_end', '>=', now()->toDateString())
+            )
             ->exists();
     }
 

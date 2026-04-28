@@ -111,6 +111,15 @@ class SiteContentSeeder extends Seeder
             ['payments.paystack.currency',       'payments', 'Paystack currency',       false],
             ['payments.paystack.secret_key',     'payments', 'Paystack secret key',     true],
             ['payments.paystack.webhook_secret', 'payments', 'Paystack webhook secret', true],
+
+            // Membership email toggles (SSMM parity)
+            ['membership.email_on_register',     'membership', 'Email on new registration',         false],
+            ['membership.email_on_activate',     'membership', 'Email on membership activated',     false],
+            ['membership.email_on_expiry',       'membership', 'Email on membership expiry',        false],
+            ['membership.email_on_renewal',      'membership', 'Email on renewal created',          false],
+            ['membership.renewal_window_days',   'membership', 'Renewal window (days)',             false],
+            ['membership.number_prefix',         'membership', 'Membership number prefix',          false],
+            ['membership.number_pad_length',     'membership', 'Membership number padding',         false],
         ];
 
         foreach ($rows as [$key, $group, $label, $isSecret]) {
@@ -120,12 +129,19 @@ class SiteContentSeeder extends Seeder
             }
 
             $default = match (true) {
-                $key === 'mail.from.name'             => 'PPRC',
-                $key === 'mail.mailgun.endpoint'      => 'api.mailgun.net',
-                $key === 'storage.s3.region'          => 'us-east-1',
-                $key === 'storage.s3.use_path_style'  => true,
-                $key === 'payments.paystack.currency' => 'ZAR',
-                default                               => '',
+                $key === 'mail.from.name'                  => 'PPRC',
+                $key === 'mail.mailgun.endpoint'           => 'api.mailgun.net',
+                $key === 'storage.s3.region'               => 'us-east-1',
+                $key === 'storage.s3.use_path_style'       => true,
+                $key === 'payments.paystack.currency'      => 'ZAR',
+                $key === 'membership.email_on_register'    => true,
+                $key === 'membership.email_on_activate'    => true,
+                $key === 'membership.email_on_expiry'      => true,
+                $key === 'membership.email_on_renewal'     => true,
+                $key === 'membership.renewal_window_days'  => 60,
+                $key === 'membership.number_prefix'        => '',
+                $key === 'membership.number_pad_length'    => '',
+                default                                    => '',
             };
 
             SiteSetting::put($key, $default, [

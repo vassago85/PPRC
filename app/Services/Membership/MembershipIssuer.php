@@ -12,6 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class MembershipIssuer
 {
+    public function __construct(
+        protected MembershipTypeService $typeService,
+    ) {}
+
     /**
      * Issue a membership for the given member + type. Enforces:
      *   - sub-member types must be linked to an adult member
@@ -29,18 +33,19 @@ class MembershipIssuer
         $this->assertSubMembershipRules($member, $type);
 
         $priceCents = $this->resolvePrice($member, $type);
+        $periodEnd = $this->typeService->calculateExpiryDate($type, $start);
 
         $needsApproval = $type->requires_manual_approval;
         $status = $needsApproval
             ? ($priceCents > 0 ? MembershipStatus::PendingPayment : MembershipStatus::PendingApproval)
             : ($priceCents > 0 ? MembershipStatus::PendingPayment : MembershipStatus::Active);
 
-        return DB::transaction(function () use ($member, $type, $start, $priceCents, $status) {
+        return DB::transaction(function () use ($member, $type, $start, $periodEnd, $priceCents, $status) {
             return Membership::create([
                 'member_id' => $member->id,
                 'membership_type_id' => $type->id,
                 'period_start' => $start,
-                'period_end' => $start->copy()->addMonths($type->duration_months)->subDay(),
+                'period_end' => $periodEnd,
                 'status' => $status,
                 'price_cents_snapshot' => $priceCents,
                 'membership_type_slug_snapshot' => $type->slug,
@@ -95,6 +100,11 @@ class MembershipIssuer
                 'membership_type_id' => "{$member->fullName()} does not meet the age requirement for {$type->name}.",
             ]);
         }
+    }
+
+    public function assertSubMembershipRulesPublic(Member $member, MembershipType $type): void
+    {
+        $this->assertSubMembershipRules($member, $type);
     }
 
     protected function assertSubMembershipRules(Member $member, MembershipType $type): void

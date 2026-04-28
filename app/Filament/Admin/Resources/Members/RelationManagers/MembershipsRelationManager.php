@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Members\RelationManagers;
 use App\Enums\MembershipStatus;
 use App\Models\Membership;
 use App\Models\MembershipType;
+use App\Services\Membership\MembershipTypeService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -47,15 +48,17 @@ class MembershipsRelationManager extends RelationManager
                             return;
                         }
                         $start = Carbon::now();
+                        $end = app(MembershipTypeService::class)->calculateExpiryDate($type, $start);
                         $set('period_start', $start->toDateString());
-                        $set('period_end', $start->copy()->addMonths($type->duration_months)->subDay()->toDateString());
+                        $set('period_end', $end?->toDateString());
                         $set('price_cents_snapshot', $type->price_cents);
                         $set('membership_type_slug_snapshot', $type->slug);
                         $set('membership_type_name_snapshot', $type->name);
                     }),
 
                 DatePicker::make('period_start')->required()->native(false),
-                DatePicker::make('period_end')->required()->native(false),
+                DatePicker::make('period_end')->native(false)
+                    ->helperText('Null for life / honorary memberships (duration_months = 0).'),
 
                 Select::make('status')
                     ->options(collect(MembershipStatus::cases())
