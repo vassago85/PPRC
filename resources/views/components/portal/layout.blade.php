@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,29 +8,31 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="min-h-full font-sans text-slate-900">
-    <header class="border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
-        <div class="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <a href="{{ route('portal.dashboard') }}" class="text-base font-semibold tracking-tight text-slate-900">PPRC Portal</a>
-            <nav class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-600">
-                <a href="{{ route('portal.dashboard') }}" class="motion-safe transition hover:text-slate-900 {{ request()->routeIs('portal.dashboard') ? 'text-slate-900 font-medium' : '' }}">Dashboard</a>
-                <a href="{{ route('portal.membership') }}" class="motion-safe transition hover:text-slate-900 {{ request()->routeIs('portal.membership') ? 'text-slate-900 font-medium' : '' }}">Membership</a>
-                <a href="{{ route('portal.registrations') }}" class="motion-safe transition hover:text-slate-900 {{ request()->routeIs('portal.registrations') ? 'text-slate-900 font-medium' : '' }}">My Registrations</a>
-                <a href="{{ route('portal.results') }}" class="motion-safe transition hover:text-slate-900 {{ request()->routeIs('portal.results') ? 'text-slate-900 font-medium' : '' }}">My Results</a>
-                <a href="{{ route('shop') }}" class="motion-safe transition hover:text-slate-900">Shop</a>
+<body class="min-h-full bg-slate-950 font-sans text-white antialiased">
+    <header class="border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
+        <div class="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
+            <a href="{{ route('portal.dashboard') }}" class="flex items-center gap-3">
+                <img src="{{ asset('pprclogo.png') }}" alt="PPRC" class="h-8 w-auto" width="32" height="32" />
+                <span class="text-sm font-semibold tracking-tight text-white">Member Portal</span>
+            </a>
+            <nav class="flex items-center gap-6 text-sm">
+                <a href="{{ route('portal.dashboard') }}" class="transition {{ request()->routeIs('portal.dashboard') ? 'text-white' : 'text-slate-400 hover:text-white' }}">Dashboard</a>
+                <a href="{{ route('portal.membership') }}" class="transition {{ request()->routeIs('portal.membership') ? 'text-white' : 'text-slate-400 hover:text-white' }}">Membership</a>
+                <a href="{{ route('shop') }}" class="text-slate-400 transition hover:text-white">Shop</a>
                 @auth
-                    <a href="{{ route('portal.profile.edit') }}" class="motion-safe transition hover:text-slate-900 {{ request()->routeIs('portal.profile.edit') ? 'text-slate-900 font-medium' : '' }}">Profile</a>
                     <form method="POST" action="{{ url('/logout') }}" class="inline">
                         @csrf
-                        <button type="submit" class="motion-safe text-slate-500 transition hover:text-slate-900">Sign out</button>
+                        <button type="submit" class="text-slate-500 transition hover:text-white">Sign out</button>
                     </form>
                 @endauth
             </nav>
         </div>
     </header>
-    <main>
+
+    <main class="mx-auto max-w-5xl px-5 py-10">
         {{ $slot }}
     </main>
+
     @livewireScripts
 </body>
 </html>

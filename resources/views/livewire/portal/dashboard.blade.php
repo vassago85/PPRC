@@ -1,197 +1,227 @@
-<div class="max-w-4xl mx-auto px-4 py-8 space-y-8">
+<div class="space-y-8">
 
-    {{-- Greeting --}}
-    <header>
-        <h1 class="text-2xl font-semibold text-slate-900">
-            Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }},
+    {{-- Flash messages --}}
+    @if (session('flash'))
+        <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            {{ session('flash') }}
+        </div>
+    @endif
+    @if (session('flash_error'))
+        <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {{ session('flash_error') }}
+        </div>
+    @endif
+
+    {{-- Hero greeting --}}
+    <div>
+        <h1 class="text-3xl font-bold tracking-tight">
             {{ $this->member?->first_name ?? auth()->user()->name }}
         </h1>
-        <p class="text-sm text-slate-600">Welcome to the PPRC member portal.</p>
-    </header>
+        <p class="mt-1 text-slate-400">Welcome back to PPRC.</p>
+    </div>
 
-    {{-- Membership status --}}
-    <section class="rounded-lg border border-slate-200 bg-white p-6">
-        <h2 class="text-lg font-medium text-slate-900">Membership</h2>
-
+    {{-- Membership card --}}
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
         @if ($this->membership)
             @php($m = $this->membership)
-            <dl class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <dt class="text-slate-500">Type</dt>
-                    <dd class="font-medium text-slate-900">{{ $m->membership_type_name_snapshot }}</dd>
+                    <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Membership</p>
+                    <p class="mt-1 text-xl font-semibold">{{ $m->membership_type_name_snapshot }}</p>
                 </div>
-                <div>
-                    <dt class="text-slate-500">Status</dt>
-                    <dd>
-                        @php($color = match($m->status->color()) {
-                            'success' => 'bg-emerald-100 text-emerald-800',
-                            'warning' => 'bg-amber-100 text-amber-800',
-                            'info'    => 'bg-sky-100 text-sky-800',
-                            'danger'  => 'bg-red-100 text-red-800',
-                            default   => 'bg-slate-100 text-slate-800',
-                        })
-                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $color }}">
-                            {{ $m->status->label() }}
-                        </span>
-                    </dd>
-                </div>
-                <div>
-                    <dt class="text-slate-500">Expires</dt>
-                    <dd class="text-slate-900">{{ $m->period_end?->format('d M Y') ?? '—' }}</dd>
-                </div>
-            </dl>
-
-            @if ($this->needsRenewal)
-                <div class="mt-5 flex items-center gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    <svg class="h-5 w-5 shrink-0 text-amber-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                    </svg>
-                    <span>
-                        @if ($m->status === App\Enums\MembershipStatus::Expired || $m->status === App\Enums\MembershipStatus::Cancelled)
-                            Your membership has {{ $m->status->label() === 'Cancelled' ? 'been cancelled' : 'expired' }}.
-                        @else
-                            Your membership expires on {{ $m->period_end?->format('d M Y') }}.
-                        @endif
-                        <a href="{{ route('portal.membership') }}" class="font-medium underline hover:text-amber-700">Renew now</a>
+                <div class="flex items-center gap-4">
+                    @php($statusColor = match($m->status->color()) {
+                        'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
+                        'warning' => 'bg-amber-500/20 text-amber-400 ring-amber-500/30',
+                        'info'    => 'bg-sky-500/20 text-sky-400 ring-sky-500/30',
+                        'danger'  => 'bg-red-500/20 text-red-400 ring-red-500/30',
+                        default   => 'bg-slate-500/20 text-slate-400 ring-slate-500/30',
+                    })
+                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset {{ $statusColor }}">
+                        {{ $m->status->label() }}
                     </span>
+                    @if ($m->period_end)
+                        <span class="text-sm text-slate-400">Expires {{ $m->period_end->format('d M Y') }}</span>
+                    @endif
+                </div>
+            </div>
+
+            {{-- Certificate link --}}
+            @if ($m->status === App\Enums\MembershipStatus::Active && $m->certificate_token)
+                <div class="mt-6 flex">
+                    <a href="{{ route('membership.certificate.show', ['token' => $m->certificate_token]) }}"
+                       target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                        Download certificate
+                    </a>
                 </div>
             @endif
+
+            {{-- Pending payment: show banking details + upload --}}
+            @if ($m->status === App\Enums\MembershipStatus::PendingPayment && $this->pendingPayment)
+                @php($pay = $this->pendingPayment)
+                <div class="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
+                    <p class="text-sm font-semibold text-amber-300">Payment required</p>
+                    <p class="mt-2 text-sm text-slate-300">
+                        Transfer <span class="font-semibold text-white">R {{ number_format($pay->amount_cents / 100, 2) }}</span>
+                        using reference <span class="font-mono font-semibold text-white">{{ $pay->reference }}</span>,
+                        then upload your proof of payment.
+                    </p>
+                    <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <input type="file" wire:model="proofUpload"
+                            class="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-white/15" />
+                        <button type="button" wire:click="uploadProof({{ $pay->id }})" wire:loading.attr="disabled"
+                            class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="uploadProof({{ $pay->id }})">Upload proof</span>
+                            <span wire:loading wire:target="uploadProof({{ $pay->id }})" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
+                        </button>
+                    </div>
+                    @error('proofUpload') <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
+                </div>
+            @endif
+
+            {{-- Renewal CTA --}}
+            @if ($this->needsRenewal && $m->status !== App\Enums\MembershipStatus::PendingPayment && $m->status !== App\Enums\MembershipStatus::PendingApproval)
+                <div class="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-5">
+                    <p class="text-sm font-semibold">
+                        @if ($m->status === App\Enums\MembershipStatus::Expired)
+                            Your membership has expired.
+                        @else
+                            Your membership expires soon.
+                        @endif
+                    </p>
+                    <div class="mt-3 flex flex-col sm:flex-row sm:items-end gap-3">
+                        <select wire:model="renewIntoTypeId"
+                            class="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20">
+                            <option value="">Choose type...</option>
+                            @foreach ($this->types as $t)
+                                <option value="{{ $t->id }}">{{ $t->name }} — R {{ number_format($t->price_cents / 100, 2) }}</option>
+                            @endforeach
+                        </select>
+                        <button type="button" wire:click="renew" wire:loading.attr="disabled"
+                            class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:opacity-50">
+                            <span wire:loading.remove wire:target="renew">Renew now</span>
+                            <span wire:loading wire:target="renew" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
+                        </button>
+                    </div>
+                    @error('renewIntoTypeId') <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
+                </div>
+            @endif
+
         @else
-            <p class="mt-4 text-sm text-slate-600">
-                You don't have an active membership.
-                <a href="{{ route('portal.membership') }}" class="font-medium text-slate-900 underline hover:text-slate-700">Set one up</a>
-            </p>
-        @endif
-    </section>
-
-    {{-- Upcoming matches --}}
-    <section class="rounded-lg border border-slate-200 bg-white p-6">
-        <div class="flex items-center justify-between">
-            <h2 class="text-lg font-medium text-slate-900">Upcoming matches</h2>
-            <a href="{{ route('matches') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">View all &rarr;</a>
-        </div>
-
-        @if ($this->upcomingMatches->isEmpty())
-            <p class="mt-4 text-sm text-slate-500">No upcoming matches scheduled.</p>
-        @else
-            <ul class="mt-4 divide-y divide-slate-100">
-                @foreach ($this->upcomingMatches as $event)
-                    <li>
-                        <a href="{{ route('matches.show', $event) }}" class="flex items-start gap-4 py-3 group">
-                            <div class="shrink-0 w-12 text-center">
-                                <span class="block text-xs font-medium uppercase text-slate-500">{{ $event->start_date->format('M') }}</span>
-                                <span class="block text-lg font-semibold text-slate-900 leading-tight">{{ $event->start_date->format('d') }}</span>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="font-medium text-slate-900 group-hover:text-slate-600 truncate">{{ $event->title }}</p>
-                                <p class="text-xs text-slate-500 mt-0.5">
-                                    @if ($event->matchFormat)
-                                        <span>{{ $event->matchFormat->short_name }}</span>
-                                        <span class="mx-1">&middot;</span>
-                                    @endif
-                                    @if ($event->location_name)
-                                        <span>{{ $event->location_name }}</span>
-                                    @endif
-                                </p>
-                            </div>
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
-        @endif
-    </section>
-
-    {{-- Recent results --}}
-    <section class="rounded-lg border border-slate-200 bg-white p-6">
-        <div class="flex items-center justify-between">
-            <h2 class="text-lg font-medium text-slate-900">Recent results</h2>
-            <a href="{{ route('portal.results') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">View all &rarr;</a>
-        </div>
-
-        @if ($this->recentResults->isEmpty())
-            <p class="mt-4 text-sm text-slate-500">No results recorded yet.</p>
-        @else
-            <div class="mt-4 overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="text-left text-slate-500">
-                        <tr>
-                            <th class="font-normal pb-2">Match</th>
-                            <th class="font-normal pb-2">Date</th>
-                            <th class="font-normal pb-2 text-center">Rank</th>
-                            <th class="font-normal pb-2 text-right">Score</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($this->recentResults as $result)
-                            <tr class="border-t border-slate-100">
-                                <td class="py-2 text-slate-900 max-w-[12rem] truncate">{{ $result->event?->title ?? '—' }}</td>
-                                <td class="py-2 text-slate-600 whitespace-nowrap">{{ $result->event?->start_date?->format('d M Y') ?? '—' }}</td>
-                                <td class="py-2 text-center">
-                                    @if ($result->rank)
-                                        <span class="inline-flex items-center justify-center rounded-full {{ $result->rank <= 3 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700' }} h-6 w-6 text-xs font-medium">
-                                            {{ $result->rank }}
-                                        </span>
-                                    @else
-                                        <span class="text-slate-400">—</span>
-                                    @endif
-                                </td>
-                                <td class="py-2 text-right font-mono text-slate-900">{{ $result->displayScore() }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+            {{-- No membership at all --}}
+            <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Membership</p>
+            <p class="mt-2 text-sm text-slate-400">You don't have a membership yet.</p>
+            <div class="mt-4 flex flex-col sm:flex-row sm:items-end gap-3">
+                <select wire:model="renewIntoTypeId"
+                    class="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20">
+                    <option value="">Choose a membership...</option>
+                    @foreach ($this->types as $t)
+                        <option value="{{ $t->id }}">{{ $t->name }} — R {{ number_format($t->price_cents / 100, 2) }}</option>
+                    @endforeach
+                </select>
+                <button type="button" wire:click="renew" wire:loading.attr="disabled"
+                    class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:opacity-50">
+                    <span wire:loading.remove wire:target="renew">Join now</span>
+                    <span wire:loading wire:target="renew" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
+                </button>
             </div>
+            @error('renewIntoTypeId') <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
         @endif
     </section>
 
-    {{-- Quick links --}}
-    <section>
-        <h2 class="text-lg font-medium text-slate-900 mb-4">Quick links</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <a href="{{ route('portal.membership') }}" class="rounded-lg border border-slate-200 bg-white p-4 text-center hover:border-slate-300 hover:shadow-sm transition">
-                <div class="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-                    </svg>
-                </div>
-                <span class="text-sm font-medium text-slate-900">My Membership</span>
-            </a>
+    {{-- Two-column grid: matches + results --}}
+    <div class="grid gap-8 lg:grid-cols-2">
 
-            <a href="{{ route('portal.results') }}" class="rounded-lg border border-slate-200 bg-white p-4 text-center hover:border-slate-300 hover:shadow-sm transition">
-                <div class="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 2c-1.716 0-3.408.106-5.07.31C3.806 2.45 3 3.414 3 4.517V17.25a.75.75 0 001.075.676L10 15.082l5.925 2.844A.75.75 0 0017 17.25V4.517c0-1.103-.806-2.068-1.93-2.207A41.403 41.403 0 0010 2z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <span class="text-sm font-medium text-slate-900">My Results</span>
-            </a>
+        {{-- Upcoming matches --}}
+        <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Upcoming matches</h2>
+                <a href="{{ route('matches') }}" class="text-xs text-slate-500 transition hover:text-white">View all</a>
+            </div>
 
-            <a href="{{ route('portal.registrations') }}" class="rounded-lg border border-slate-200 bg-white p-4 text-center hover:border-slate-300 hover:shadow-sm transition">
-                <div class="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <span class="text-sm font-medium text-slate-900">Registrations</span>
-            </a>
+            @if ($this->upcomingMatches->isEmpty())
+                <p class="mt-6 text-sm text-slate-500">No matches scheduled.</p>
+            @else
+                <ul class="mt-4 space-y-1">
+                    @foreach ($this->upcomingMatches as $event)
+                        <li>
+                            <a href="{{ route('matches.show', $event) }}" class="group flex items-center gap-4 rounded-lg px-3 py-3 -mx-3 transition hover:bg-white/5">
+                                <div class="shrink-0 w-11 text-center">
+                                    <span class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500">{{ $event->start_date->format('M') }}</span>
+                                    <span class="block text-lg font-bold leading-tight text-white">{{ $event->start_date->format('d') }}</span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-white group-hover:text-slate-200">{{ $event->title }}</p>
+                                    <p class="text-xs text-slate-500">
+                                        {{ $event->matchFormat?->short_name }}@if ($event->location_name) · {{ $event->location_name }}@endif
+                                    </p>
+                                </div>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
 
-            <a href="{{ route('shop') }}" class="rounded-lg border border-slate-200 bg-white p-4 text-center hover:border-slate-300 hover:shadow-sm transition">
-                <div class="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M6 5v1H4.667a1.75 1.75 0 00-1.743 1.598l-.826 9.5A1.75 1.75 0 003.84 19H16.16a1.75 1.75 0 001.743-1.902l-.826-9.5A1.75 1.75 0 0015.333 6H14V5a4 4 0 00-8 0zm4-2.5A2.5 2.5 0 007.5 5v1h5V5A2.5 2.5 0 0010 2.5zM7.5 10a2.5 2.5 0 005 0V8.75a.75.75 0 011.5 0V10a4 4 0 01-8 0V8.75a.75.75 0 011.5 0V10z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <span class="text-sm font-medium text-slate-900">Club Shop</span>
-            </a>
+        {{-- Recent results --}}
+        <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">My results</h2>
+                <a href="{{ route('portal.results') }}" class="text-xs text-slate-500 transition hover:text-white">View all</a>
+            </div>
 
-            <a href="{{ route('portal.profile.edit') }}" class="rounded-lg border border-slate-200 bg-white p-4 text-center hover:border-slate-300 hover:shadow-sm transition">
-                <div class="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.992 6.992 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-                    </svg>
-                </div>
-                <span class="text-sm font-medium text-slate-900">Profile</span>
-            </a>
-        </div>
-    </section>
+            @if ($this->recentResults->isEmpty())
+                <p class="mt-6 text-sm text-slate-500">No results yet.</p>
+            @else
+                <ul class="mt-4 space-y-1">
+                    @foreach ($this->recentResults as $result)
+                        <li class="flex items-center justify-between rounded-lg px-3 py-3 -mx-3">
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-medium text-white">{{ $result->event?->title ?? '—' }}</p>
+                                <p class="text-xs text-slate-500">{{ $result->event?->start_date?->format('d M Y') ?? '' }}</p>
+                            </div>
+                            <div class="flex items-center gap-3 shrink-0 ml-4">
+                                @if ($result->rank && $result->rank <= 3)
+                                    <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-500/20 text-xs font-bold text-amber-400">{{ $result->rank }}</span>
+                                @elseif ($result->rank)
+                                    <span class="text-sm text-slate-400">#{{ $result->rank }}</span>
+                                @endif
+                                <span class="text-sm font-mono text-slate-300">{{ $result->displayScore() }}</span>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </section>
+    </div>
+
+    {{-- Quick actions row --}}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <a href="{{ route('portal.registrations') }}" class="group flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center transition hover:border-white/20 hover:bg-white/[0.06]">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-400 transition group-hover:text-white">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
+            </div>
+            <span class="text-xs font-medium text-slate-400 group-hover:text-white">Registrations</span>
+        </a>
+        <a href="{{ route('portal.results') }}" class="group flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center transition hover:border-white/20 hover:bg-white/[0.06]">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-400 transition group-hover:text-white">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3 3h-15a3 3 0 0 1 3-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 0 1-.982-3.172M9.497 14.25a7.454 7.454 0 0 0 .982-3.172M8.25 8.25a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0Z" /></svg>
+            </div>
+            <span class="text-xs font-medium text-slate-400 group-hover:text-white">All results</span>
+        </a>
+        <a href="{{ route('portal.profile.edit') }}" class="group flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center transition hover:border-white/20 hover:bg-white/[0.06]">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-400 transition group-hover:text-white">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
+            </div>
+            <span class="text-xs font-medium text-slate-400 group-hover:text-white">Profile</span>
+        </a>
+        <a href="{{ route('shop') }}" class="group flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center transition hover:border-white/20 hover:bg-white/[0.06]">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-400 transition group-hover:text-white">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+            </div>
+            <span class="text-xs font-medium text-slate-400 group-hover:text-white">Club shop</span>
+        </a>
+    </div>
 </div>

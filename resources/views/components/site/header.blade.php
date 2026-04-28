@@ -48,7 +48,7 @@
             {{-- Desktop CTA --}}
             <div class="hidden lg:flex items-center gap-3">
                 @auth
-                    <a href="{{ url('/portal/membership') }}" class="text-sm text-slate-300 hover:text-white">Portal</a>
+                    <a href="{{ url('/portal') }}" class="text-sm text-slate-300 hover:text-white">Portal</a>
                 @else
                     <a href="{{ url('/login') }}" class="text-sm text-slate-300 hover:text-white">Sign in</a>
                 @endauth
@@ -84,7 +84,7 @@
 
             <div class="pt-4 space-y-2">
                 @auth
-                    <a href="{{ url('/portal/membership') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Portal</a>
+                    <a href="{{ url('/portal') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Portal</a>
                 @else
                     <a href="{{ url('/login') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Sign in</a>
                 @endauth
