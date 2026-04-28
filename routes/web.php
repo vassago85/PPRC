@@ -11,9 +11,14 @@ use App\Http\Controllers\Site\MatchController;
 use App\Http\Controllers\Site\MembershipController;
 use App\Http\Controllers\Site\ResultController;
 use App\Http\Controllers\Site\ShopController;
+use App\Http\Controllers\Site\GalleryController;
 use App\Http\Controllers\Site\ShopWaitlistController;
 use App\Http\Controllers\Webhooks\PaystackWebhookController;
+use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\Membership;
+use App\Livewire\Portal\MyRegistrations;
+use App\Livewire\Portal\MyResults;
+use App\Livewire\Portal\ProfileEdit;
 use App\Livewire\Portal\ShopCheckout;
 use Illuminate\Support\Facades\Route;
 
@@ -41,7 +46,8 @@ Route::get('/membership/certificate/{token}', [CertificateController::class, 'sh
     ->name('membership.certificate.show');
 Route::redirect('/events', '/matches');
 Route::get('/results', [ResultController::class, 'index'])->name('results');
-Route::view('/gallery', 'site.stubs.gallery')->name('gallery');
+Route::get('/gallery', [GalleryController::class, 'index'])->name('gallery');
+Route::get('/gallery/{event:slug}', [GalleryController::class, 'show'])->name('gallery.show');
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
 Route::get('/shop/waitlist/confirm/{token}', [ShopWaitlistController::class, 'confirm'])
     ->where('token', '[A-Za-z0-9]+')
@@ -72,11 +78,14 @@ Route::middleware(['web', 'auth'])->group(function () {
 });
 
 Route::middleware(['web', 'auth', 'verified'])->prefix('portal')->name('portal.')->group(function () {
+    Route::get('/', Dashboard::class)->name('dashboard');
     Route::get('/membership', Membership::class)->name('membership');
     Route::get('/shop/{run}', ShopCheckout::class)->name('shop.run');
+    Route::get('/results', MyResults::class)->name('results');
+    Route::get('/registrations', MyRegistrations::class)->name('registrations');
+    Route::get('/profile/edit', ProfileEdit::class)->name('profile.edit');
     Route::view('/account/profile', 'portal.account.profile')->name('account.profile');
     Route::view('/account/password', 'portal.account.password')->name('account.password');
-    Route::redirect('/', '/portal/membership');
 });
 
 Route::post('/webhooks/paystack', PaystackWebhookController::class)
