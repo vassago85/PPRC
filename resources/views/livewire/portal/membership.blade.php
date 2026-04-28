@@ -34,7 +34,7 @@
                     </div>
                     <div>
                         <dt class="text-slate-500">Period</dt>
-                        <dd class="text-slate-900">{{ $m->period_start->format('d M Y') }} – {{ $m->period_end->format('d M Y') }}</dd>
+                        <dd class="text-slate-900">{{ $m->period_start->format('d M Y') }} – {{ $m->period_end?->format('d M Y') ?? 'Life' }}</dd>
                     </div>
                     <div>
                         <dt class="text-slate-500">Price</dt>

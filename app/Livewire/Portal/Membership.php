@@ -89,11 +89,10 @@ class Membership extends Component
         $member = $this->member();
         abort_unless($member, 403);
 
-        abort_if(
-            $this->current()?->status === MembershipStatus::PendingPayment,
-            422,
-            'You already have a pending membership. Pay for it first.',
-        );
+        if ($this->current()?->status === MembershipStatus::PendingPayment) {
+            session()->flash('flash', 'You already have a pending membership. Pay for it or upload proof first.');
+            return;
+        }
 
         $type = MembershipType::findOrFail($this->renewIntoTypeId);
         $renewal->renew($member, $type);
