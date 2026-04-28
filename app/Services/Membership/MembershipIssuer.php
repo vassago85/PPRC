@@ -3,8 +3,11 @@
 namespace App\Services\Membership;
 
 use App\Enums\MembershipStatus;
+use App\Enums\PaymentProvider;
+use App\Enums\PaymentStatus;
 use App\Models\Member;
 use App\Models\Membership;
+use App\Models\MembershipPayment;
 use App\Models\MembershipType;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +17,7 @@ class MembershipIssuer
 {
     public function __construct(
         protected MembershipTypeService $typeService,
+        protected PaymentReferenceGenerator $refGenerator,
     ) {}
 
     /**
@@ -41,7 +45,7 @@ class MembershipIssuer
             : ($priceCents > 0 ? MembershipStatus::PendingPayment : MembershipStatus::Active);
 
         return DB::transaction(function () use ($member, $type, $start, $periodEnd, $priceCents, $status) {
-            return Membership::create([
+            $membership = Membership::create([
                 'member_id' => $member->id,
                 'membership_type_id' => $type->id,
                 'period_start' => $start,
@@ -51,6 +55,19 @@ class MembershipIssuer
                 'membership_type_slug_snapshot' => $type->slug,
                 'membership_type_name_snapshot' => $type->name,
             ]);
+
+            if ($status === MembershipStatus::PendingPayment) {
+                MembershipPayment::create([
+                    'membership_id' => $membership->id,
+                    'provider' => PaymentProvider::ManualEft->value,
+                    'status' => PaymentStatus::Pending->value,
+                    'amount_cents' => $priceCents,
+                    'currency' => 'ZAR',
+                    'reference' => $this->refGenerator->generate(),
+                ]);
+            }
+
+            return $membership;
         });
     }
 

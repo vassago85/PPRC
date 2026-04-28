@@ -22,22 +22,21 @@ class PaymentReferenceGenerator
         $base = "{$prefix}-{$dateStr}";
 
         return DB::transaction(function () use ($base) {
-            $lastRef = MembershipPayment::query()
+            $refs = MembershipPayment::query()
                 ->where('reference', 'like', "{$base}-%")
                 ->lockForUpdate()
-                ->orderByRaw("CAST(SUBSTRING_INDEX(reference, '-', -1) AS UNSIGNED) DESC")
-                ->value('reference');
+                ->pluck('reference');
 
             $lastSeq = 0;
-            if ($lastRef !== null) {
-                $parts = explode('-', $lastRef);
-                $lastSeq = (int) end($parts);
+            foreach ($refs as $ref) {
+                $parts = explode('-', $ref);
+                $seq = (int) end($parts);
+                $lastSeq = max($lastSeq, $seq);
             }
 
             $next = $lastSeq + 1;
             $ref = sprintf('%s-%04d', $base, $next);
 
-            // Paranoia: ensure globally unique
             while ($this->existsAnywhere($ref)) {
                 $next++;
                 $ref = sprintf('%s-%04d', $base, $next);

@@ -47,8 +47,6 @@ class CreateNewUser implements CreatesNewUsers
 
         app(MemberService::class)->register($user);
 
-        $user->sendEmailVerificationNotification();
-
         return $user;
     }
 }
