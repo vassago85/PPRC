@@ -14,19 +14,18 @@ Containers that will run:
 | `pprc-scheduler` | scheduler loop                | —            |
 | `pprc-pgsql`     | PostgreSQL 16                 | —            |
 | `pprc-redis`     | Redis 7                       | —            |
-| `pprc-minio`     | MinIO object store            | —            |
-| `pprc-minio-init`| One-shot bucket bootstrap     | —            |
 
-`pprc-app`'s bundled nginx also proxies `/media/*` to `pprc-minio:9000/*` on the internal Docker network, so all public assets (Exco photos, gallery images, hero images) are served through the same domain and port. Sensitive files (EFT proofs) get random/hashed filenames via Livewire's default upload behaviour, so path guessing is not viable.
+Media storage uses **Cloudflare R2** (S3-compatible). Public assets are served via an R2 custom domain (e.g. `media.pretoriaprc.co.za`). No MinIO container needed.
 
 ---
 
 ## 1. DNS
 
-Add **one** A record at your DNS provider:
+Add the following records at your DNS provider:
 
 ```
-pretoriaprc.co.za   A   41.72.157.26
+pretoriaprc.co.za         A      41.72.157.26
+media.pretoriaprc.co.za   CNAME  <your-r2-public-bucket-domain>
 ```
 
 Wait ~5–10 min for propagation, then verify:
@@ -36,7 +35,14 @@ dig +short pretoriaprc.co.za
 # should print 41.72.157.26
 ```
 
-## 2. Clone the repo
+## 2. Cloudflare R2 setup
+
+1. Create an R2 bucket named `pprc-media` in your Cloudflare dashboard.
+2. Enable **public access** on the bucket (Settings → Public access → Enable).
+3. Add a **custom domain**: `media.pretoriaprc.co.za` (Cloudflare handles the CNAME + SSL automatically).
+4. Create an **R2 API token** with read/write access to the bucket. Note the Access Key ID and Secret Access Key.
+
+## 3. Clone the repo
 
 ```bash
 sudo mkdir -p /opt/pprc
@@ -45,7 +51,7 @@ git clone https://github.com/vassago85/PPRC.git /opt/pprc
 cd /opt/pprc
 ```
 
-## 3. Create production `.env`
+## 4. Create production `.env`
 
 ```bash
 cp .env.production.example .env
@@ -59,26 +65,24 @@ nano .env
 
 Required edits:
 
-- `APP_KEY` — leave blank for now; we'll generate it after the image builds (step 5).
+- `APP_KEY` — leave blank for now; we'll generate it after the image builds (step 6).
 - `APP_URL` — `https://pretoriaprc.co.za`
 - `DB_PASSWORD` — long random password.
-- `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` — long random values; these same values go into `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
-- `AWS_ACCESS_KEY_ID` = `MINIO_ROOT_USER`
-- `AWS_SECRET_ACCESS_KEY` = `MINIO_ROOT_PASSWORD`
-- `MAILGUN_DOMAIN` / `MAILGUN_SECRET` — **optional.** You can now also set these later from **Admin → Site settings → Email (Mailgun)**. Values entered in the admin UI override `.env`.
+- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — your R2 API token credentials.
+- `AWS_ENDPOINT` — `https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com` (find your account ID in the Cloudflare R2 dashboard).
+- `AWS_URL` — `https://media.pretoriaprc.co.za` (the custom domain you configured on the R2 bucket).
+- `MAILGUN_DOMAIN` / `MAILGUN_SECRET` — **optional.** You can also set these later from **Admin → Site settings → Email (Mailgun)**. Values entered in the admin UI override `.env`.
 - `PAYSTACK_PUBLIC_KEY` / `PAYSTACK_SECRET_KEY` / `PAYSTACK_WEBHOOK_SECRET` — **optional.** Also editable from **Admin → Site settings → Payments (Paystack)**.
 
-> **Runtime-editable settings.** Mailgun credentials, S3/MinIO credentials, Paystack keys, EFT bank details and contact info are all editable at runtime via **Admin → Site settings** (`/admin/settings`). Values there take precedence over `.env` without a redeploy. The `.env` values above act as bootstrap defaults only.
+> **Runtime-editable settings.** Mailgun credentials, R2/S3 credentials, Paystack keys, EFT bank details and contact info are all editable at runtime via **Admin → Site settings** (`/admin/settings`). Values there take precedence over `.env` without a redeploy. The `.env` values above act as bootstrap defaults only.
 
 Quick way to generate strong values:
 
 ```bash
 openssl rand -base64 32   # for DB_PASSWORD
-openssl rand -hex 20      # for MINIO_ROOT_USER
-openssl rand -base64 48   # for MINIO_ROOT_PASSWORD
 ```
 
-## 4. Build images
+## 5. Build images
 
 ```bash
 cd /opt/pprc
@@ -87,7 +91,7 @@ docker compose -f docker-compose.prod.yml build
 
 The first build takes ~5–8 minutes (composer install + npm build + PHP extensions). Subsequent builds use layer cache.
 
-## 5. Generate `APP_KEY`
+## 6. Generate `APP_KEY`
 
 ```bash
 docker compose -f docker-compose.prod.yml run --rm app artisan key:generate --show
@@ -95,7 +99,7 @@ docker compose -f docker-compose.prod.yml run --rm app artisan key:generate --sh
 
 Copy the `base64:...` string it prints into `.env` as `APP_KEY=base64:...`, then save.
 
-## 6. Start the stack
+## 7. Start the stack
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d
@@ -110,8 +114,7 @@ docker compose -f docker-compose.prod.yml logs -f app
 
 Expected:
 
-- `pprc-pgsql`, `pprc-redis`, `pprc-minio` go `healthy`.
-- `pprc-minio-init` runs once, creates the `pprc-media` bucket with anonymous-download policy, then exits `0`.
+- `pprc-pgsql` and `pprc-redis` go `healthy`.
 - `pprc-app` entrypoint waits for pgsql + redis, runs migrations, caches config/routes/views, then starts nginx + php-fpm.
 - `pprc-queue` and `pprc-scheduler` start after `pprc-app`.
 
@@ -122,7 +125,7 @@ curl -I http://127.0.0.1:8093/up
 # expect: HTTP/1.1 200 OK
 ```
 
-## 7. Seed demo data (first deploy only)
+## 8. Seed data (first deploy only)
 
 ```bash
 docker compose -f docker-compose.prod.yml exec app php artisan db:seed --force
@@ -135,7 +138,7 @@ This creates:
 - Demo admin users: `chair@pprc.local`, `treasurer@pprc.local`, `secretary@pprc.local`, `membership@pprc.local`, `admin@pprc.local` — all with password `password`. **Change these immediately** in the admin UI.
 - Default homepage sections, About page, Exco page placeholders, FAQ entries, and contact/bank site settings.
 
-## 8. Configure Nginx Proxy Manager
+## 9. Configure Nginx Proxy Manager
 
 In your NPM dashboard, add a new **Proxy Host**:
 
@@ -161,11 +164,11 @@ Verify:
 ```
 https://pretoriaprc.co.za/          -> public homepage
 https://pretoriaprc.co.za/admin     -> Filament admin login
-https://pretoriaprc.co.za/portal/membership -> member portal (after login)
+https://pretoriaprc.co.za/portal    -> member portal (after login)
 https://pretoriaprc.co.za/up        -> "Application up" health endpoint
 ```
 
-## 9. Post-deploy checks
+## 10. Post-deploy checks
 
 ```bash
 docker compose -f docker-compose.prod.yml exec app php artisan about
@@ -173,9 +176,9 @@ docker compose -f docker-compose.prod.yml exec app php artisan migrate:status
 docker compose -f docker-compose.prod.yml exec app php artisan queue:failed
 ```
 
-Upload test: log in to `/admin` as `chair@pprc.local`, edit the Exco page, upload a photo for a committee member, save. The image URL should be of the form `https://pretoriaprc.co.za/media/pprc-media/...` and should load in the browser.
+Upload test: log in to `/admin`, upload a photo for a committee member, save. The image URL should be of the form `https://media.pretoriaprc.co.za/...` and should load in the browser.
 
-## 10. Routine operations
+## 11. Routine operations
 
 ### Deploy an update
 
@@ -186,6 +189,12 @@ docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
 docker compose -f docker-compose.prod.yml exec app php artisan filament:optimize
+```
+
+### Full rebuild (CSS/JS changes)
+
+```bash
+cd /opt/pprc && git pull && docker compose -f docker-compose.prod.yml build --no-cache app && docker compose -f docker-compose.prod.yml up -d --force-recreate app scheduler queue
 ```
 
 ### View logs
@@ -206,14 +215,23 @@ docker compose -f docker-compose.prod.yml exec app php artisan <command>
 
 ```bash
 docker cp /path/to/members.csv pprc-app:/tmp/members.csv
-docker compose -f docker-compose.prod.yml exec app php artisan members:import /tmp/members.csv
+docker compose -f docker-compose.prod.yml exec app php artisan members:import-ssmm /tmp/members.csv
 ```
 
-### Manually age-out expired sub-members (normally daily at 02:00)
+### Send welcome emails (selective)
 
 ```bash
-docker compose -f docker-compose.prod.yml exec app php artisan memberships:age-sub-members
+# All active members (idempotent — skips already-welcomed)
+docker compose -f docker-compose.prod.yml exec app php artisan members:send-welcome --status=active
+
+# Batch of 20
+docker compose -f docker-compose.prod.yml exec app php artisan members:send-welcome --status=active --limit=20
+
+# Specific person
+docker compose -f docker-compose.prod.yml exec app php artisan members:send-welcome --email=someone@example.com
 ```
+
+Or use the Filament admin panel: Members → select rows → "Send welcome emails".
 
 ### Backup PostgreSQL
 
@@ -223,28 +241,22 @@ docker compose -f docker-compose.prod.yml exec -T pgsql \
     > /opt/pprc/backups/pprc-$(date +%F).sql
 ```
 
-### Backup MinIO data
-
-```bash
-tar -czf /opt/pprc/backups/pprc-media-$(date +%F).tar.gz \
-    -C /var/lib/docker/volumes/pprc_pprc-minio/_data .
-```
-
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 | Symptom                                              | Fix                                                                                   |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | NPM shows 502 Bad Gateway                            | Check `docker compose ps`; ensure `pprc-app` is `healthy`. Check `logs app`.          |
 | `Mixed content` warnings in browser                  | Confirm `TRUSTED_PROXIES=*` in `.env` and re-run `php artisan config:cache`.          |
-| Uploaded images return 404 at `/media/...`           | Check `pprc-minio-init` logs — bucket policy must be `download`.                      |
+| Uploaded images return 404                            | Verify R2 bucket has public access enabled and `AWS_URL` matches your custom domain.  |
 | Admin login redirect loop                            | Usually stale cache after deploy. Run `php artisan optimize:clear` then `optimize`.   |
 | Queue jobs never run                                 | Check `docker compose logs queue`. Verify `QUEUE_CONNECTION=database` and migrations. |
 | Scheduler jobs never run                             | Check `docker compose logs scheduler`. `schedule:work` must be the `pprc-scheduler` CMD. |
 
-## 12. Security reminders
+## 13. Security reminders
 
 - Rotate all demo user passwords immediately after first login.
-- Rotate `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` and `DB_PASSWORD` before opening to real traffic.
+- Rotate `DB_PASSWORD` before opening to real traffic.
 - Keep Paystack webhook secret (`PAYSTACK_WEBHOOK_SECRET`) secret; the webhook route verifies the signature.
 - Do **not** commit `.env` — only `.env.production.example` is tracked.
-- Nightly DB + MinIO backups should be shipped off-box (cron + rclone to B2/S3 recommended; not in scope for this deploy).
+- Nightly DB backups should be shipped off-box (cron + rclone to B2/S3 recommended).
+- R2 media is backed up automatically by Cloudflare.
