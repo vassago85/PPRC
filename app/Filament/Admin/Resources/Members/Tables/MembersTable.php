@@ -3,13 +3,22 @@
 namespace App\Filament\Admin\Resources\Members\Tables;
 
 use App\Enums\MemberStatus;
+use App\Mail\MemberWelcomeInvite;
+use App\Models\EmailLog;
+use App\Models\Member;
+use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 
 class MembersTable
 {
@@ -47,12 +56,97 @@ class MembersTable
                         ->all()),
             ])
             ->recordActions([
+                Action::make('send_welcome')
+                    ->icon('heroicon-o-envelope')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading('Send welcome email')
+                    ->modalDescription(fn (Member $record) => "Send the account-claim invite to {$record->user?->email}?")
+                    ->visible(fn (Member $record) => $record->user !== null)
+                    ->action(function (Member $record) {
+                        self::sendWelcomeTo($record);
+                        Notification::make()->success()->title('Welcome email sent')->send();
+                    }),
                 EditAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('send_welcome_bulk')
+                        ->label('Send welcome emails')
+                        ->icon('heroicon-o-envelope')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Send welcome emails')
+                        ->modalDescription('Send the account-claim invite to all selected members who haven\'t received one yet?')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            $sent = 0;
+                            $skipped = 0;
+                            foreach ($records as $member) {
+                                if (! $member->user) {
+                                    $skipped++;
+                                    continue;
+                                }
+                                if (self::hasAlreadyBeenWelcomed($member->user->email)) {
+                                    $skipped++;
+                                    continue;
+                                }
+                                self::sendWelcomeTo($member);
+                                $sent++;
+                            }
+                            Notification::make()->success()
+                                ->title("Sent {$sent} welcome email(s)" . ($skipped ? ", skipped {$skipped}" : ''))
+                                ->send();
+                        }),
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    private static function sendWelcomeTo(Member $member): void
+    {
+        $user = $member->user;
+        if (! $user) {
+            return;
+        }
+
+        try {
+            $token = Password::broker()->createToken($user);
+            $setupUrl = url(route('password.reset', [
+                'token' => $token,
+                'email' => $user->email,
+            ], absolute: false));
+
+            Mail::to($user->email, $user->name)->send(new MemberWelcomeInvite(
+                user: $user,
+                setupUrl: $setupUrl,
+                firstName: $member->first_name ?: null,
+            ));
+        } catch (\Throwable $e) {
+            EmailLog::create([
+                'user_id' => $user->id,
+                'to_email' => $user->email,
+                'to_name' => $user->name,
+                'subject' => 'Welcome to Pretoria Precision Rifle Club — claim your account',
+                'mailable_class' => MemberWelcomeInvite::class,
+                'status' => EmailLog::STATUS_FAILED,
+                'error' => $e->getMessage(),
+                'context' => ['source' => 'filament-admin'],
+            ]);
+
+            Notification::make()->danger()
+                ->title("Failed to send to {$user->email}")
+                ->body($e->getMessage())
+                ->send();
+        }
+    }
+
+    private static function hasAlreadyBeenWelcomed(string $email): bool
+    {
+        return EmailLog::query()
+            ->where('to_email', $email)
+            ->where('mailable_class', MemberWelcomeInvite::class)
+            ->where('status', EmailLog::STATUS_SENT)
+            ->exists();
     }
 }

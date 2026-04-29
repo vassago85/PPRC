@@ -2,12 +2,16 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\MemberWelcomeInvite;
+use App\Models\EmailLog;
 use App\Models\Member;
 use App\Models\MembershipType;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 /**
@@ -36,7 +40,8 @@ class ImportMembers extends Command
     protected $signature = 'members:import
         {path : Absolute or storage-relative path to the CSV file}
         {--dry-run : Parse and validate only; do not write to the database}
-        {--default-password=ChangeMe! : Password assigned to brand-new users}';
+        {--default-password=ChangeMe! : Password assigned to brand-new users}
+        {--send-welcome : Send a welcome/account-claim email to newly created members}';
 
     protected $description = 'Import members from a CSV export (SSMM PPRC plugin schema)';
 
@@ -51,6 +56,7 @@ class ImportMembers extends Command
 
         $dryRun = (bool) $this->option('dry-run');
         $defaultPassword = (string) $this->option('default-password');
+        $sendWelcome = (bool) $this->option('send-welcome');
 
         $fh = fopen($path, 'r');
         if ($fh === false) {
@@ -69,7 +75,8 @@ class ImportMembers extends Command
 
         $types = MembershipType::pluck('id', 'slug')->all();
 
-        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'warnings' => 0];
+        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'warnings' => 0, 'welcomed' => 0];
+        $newUsers = [];
         $rowsToLink = [];
         $line = 1;
 
@@ -133,6 +140,10 @@ class ImportMembers extends Command
 
                 $wasNewUser ? $stats['created']++ : $stats['updated']++;
 
+                if ($wasNewUser && $sendWelcome) {
+                    $newUsers[] = ['user' => $user, 'member' => $member];
+                }
+
                 if (! empty($row['linked_adult_email'])) {
                     $rowsToLink[] = ['member_id' => $member->id, 'linked_adult_email' => trim($row['linked_adult_email'])];
                 }
@@ -164,13 +175,51 @@ class ImportMembers extends Command
             return self::FAILURE;
         }
 
+        if ($sendWelcome && ! $dryRun && ! empty($newUsers)) {
+            $this->info("Sending welcome emails to {$stats['created']} new member(s)...");
+            foreach ($newUsers as $item) {
+                try {
+                    $token = Password::broker()->createToken($item['user']);
+                    $setupUrl = url(route('password.reset', [
+                        'token' => $token,
+                        'email' => $item['user']->email,
+                    ], absolute: false));
+
+                    Mail::to($item['user']->email, $item['user']->name)
+                        ->send(new MemberWelcomeInvite(
+                            user: $item['user'],
+                            setupUrl: $setupUrl,
+                            firstName: $item['member']->first_name ?: null,
+                        ));
+                    $stats['welcomed']++;
+                } catch (\Throwable $e) {
+                    EmailLog::create([
+                        'user_id' => $item['user']->id,
+                        'to_email' => $item['user']->email,
+                        'to_name' => $item['user']->name,
+                        'subject' => 'Welcome to Pretoria Precision Rifle Club — claim your account',
+                        'mailable_class' => MemberWelcomeInvite::class,
+                        'status' => EmailLog::STATUS_FAILED,
+                        'error' => $e->getMessage(),
+                        'context' => ['source' => 'members:import --send-welcome'],
+                    ]);
+                    $this->error("  FAIL  {$item['user']->email} — {$e->getMessage()}");
+                    $stats['warnings']++;
+                }
+            }
+        }
+
         $this->newLine();
-        $this->table(['metric', 'count'], [
+        $rows = [
             ['created', $stats['created']],
             ['updated', $stats['updated']],
             ['skipped', $stats['skipped']],
             ['warnings', $stats['warnings']],
-        ]);
+        ];
+        if ($sendWelcome) {
+            $rows[] = ['welcome emails sent', $stats['welcomed']];
+        }
+        $this->table(['metric', 'count'], $rows);
 
         if (! $dryRun) {
             $this->info('Recomputing membership number sequence...');

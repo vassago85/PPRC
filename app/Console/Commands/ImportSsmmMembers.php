@@ -2,12 +2,16 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\MemberWelcomeInvite;
+use App\Models\EmailLog;
 use App\Models\Member;
 use App\Models\MembershipType;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 /**
@@ -42,7 +46,8 @@ class ImportSsmmMembers extends Command
 {
     protected $signature = 'members:import-ssmm
         {path : Absolute or storage-relative path to the SSMM CSV export}
-        {--dry-run : Parse and validate only; do not write to the database}';
+        {--dry-run : Parse and validate only; do not write to the database}
+        {--send-welcome : Send a welcome/account-claim email to newly created members}';
 
     protected $description = 'Import members from the legacy SSMM PPRC plugin CSV export';
 
@@ -73,6 +78,7 @@ class ImportSsmmMembers extends Command
         }
 
         $dryRun = (bool) $this->option('dry-run');
+        $sendWelcome = (bool) $this->option('send-welcome');
 
         $fh = fopen($path, 'r');
         if ($fh === false) {
@@ -106,7 +112,9 @@ class ImportSsmmMembers extends Command
             'skipped_missing_email' => 0,
             'skipped_unknown_status' => 0,
             'warnings' => 0,
+            'welcomed' => 0,
         ];
+        $newUsers = [];
         $line = 1;
 
         DB::beginTransaction();
@@ -212,12 +220,16 @@ class ImportSsmmMembers extends Command
                     $memberAttrs['notes'] = "SSMM import. payment_reference={$paymentRef}";
                 }
 
-                Member::updateOrCreate(
+                $member = Member::updateOrCreate(
                     ['user_id' => $user->id],
                     $memberAttrs,
                 );
 
                 $wasNewUser ? $stats['created']++ : $stats['updated']++;
+
+                if ($wasNewUser && $sendWelcome) {
+                    $newUsers[] = ['user' => $user, 'member' => $member];
+                }
             }
             fclose($fh);
 
@@ -234,15 +246,53 @@ class ImportSsmmMembers extends Command
             return self::FAILURE;
         }
 
+        if ($sendWelcome && ! $dryRun && ! empty($newUsers)) {
+            $this->info("Sending welcome emails to {$stats['created']} new member(s)...");
+            foreach ($newUsers as $item) {
+                try {
+                    $token = Password::broker()->createToken($item['user']);
+                    $setupUrl = url(route('password.reset', [
+                        'token' => $token,
+                        'email' => $item['user']->email,
+                    ], absolute: false));
+
+                    Mail::to($item['user']->email, $item['user']->name)
+                        ->send(new MemberWelcomeInvite(
+                            user: $item['user'],
+                            setupUrl: $setupUrl,
+                            firstName: $item['member']->first_name ?: null,
+                        ));
+                    $stats['welcomed']++;
+                } catch (\Throwable $e) {
+                    EmailLog::create([
+                        'user_id' => $item['user']->id,
+                        'to_email' => $item['user']->email,
+                        'to_name' => $item['user']->name,
+                        'subject' => 'Welcome to Pretoria Precision Rifle Club — claim your account',
+                        'mailable_class' => MemberWelcomeInvite::class,
+                        'status' => EmailLog::STATUS_FAILED,
+                        'error' => $e->getMessage(),
+                        'context' => ['source' => 'members:import-ssmm --send-welcome'],
+                    ]);
+                    $this->error("  FAIL  {$item['user']->email} — {$e->getMessage()}");
+                    $stats['warnings']++;
+                }
+            }
+        }
+
         $this->newLine();
-        $this->table(['metric', 'count'], [
+        $rows = [
             ['created', $stats['created']],
             ['updated', $stats['updated']],
             ['skipped (unverified)', $stats['skipped_unverified']],
             ['skipped (missing email)', $stats['skipped_missing_email']],
             ['skipped (unknown status)', $stats['skipped_unknown_status']],
             ['warnings', $stats['warnings']],
-        ]);
+        ];
+        if ($sendWelcome) {
+            $rows[] = ['welcome emails sent', $stats['welcomed']];
+        }
+        $this->table(['metric', 'count'], $rows);
 
         return self::SUCCESS;
     }
