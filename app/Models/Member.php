@@ -83,6 +83,7 @@ class Member extends Model
     public function currentMembership(): ?Membership
     {
         return $this->memberships()
+            ->with('payments')
             ->whereIn('status', ['active', 'pending_payment', 'pending_approval'])
             ->orderByDesc('period_end')
             ->first();

@@ -89,8 +89,8 @@ class Membership extends Component
         $member = $this->member();
         abort_unless($member, 403);
 
-        if ($this->current()?->status === MembershipStatus::PendingPayment) {
-            session()->flash('flash', 'You already have a pending membership. Pay for it or upload proof first.');
+        if (in_array($this->current()?->status, [MembershipStatus::PendingPayment, MembershipStatus::PendingApproval], true)) {
+            session()->flash('flash', 'You already have a pending membership. Complete the current process first.');
             return;
         }
 

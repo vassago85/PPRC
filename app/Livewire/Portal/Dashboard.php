@@ -117,8 +117,8 @@ class Dashboard extends Component
         $member = $this->member;
         abort_unless($member, 403);
 
-        if ($this->membership?->status === MembershipStatus::PendingPayment) {
-            session()->flash('flash_error', 'You already have a pending membership — pay for it first.');
+        if (in_array($this->membership?->status, [MembershipStatus::PendingPayment, MembershipStatus::PendingApproval], true)) {
+            session()->flash('flash_error', 'You already have a pending membership — complete the current process first.');
             return;
         }
 

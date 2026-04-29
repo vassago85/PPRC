@@ -4,6 +4,7 @@ namespace App\Services\Membership;
 
 use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
+use App\Enums\PaymentStatus;
 use App\Events\MemberActivated;
 use App\Events\MemberEmailVerified;
 use App\Events\MemberRegistered;
@@ -61,13 +62,21 @@ class MemberService
      */
     public function activate(Membership $membership, ?User $approvedBy = null): void
     {
-        $membership->loadMissing(['member', 'membershipType']);
+        $membership->loadMissing(['member', 'membershipType', 'payments']);
 
         $membership->update([
             'status' => MembershipStatus::Active,
             'approved_at' => now(),
             'approved_by_user_id' => $approvedBy?->id,
         ]);
+
+        $membership->payments()
+            ->whereIn('status', [PaymentStatus::Pending->value, PaymentStatus::Submitted->value])
+            ->update([
+                'status' => PaymentStatus::Confirmed->value,
+                'confirmed_at' => now(),
+                'confirmed_by_user_id' => $approvedBy?->id,
+            ]);
 
         $member = $membership->member;
         if (! $member) {

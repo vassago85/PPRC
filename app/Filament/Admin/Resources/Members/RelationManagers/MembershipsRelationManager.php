@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Members\RelationManagers;
 use App\Enums\MembershipStatus;
 use App\Models\Membership;
 use App\Models\MembershipType;
+use App\Services\Membership\MemberService;
 use App\Services\Membership\MembershipTypeService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -112,15 +113,9 @@ class MembershipsRelationManager extends RelationManager
                 Action::make('approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn (Membership $record) => $record->status === MembershipStatus::PendingApproval)
+                    ->visible(fn (Membership $record) => in_array($record->status, [MembershipStatus::PendingApproval, MembershipStatus::PendingPayment]))
                     ->requiresConfirmation()
-                    ->action(function (Membership $record) {
-                        $record->update([
-                            'status' => MembershipStatus::Active,
-                            'approved_at' => now(),
-                            'approved_by_user_id' => auth()->id(),
-                        ]);
-                    }),
+                    ->action(fn (Membership $record) => app(MemberService::class)->activate($record, auth()->user())),
                 EditAction::make(),
                 DeleteAction::make(),
             ])

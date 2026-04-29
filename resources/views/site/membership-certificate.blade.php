@@ -36,10 +36,16 @@
                 <p class="text-2xl font-semibold text-slate-900">{{ $member?->fullName() }}</p>
                 <p>held <span class="font-medium">{{ $membership->membership_type_name_snapshot }}</span> membership</p>
                 <p class="text-base text-slate-600">
-                    for the period
-                    <span class="font-medium tabular-nums text-slate-900">{{ $membership->period_start->format('j F Y') }}</span>
-                    to
-                    <span class="font-medium tabular-nums text-slate-900">{{ $membership->period_end->format('j F Y') }}</span>.
+                    @if ($membership->period_end)
+                        for the period
+                        <span class="font-medium tabular-nums text-slate-900">{{ $membership->period_start->format('j F Y') }}</span>
+                        to
+                        <span class="font-medium tabular-nums text-slate-900">{{ $membership->period_end->format('j F Y') }}</span>.
+                    @else
+                        effective from
+                        <span class="font-medium tabular-nums text-slate-900">{{ $membership->period_start->format('j F Y') }}</span>
+                        (life membership).
+                    @endif
                 </p>
             </div>
 

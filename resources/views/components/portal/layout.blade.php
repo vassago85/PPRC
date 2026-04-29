@@ -18,6 +18,7 @@
             <nav class="flex items-center gap-6 text-sm">
                 <a href="{{ route('portal.dashboard') }}" class="transition {{ request()->routeIs('portal.dashboard') ? 'text-white' : 'text-slate-400 hover:text-white' }}">Dashboard</a>
                 <a href="{{ route('portal.membership') }}" class="transition {{ request()->routeIs('portal.membership') ? 'text-white' : 'text-slate-400 hover:text-white' }}">Membership</a>
+                <a href="{{ route('portal.documents') }}" class="transition {{ request()->routeIs('portal.documents*') ? 'text-white' : 'text-slate-400 hover:text-white' }}">Documents</a>
                 <a href="{{ route('shop') }}" class="text-slate-400 transition hover:text-white">Shop</a>
                 @auth
                     <form method="POST" action="{{ url('/logout') }}" class="inline">

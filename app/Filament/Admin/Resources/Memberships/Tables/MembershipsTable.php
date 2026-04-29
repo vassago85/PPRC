@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\Memberships\Tables;
 
 use App\Enums\MembershipStatus;
+use App\Services\Membership\MemberService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -45,13 +46,9 @@ class MembershipsTable
                 Action::make('approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => $record->status === MembershipStatus::PendingApproval)
+                    ->visible(fn ($record) => in_array($record->status, [MembershipStatus::PendingApproval, MembershipStatus::PendingPayment]))
                     ->requiresConfirmation()
-                    ->action(fn ($record) => $record->update([
-                        'status' => MembershipStatus::Active,
-                        'approved_at' => now(),
-                        'approved_by_user_id' => auth()->id(),
-                    ])),
+                    ->action(fn ($record) => app(MemberService::class)->activate($record, auth()->user())),
                 EditAction::make(),
             ])
             ->toolbarActions([

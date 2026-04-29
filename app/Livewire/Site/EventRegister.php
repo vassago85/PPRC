@@ -55,6 +55,7 @@ class EventRegister extends Component
         if ($member && EventRegistration::query()
             ->where('event_id', $this->event->id)
             ->where('member_id', $member->id)
+            ->where('status', '!=', EventRegistrationStatus::Cancelled->value)
             ->exists()) {
             return true;
         }
@@ -63,6 +64,7 @@ class EventRegister extends Component
         if ($email !== '' && EventRegistration::query()
             ->where('event_id', $this->event->id)
             ->whereRaw('LOWER(guest_email) = ?', [$email])
+            ->where('status', '!=', EventRegistrationStatus::Cancelled->value)
             ->exists()) {
             return true;
         }
@@ -83,6 +85,7 @@ class EventRegister extends Component
         if (EventRegistration::query()
             ->where('event_id', $this->event->id)
             ->whereRaw('LOWER(guest_email) = ?', [$email])
+            ->where('status', '!=', EventRegistrationStatus::Cancelled->value)
             ->exists()) {
             $this->addError('guestEmail', 'This email is already entered for this match.');
 
@@ -194,6 +197,7 @@ class EventRegister extends Component
         if (EventRegistration::query()
             ->where('event_id', $this->event->id)
             ->where('member_id', $member->id)
+            ->where('status', '!=', EventRegistrationStatus::Cancelled->value)
             ->exists()) {
             $this->addError('register', 'You are already registered for this match.');
 
