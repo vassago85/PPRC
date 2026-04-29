@@ -312,8 +312,12 @@ class ImportSsmmMembers extends Command
         }
 
         $code = trim($rawCode);
+
+        if ($code !== '' && str_starts_with($code, '+') && strlen($code) > 5) {
+            $code = '+27';
+        }
+
         if ($code === '' || ! str_starts_with($code, '+')) {
-            // Default to SA dial code rather than carry junk like "South Africa".
             $code = '+27';
         }
 
@@ -351,7 +355,13 @@ class ImportSsmmMembers extends Command
         }
 
         try {
-            return (new \DateTimeImmutable($raw))->format('Y-m-d');
+            $dt = new \DateTimeImmutable($raw);
+            $year = (int) $dt->format('Y');
+            if ($year < 1900 || $year > 2100) {
+                return null;
+            }
+
+            return $dt->format('Y-m-d');
         } catch (\Throwable) {
             return null;
         }

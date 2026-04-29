@@ -1,6 +1,6 @@
 # Production compose for PPRC.
 # Install path on server: /opt/pprc
-# Reverse proxied by Nginx Proxy Manager: pprc.charsleydigital.co.za -> 127.0.0.1:8093
+# Reverse proxied by Nginx Proxy Manager: pretoriaprc.co.za -> 127.0.0.1:8093
 
 name: pprc
 

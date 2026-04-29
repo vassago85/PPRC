@@ -48,11 +48,11 @@
             {{-- Desktop CTA --}}
             <div class="hidden lg:flex items-center gap-3">
                 @auth
-                    <a href="{{ url('/portal') }}" class="text-sm text-slate-300 hover:text-white">Portal</a>
+                    <x-site.button :href="url('/portal')" size="sm">Portal</x-site.button>
                 @else
                     <a href="{{ url('/login') }}" class="text-sm text-slate-300 hover:text-white">Sign in</a>
+                    <x-site.button :href="url('/register')" size="sm">Join PPRC</x-site.button>
                 @endauth
-                <x-site.button :href="url('/register')" size="sm">Join PPRC</x-site.button>
             </div>
 
             {{-- Mobile hamburger --}}
@@ -84,11 +84,11 @@
 
             <div class="pt-4 space-y-2">
                 @auth
-                    <a href="{{ url('/portal') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Portal</a>
+                    <x-site.button :href="url('/portal')" fullWidth>Portal</x-site.button>
                 @else
                     <a href="{{ url('/login') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Sign in</a>
+                    <x-site.button :href="url('/register')" fullWidth>Join PPRC</x-site.button>
                 @endauth
-                <x-site.button :href="url('/register')" fullWidth>Join PPRC</x-site.button>
             </div>
         </div>
     </x-site.container>

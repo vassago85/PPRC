@@ -2,7 +2,7 @@
 
 Target host: `41.72.157.26` (Ubuntu 22.04.5 LTS, Docker 29.x, Compose v5)
 Install path: `/opt/pprc`
-App port (host): `8093` — reverse-proxied by Nginx Proxy Manager to `pprc.charsleydigital.co.za`.
+App port (host): `8093` — reverse-proxied by Nginx Proxy Manager to `pretoriaprc.co.za`.
 Repo: <https://github.com/vassago85/PPRC>
 
 Containers that will run:
@@ -26,13 +26,13 @@ Containers that will run:
 Add **one** A record at your DNS provider:
 
 ```
-pprc.charsleydigital.co.za   A   41.72.157.26
+pretoriaprc.co.za   A   41.72.157.26
 ```
 
 Wait ~5–10 min for propagation, then verify:
 
 ```bash
-dig +short pprc.charsleydigital.co.za
+dig +short pretoriaprc.co.za
 # should print 41.72.157.26
 ```
 
@@ -60,7 +60,7 @@ nano .env
 Required edits:
 
 - `APP_KEY` — leave blank for now; we'll generate it after the image builds (step 5).
-- `APP_URL` — `https://pprc.charsleydigital.co.za`
+- `APP_URL` — `https://pretoriaprc.co.za`
 - `DB_PASSWORD` — long random password.
 - `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` — long random values; these same values go into `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
 - `AWS_ACCESS_KEY_ID` = `MINIO_ROOT_USER`
@@ -139,7 +139,7 @@ This creates:
 
 In your NPM dashboard, add a new **Proxy Host**:
 
-- **Domain name:** `pprc.charsleydigital.co.za`
+- **Domain name:** `pretoriaprc.co.za`
 - **Scheme:** `http`
 - **Forward hostname / IP:** `41.72.157.26` (or the Docker host IP NPM uses for your other apps)
 - **Forward port:** `8093`
@@ -159,10 +159,10 @@ Save. NPM will issue the cert.
 Verify:
 
 ```
-https://pprc.charsleydigital.co.za/          -> public homepage
-https://pprc.charsleydigital.co.za/admin     -> Filament admin login
-https://pprc.charsleydigital.co.za/portal/membership -> member portal (after login)
-https://pprc.charsleydigital.co.za/up        -> "Application up" health endpoint
+https://pretoriaprc.co.za/          -> public homepage
+https://pretoriaprc.co.za/admin     -> Filament admin login
+https://pretoriaprc.co.za/portal/membership -> member portal (after login)
+https://pretoriaprc.co.za/up        -> "Application up" health endpoint
 ```
 
 ## 9. Post-deploy checks
@@ -173,7 +173,7 @@ docker compose -f docker-compose.prod.yml exec app php artisan migrate:status
 docker compose -f docker-compose.prod.yml exec app php artisan queue:failed
 ```
 
-Upload test: log in to `/admin` as `chair@pprc.local`, edit the Exco page, upload a photo for a committee member, save. The image URL should be of the form `https://pprc.charsleydigital.co.za/media/pprc-media/...` and should load in the browser.
+Upload test: log in to `/admin` as `chair@pprc.local`, edit the Exco page, upload a photo for a committee member, save. The image URL should be of the form `https://pretoriaprc.co.za/media/pprc-media/...` and should load in the browser.
 
 ## 10. Routine operations
 
