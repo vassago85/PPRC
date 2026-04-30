@@ -75,7 +75,8 @@ class MemberForm
                     ->columns(2)
                     ->schema([
                         TagsInput::make('shooting_disciplines')
-                            ->suggestions(['PRS', 'NRL', 'F-Class', 'Benchrest', 'Sporting Rifle'])
+                            ->helperText('PPRC runs PRS (centerfire) and PR22 (rimfire) only.')
+                            ->suggestions(['PRS', 'PR22'])
                             ->formatStateUsing(function ($state) {
                                 if ($state === null || $state === '') {
                                     return [];

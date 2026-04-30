@@ -35,10 +35,11 @@ use Illuminate\Support\Str;
  *         "Standard Membership" -> full-member
  *         "Junior"              -> junior
  *         "Life Membership"     -> life-member
- *   - `shooting_disciplines` expands from the plugin's single string:
- *         "both"       -> ["centrefire","rimfire"]
- *         "centrefire" -> ["centrefire"]
- *         "rimfire"    -> ["rimfire"]
+ *   - `shooting_disciplines` expands from the plugin's single string into the
+ *     PPRC two-value vocabulary (the only formats the club runs):
+ *         "both"       -> ["PRS","PR22"]
+ *         "centrefire" -> ["PRS"]
+ *         "rimfire"    -> ["PR22"]
  *
  * Idempotent: re-running updates existing rows matched by email.
  */
@@ -386,9 +387,9 @@ class ImportSsmmMembers extends Command
         $v = strtolower(trim($raw));
 
         return match ($v) {
-            'both' => ['centrefire', 'rimfire'],
-            'centrefire' => ['centrefire'],
-            'rimfire' => ['rimfire'],
+            'both' => ['PRS', 'PR22'],
+            'centrefire', 'centerfire' => ['PRS'],
+            'rimfire' => ['PR22'],
             default => null,
         };
     }

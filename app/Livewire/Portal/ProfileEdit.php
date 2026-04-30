@@ -43,13 +43,13 @@ class ProfileEdit extends Component
 
     public $photo = null;
 
+    /**
+     * PPRC currently only runs PRS (centerfire) and PR22 (rimfire) matches,
+     * so the member-facing discipline picker is restricted to those two.
+     */
     public const DISCIPLINES = [
-        'PRS Centerfire',
+        'PRS',
         'PR22',
-        'F-Class',
-        'Benchrest',
-        'Long Range',
-        'Other',
     ];
 
     public function mount(): void
