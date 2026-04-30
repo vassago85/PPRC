@@ -139,14 +139,10 @@ class EndorsementRequestResource extends Resource
                                 ->visible(fn ($get) => ($get('item_type') ?? 'rifle') === 'rifle'),
                             Select::make('component_type')
                                 ->label('Component')
+                                ->helperText('SA law only requires endorsements for barrels and actions.')
                                 ->options([
                                     'Barrel' => 'Barrel',
                                     'Action' => 'Action / receiver',
-                                    'Stock / Chassis' => 'Stock / chassis',
-                                    'Trigger' => 'Trigger',
-                                    'Bolt' => 'Bolt',
-                                    'Muzzle device' => 'Muzzle device / brake / suppressor',
-                                    'Other' => 'Other',
                                 ])
                                 ->visible(fn ($get) => $get('item_type') === 'component')
                                 ->requiredIf('item_type', 'component'),

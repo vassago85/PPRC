@@ -110,17 +110,12 @@
                 @else
                     <div class="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] p-4">
                         <label class="block text-sm font-semibold text-white">Which component?</label>
-                        <p class="mt-0.5 text-xs text-slate-400">Pick the part you're licensing — required.</p>
+                        <p class="mt-0.5 text-xs text-slate-400">Under SA firearm law only barrels and actions/receivers require an endorsement.</p>
                         <select wire:model="componentType"
                             class="mt-2 block w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2.5 text-sm text-white focus:border-emerald-400/40 focus:outline-none focus:ring-1 focus:ring-emerald-400/30">
                             <option value="">— Select component —</option>
                             <option value="Barrel">Barrel</option>
                             <option value="Action">Action / receiver</option>
-                            <option value="Stock / Chassis">Stock / chassis</option>
-                            <option value="Trigger">Trigger</option>
-                            <option value="Bolt">Bolt</option>
-                            <option value="Muzzle device">Muzzle device / brake / suppressor</option>
-                            <option value="Other">Other</option>
                         </select>
                         @error('componentType') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
                     </div>
