@@ -21,7 +21,22 @@ class CertificateController extends Controller
             404
         );
 
+        $verifyUrl = route('membership.certificate.verify', $token);
+
         return view('site.membership-certificate', [
+            'membership' => $membership,
+            'verifyUrl' => $verifyUrl,
+        ]);
+    }
+
+    public function verify(string $token): View
+    {
+        $membership = Membership::query()
+            ->where('certificate_token', $token)
+            ->with(['member', 'membershipType'])
+            ->first();
+
+        return view('site.membership-verify', [
             'membership' => $membership,
         ]);
     }

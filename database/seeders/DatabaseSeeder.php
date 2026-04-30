@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -20,6 +21,8 @@ class DatabaseSeeder extends Seeder
             ClubBadgesSeeder::class,
             SiteContentSeeder::class,
         ]);
+
+        $isProduction = app()->environment('production');
 
         // Display names mirror the 2026 AGM elected ExCo where applicable; emails
         // remain stable dev inboxes for local/staging login.
@@ -37,17 +40,26 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($committee as [$email, $name, $role]) {
-            $user = User::updateOrCreate(
-                ['email' => $email],
-                [
-                    'name' => $name,
-                    'password' => Hash::make('password'),
-                    'email_verified_at' => now(),
-                ],
-            );
+            $existing = User::where('email', $email)->first();
+
+            if ($existing) {
+                $existing->update(['name' => $name, 'email_verified_at' => $existing->email_verified_at ?? now()]);
+                $existing->syncRoles([$role]);
+
+                continue;
+            }
+
+            $user = User::create([
+                'email' => $email,
+                'name' => $name,
+                'password' => Hash::make($isProduction ? Str::random(48) : 'password'),
+                'email_verified_at' => now(),
+            ]);
             $user->syncRoles([$role]);
         }
 
-        $this->call(PaulCharsleyTestMemberSeeder::class);
+        if (! $isProduction) {
+            $this->call(PaulCharsleyTestMemberSeeder::class);
+        }
     }
 }

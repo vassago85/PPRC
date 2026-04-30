@@ -19,7 +19,7 @@
 
                     {{-- Hero banner --}}
                     <tr>
-                        <td style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);padding:40px 36px 32px;text-align:center;">
+                        <td style="background-color:#0f172a;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);padding:40px 36px 32px;text-align:center;">
                             <img src="{{ asset('pprclogo.png') }}" alt="PPRC" width="80" height="80" style="display:inline-block;width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.15);margin-bottom:16px;" />
                             <h1 style="margin:0 0 6px;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
                                 Welcome to PPRC
@@ -50,8 +50,8 @@
                         <td align="center" style="padding:28px 36px 28px;">
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                                 <tr>
-                                    <td style="border-radius:12px;background:linear-gradient(135deg,#1d8ac0 0%,#0ea5e9 100%);box-shadow:0 4px 14px rgba(29,138,192,0.4);">
-                                        <a href="{{ $setupUrl }}" target="_blank" style="display:inline-block;padding:16px 36px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.02em;">
+                                    <td style="border-radius:12px;background-color:#0ea5e9;background:linear-gradient(135deg,#1d8ac0 0%,#0ea5e9 100%);box-shadow:0 4px 14px rgba(29,138,192,0.4);">
+                                        <a href="{{ $setupUrl }}" target="_blank" style="display:inline-block;padding:16px 36px;font-size:16px;font-weight:700;color:#ffffff !important;text-decoration:none;letter-spacing:0.02em;">
                                             Set your password &rarr;
                                         </a>
                                     </td>

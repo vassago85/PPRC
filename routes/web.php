@@ -47,6 +47,9 @@ Route::get('/matches/{event:slug}', [MatchController::class, 'show'])->name('mat
 Route::get('/membership/certificate/{token}', [CertificateController::class, 'show'])
     ->where('token', '[a-zA-Z0-9]+')
     ->name('membership.certificate.show');
+Route::get('/membership/verify/{token}', [CertificateController::class, 'verify'])
+    ->where('token', '[a-zA-Z0-9]+')
+    ->name('membership.certificate.verify');
 Route::redirect('/events', '/matches');
 Route::get('/results', [ResultController::class, 'index'])->name('results');
 Route::get('/gallery', [GalleryController::class, 'index'])->name('gallery');

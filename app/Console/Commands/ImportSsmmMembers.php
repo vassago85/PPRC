@@ -229,6 +229,7 @@ class ImportSsmmMembers extends Command
                 if ($typeSlug && isset($typeIdBySlug[$typeSlug])) {
                     $existingMembership = DB::table('memberships')
                         ->where('member_id', $member->id)
+                        ->whereNull('deleted_at')
                         ->exists();
 
                     if (! $existingMembership) {
@@ -243,7 +244,8 @@ class ImportSsmmMembers extends Command
 
                         $periodStart = $joinDate ?? now()->toDateString();
                         $periodEnd = $expiryDate;
-                        if (! $periodEnd && $membershipStatus === 'active' && $type) {
+                        $isLifetime = $typeSlug === 'life-member';
+                        if (! $periodEnd && $membershipStatus === 'active' && $type && ! $isLifetime) {
                             $periodEnd = date('Y') . '-12-31';
                         }
 

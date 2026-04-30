@@ -265,6 +265,16 @@
     }
 }
 
+/*
+ * Native <select> dropdowns on dark backgrounds: browsers render <option>
+ * elements with OS-level styling, ignoring parent text-color in the opened
+ * dropdown list. Force readable dark-on-light for the option elements.
+ */
+select option {
+    background-color: #1e293b;
+    color: #f1f5f9;
+}
+
 /* Hide elements flagged with Alpine's x-cloak until Alpine has initialised,
    preventing FAQ accordion panels (and similar) from flashing open on load. */
 [x-cloak] {

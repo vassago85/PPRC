@@ -17,7 +17,7 @@
 
                     {{-- Hero --}}
                     <tr>
-                        <td style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);padding:40px 36px 32px;text-align:center;">
+                        <td style="background-color:#0f172a;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);padding:40px 36px 32px;text-align:center;">
                             <img src="{{ asset('pprclogo.png') }}" alt="PPRC" width="64" height="64" style="display:inline-block;width:64px;height:64px;border-radius:50%;border:3px solid rgba(255,255,255,0.15);margin-bottom:14px;" />
                             <h1 style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
                                 Verify your email
