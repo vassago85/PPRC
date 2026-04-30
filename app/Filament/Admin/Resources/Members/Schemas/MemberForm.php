@@ -29,8 +29,7 @@ class MemberForm
                             ->email()
                             ->required()
                             ->maxLength(190)
-                            ->helperText('On create, a user account is provisioned automatically. On edit, changes here update the linked user\'s login email.')
-                            ->dehydrated(false),
+                            ->helperText('On create, a user account is provisioned automatically. On edit, changes here update the linked user\'s login email.'),
                         Select::make('status')
                             ->options(collect(MemberStatus::cases())
                                 ->mapWithKeys(fn ($c) => [$c->value => $c->label()])
@@ -43,8 +42,7 @@ class MemberForm
                             ->label('Send welcome email on save')
                             ->helperText('Sends the account-claim invite so the member can set their own password.')
                             ->default(true)
-                            ->visible(fn ($operation) => $operation === 'create')
-                            ->dehydrated(false),
+                            ->visible(fn ($operation) => $operation === 'create'),
                         Hidden::make('user_id'),
                     ]),
 
