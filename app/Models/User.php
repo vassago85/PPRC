@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Services\Auth\EmailVerificationPinService;
+use App\Support\NameCase;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -31,6 +33,14 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             'created_via_import' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Normalise the user's display name on save (matches Member name mutators).
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::set(fn ($value) => NameCase::normalize($value));
     }
 
     /**

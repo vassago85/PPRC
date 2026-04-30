@@ -29,10 +29,10 @@
                     <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Membership</p>
                     <p class="mt-1 text-xl font-semibold">{{ $m->membership_type_name_snapshot }}</p>
                     @if ($this->member?->membership_number)
-                        <p class="mt-1 text-xs text-slate-400">
-                            Member #
-                            <span class="font-mono font-semibold text-slate-200">{{ $this->member->membership_number }}</span>
-                        </p>
+                        <div class="mt-3 inline-flex items-baseline gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-2">
+                            <span class="text-[11px] font-medium uppercase tracking-wider text-slate-500">Member #</span>
+                            <span class="font-mono text-2xl font-bold tracking-wider text-white sm:text-3xl">{{ $this->member->membership_number }}</span>
+                        </div>
                     @endif
                 </div>
                 <div class="flex items-center gap-4">

@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
+use App\Support\NameCase;
 use Database\Factories\MemberFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -52,6 +54,25 @@ class Member extends Model
         'shooting_disciplines' => 'array',
         'status' => MemberStatus::class,
     ];
+
+    /**
+     * Title-case mutators. Lower/upper-only input is normalised on save;
+     * intentionally mixed-case names ("Van der Merwe") are preserved.
+     */
+    protected function firstName(): Attribute
+    {
+        return Attribute::set(fn ($value) => NameCase::normalize($value));
+    }
+
+    protected function lastName(): Attribute
+    {
+        return Attribute::set(fn ($value) => NameCase::normalize($value));
+    }
+
+    protected function knownAs(): Attribute
+    {
+        return Attribute::set(fn ($value) => NameCase::normalize($value));
+    }
 
     public function user(): BelongsTo
     {
