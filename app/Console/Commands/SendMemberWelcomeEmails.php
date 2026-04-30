@@ -38,6 +38,9 @@ class SendMemberWelcomeEmails extends Command
         {--status=active* : Member status(es) to include. Repeatable. Defaults to active only.}
         {--email=* : Only send to these specific email addresses (bypasses --status filter)}
         {--already-welcomed : Resend to every address that has ever been welcomed (bypasses --status; implies --resend). Useful after a token / mailer fix.}
+        {--retry-failed : Send only to addresses where the latest welcome attempt failed (bypasses --status; implies --resend). Useful after a mailer rate-limit error.}
+        {--retry-window=180 : With --retry-failed, only consider failures from the last N minutes (default 180 = 3 hours).}
+        {--sleep=0 : Seconds to sleep between sends. Set this when batching many recipients to avoid mail-provider rate limits (e.g. 2 = ~30/min).}
         {--resend : Send even if a welcome has already been logged for this address}
         {--limit=0 : Maximum emails to send this run (0 = no limit)}
         {--dry-run : Resolve recipients and print what would be sent, without sending}';
@@ -51,7 +54,10 @@ class SendMemberWelcomeEmails extends Command
         /** @var array<int, string> $emails */
         $emails = array_values(array_filter(array_map('strtolower', (array) $this->option('email'))));
         $alreadyWelcomed = (bool) $this->option('already-welcomed');
-        $resend = (bool) $this->option('resend') || $alreadyWelcomed;
+        $retryFailed = (bool) $this->option('retry-failed');
+        $retryWindow = max(1, (int) $this->option('retry-window'));
+        $sleepSeconds = max(0, (int) $this->option('sleep'));
+        $resend = (bool) $this->option('resend') || $alreadyWelcomed || $retryFailed;
         $limit = (int) $this->option('limit');
         $dryRun = (bool) $this->option('dry-run');
 
@@ -72,6 +78,36 @@ class SendMemberWelcomeEmails extends Command
             }
 
             $this->info('Resending welcome to '.count($emails).' previously-invited address(es).');
+        }
+
+        if ($retryFailed) {
+            // Find emails whose most recent MemberWelcomeInvite log row inside
+            // the retry window is a failure (no subsequent sent row).
+            $emails = EmailLog::query()
+                ->where('mailable_class', MemberWelcomeInvite::class)
+                ->where('status', EmailLog::STATUS_FAILED)
+                ->where('created_at', '>', now()->subMinutes($retryWindow))
+                ->whereNotExists(function ($q) {
+                    $q->selectRaw('1')
+                        ->from('email_logs as el2')
+                        ->whereColumn('el2.to_email', 'email_logs.to_email')
+                        ->where('el2.mailable_class', MemberWelcomeInvite::class)
+                        ->where('el2.status', EmailLog::STATUS_SENT)
+                        ->whereColumn('el2.created_at', '>', 'email_logs.created_at');
+                })
+                ->pluck('to_email')
+                ->map(fn ($e) => strtolower(trim((string) $e)))
+                ->unique()
+                ->values()
+                ->all();
+
+            if (empty($emails)) {
+                $this->warn("No failed welcome attempts in the last {$retryWindow} minutes — nothing to retry.");
+
+                return self::SUCCESS;
+            }
+
+            $this->info('Retrying welcome to '.count($emails).' previously-failed address(es).');
         }
 
         $query = User::query()
@@ -136,6 +172,10 @@ class SendMemberWelcomeEmails extends Command
 
                 $this->info("  sent  {$user->email}");
                 $sent++;
+
+                if ($sleepSeconds > 0) {
+                    sleep($sleepSeconds);
+                }
             } catch (\Throwable $e) {
                 $failed++;
 
