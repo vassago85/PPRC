@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Pages;
 
 use App\Mail\SiteConfigTestMail;
 use App\Models\SiteSetting;
+use App\Support\MediaDisk;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -22,6 +23,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use UnitEnum;
 
 /**
@@ -311,42 +313,52 @@ class SiteSettings extends Page
                             ->icon(Heroicon::OutlinedCloud)
                             ->visible($canManageIntegrations)
                             ->schema([
+                                Section::make('Cloudflare R2 quick reference')
+                                    ->description('R2 dashboard → "API Tokens" → Create token (Object Read & Write, scoped to your bucket). Then bucket → Settings → Public access → enable "Public R2.dev Bucket URL" (or connect a custom domain) and paste it into Public URL below.')
+                                    ->collapsible()
+                                    ->collapsed()
+                                    ->schema([])
+                                    ->columnSpanFull(),
+
                                 Section::make('S3-compatible storage')
-                                    ->description('Same fields for any S3 API: AWS S3, Cloudflare R2, MinIO, Wasabi, DigitalOcean Spaces, etc. R2: endpoint https://<ACCOUNT_ID>.r2.cloudflarestorage.com, region often auto, Public URL = R2 custom domain or public bucket URL. MinIO: your MinIO URL and path style on.')
+                                    ->description('Works with any S3 API — Cloudflare R2, AWS S3, MinIO, Wasabi, DigitalOcean Spaces. After saving, hit "Test storage" below to verify uploads + public reads work.')
                                     ->columns(2)
                                     ->schema([
                                         TextInput::make('storage.endpoint')
-                                            ->label('Endpoint URL')
-                                            ->placeholder('https://…r2.cloudflarestorage.com or http://pprc-minio:9000')
-                                            ->helperText('S3 API base URL the **server** uses (R2 account endpoint, MinIO internal URL, AWS regional endpoint, etc.). The browser does not need to reach this host for admin uploads.')
+                                            ->label('S3 API endpoint (server-to-server)')
+                                            ->placeholder('https://<account_id>.r2.cloudflarestorage.com')
+                                            ->helperText('R2: paste the "S3 API" line from the R2 dashboard sidebar. AWS: leave blank to use the regional default. MinIO: your internal MinIO URL.')
                                             ->maxLength(255),
                                         TextInput::make('storage.region')
                                             ->label('Region')
-                                            ->default('us-east-1')
+                                            ->default('auto')
+                                            ->helperText('R2 ignores region but the SDK requires a value — use "auto". AWS: e.g. eu-west-1.')
                                             ->maxLength(80),
                                         TextInput::make('storage.bucket')
-                                            ->label('Bucket')
+                                            ->label('Bucket name')
+                                            ->placeholder('pprc')
                                             ->maxLength(120)
-                                            ->helperText('Set when you use S3/MinIO for media. Leave empty until then — you can still save other tabs (e.g. email) without it.'),
+                                            ->helperText('The exact bucket name shown in the R2 / S3 console.'),
                                         TextInput::make('storage.url')
-                                            ->label('Public URL')
-                                            ->helperText('HTTPS base for public media and for presigned S3 browser uploads (must match your Nginx / MinIO proxy). E.g. https://example.com/media/pprc-media')
+                                            ->label('Public URL (browser-facing)')
+                                            ->placeholder('https://pub-<hash>.r2.dev or https://media.pretoriaprc.co.za')
+                                            ->helperText('Where uploaded files are read by the public. R2: "Public R2.dev" URL or your custom domain. Without this, image tags will hit the private S3 endpoint and 401.')
                                             ->maxLength(255),
                                         TextInput::make('storage.access_key')
                                             ->label('Access key ID')
                                             ->password()
                                             ->revealable()
                                             ->dehydrated(fn ($state) => filled($state))
-                                            ->helperText('Leave blank to keep the current value.'),
+                                            ->helperText('R2: from your API token. Leave blank to keep the current value.'),
                                         TextInput::make('storage.secret_key')
                                             ->label('Secret access key')
                                             ->password()
                                             ->revealable()
                                             ->dehydrated(fn ($state) => filled($state))
-                                            ->helperText('Leave blank to keep the current value.'),
+                                            ->helperText('R2: shown ONCE when the token is created. Leave blank to keep the current value.'),
                                         Toggle::make('storage.use_path_style')
                                             ->label('Use path-style URLs')
-                                            ->helperText('Required for MinIO and most self-hosted S3 gateways.')
+                                            ->helperText('Required for R2 and MinIO. Off for AWS S3.')
                                             ->default(true),
                                     ]),
                             ]),
@@ -450,6 +462,81 @@ class SiteSettings extends Page
                             ->send();
                     }
                 }),
+            Action::make('testStorage')
+                ->label('Test storage')
+                ->icon(Heroicon::OutlinedCloudArrowUp)
+                ->color('gray')
+                ->modalHeading('Test S3 / R2 storage')
+                ->modalDescription('Uploads a tiny text probe to the configured bucket and tries to fetch it back via the Public URL. Save changes first if you just edited storage credentials.')
+                ->modalSubmitActionLabel('Run test')
+                ->action(function (): void {
+                    MediaDisk::flush();
+
+                    if (! MediaDisk::s3Available()) {
+                        Notification::make()
+                            ->danger()
+                            ->title('S3 / R2 not configured')
+                            ->body('Endpoint, bucket, access key and secret are all required. Save the Storage tab and try again.')
+                            ->persistent()
+                            ->send();
+
+                        return;
+                    }
+
+                    $path = 'health/probe-'.now()->format('Ymd-His').'-'.bin2hex(random_bytes(3)).'.txt';
+                    $body = 'pprc storage probe written at '.now()->toIso8601String();
+
+                    try {
+                        Storage::disk('s3')->put($path, $body);
+                    } catch (\Throwable $e) {
+                        report($e);
+
+                        Notification::make()
+                            ->danger()
+                            ->title('Upload failed')
+                            ->body('Could not write to the bucket: '.$e->getMessage().'. Check endpoint, bucket name, and access key/secret.')
+                            ->persistent()
+                            ->send();
+
+                        return;
+                    }
+
+                    $publicUrl = Storage::disk('s3')->url($path);
+
+                    $reachable = false;
+                    $reachStatus = null;
+                    try {
+                        $ch = curl_init($publicUrl);
+                        curl_setopt_array($ch, [
+                            CURLOPT_NOBODY => true,
+                            CURLOPT_FOLLOWLOCATION => true,
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_TIMEOUT => 5,
+                        ]);
+                        curl_exec($ch);
+                        $reachStatus = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+                        $reachable = $reachStatus >= 200 && $reachStatus < 400;
+                    } catch (\Throwable) {
+                        // Curl issues fall through as "not reachable"; the upload still succeeded.
+                    }
+
+                    if ($reachable) {
+                        Notification::make()
+                            ->success()
+                            ->title('Storage is wired up correctly')
+                            ->body('Uploaded and fetched back via the public URL (HTTP '.$reachStatus.'). New media uploads will work. Probe file: '.$publicUrl)
+                            ->persistent()
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->warning()
+                            ->title('Uploaded — but the public URL is not reachable')
+                            ->body('Wrote '.$path.' to the bucket OK. The public URL returned '.($reachStatus ?? 'no response').'. Check that the bucket has public access enabled (R2 → bucket → Settings → Public R2.dev Bucket URL) and that the Public URL field above matches the host R2 shows. Probe file: '.$publicUrl)
+                            ->persistent()
+                            ->send();
+                    }
+                }),
             Action::make('save')
                 ->label('Save changes')
                 ->submit('save')
@@ -528,10 +615,20 @@ class SiteSettings extends Page
             ]);
         }
 
+        // Re-run the runtime overrides immediately so the next click in the
+        // admin (e.g. "Test storage") uses the values we just saved instead of
+        // whatever was cached at boot.
+        try {
+            (new \App\Providers\RuntimeConfigServiceProvider($this->app ?? app()))->boot();
+        } catch (\Throwable) {
+            // Boot failures here are non-fatal — the next request will pick up the new settings.
+        }
+        MediaDisk::flush();
+
         Notification::make()
             ->success()
             ->title('Settings saved')
-            ->body('Integration changes may take up to a minute to propagate across workers.')
+            ->body('Integration changes are live now. If web workers cached old credentials, they will refresh on the next request.')
             ->send();
     }
 }
