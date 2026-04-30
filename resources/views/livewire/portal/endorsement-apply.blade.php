@@ -50,22 +50,43 @@
                     </div>
                 </div>
 
-                {{-- Item type toggle --}}
+                {{-- Item type toggle (clear card-style selector) --}}
                 <div>
-                    <label class="block text-sm text-slate-400 mb-2">Applying for</label>
-                    <div class="flex gap-2">
-                        <label class="flex-1 cursor-pointer">
-                            <input type="radio" wire:model.live="itemType" value="rifle" class="peer sr-only" />
-                            <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-slate-300 transition peer-checked:border-white/40 peer-checked:bg-white/10 peer-checked:text-white">
-                                Complete Rifle
-                            </div>
-                        </label>
-                        <label class="flex-1 cursor-pointer">
-                            <input type="radio" wire:model.live="itemType" value="component" class="peer sr-only" />
-                            <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-slate-300 transition peer-checked:border-white/40 peer-checked:bg-white/10 peer-checked:text-white">
-                                Component / Part
-                            </div>
-                        </label>
+                    <label class="block text-sm text-slate-400 mb-2">What is the licence for?</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button type="button" wire:click="$set('itemType', 'rifle')"
+                            class="group relative flex items-start gap-3 rounded-xl border-2 px-4 py-4 text-left transition
+                                {{ $itemType === 'rifle'
+                                    ? 'border-emerald-400/70 bg-emerald-500/10 ring-2 ring-emerald-400/30'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]' }}">
+                            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2
+                                {{ $itemType === 'rifle' ? 'border-emerald-400 bg-emerald-400' : 'border-white/30' }}">
+                                @if ($itemType === 'rifle')
+                                    <svg class="h-3.5 w-3.5 text-slate-950" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                @endif
+                            </span>
+                            <span class="flex-1">
+                                <span class="block text-sm font-semibold {{ $itemType === 'rifle' ? 'text-white' : 'text-slate-200' }}">Complete rifle</span>
+                                <span class="mt-0.5 block text-xs text-slate-400">A whole firearm — action + barrel + stock</span>
+                            </span>
+                        </button>
+
+                        <button type="button" wire:click="$set('itemType', 'component')"
+                            class="group relative flex items-start gap-3 rounded-xl border-2 px-4 py-4 text-left transition
+                                {{ $itemType === 'component'
+                                    ? 'border-emerald-400/70 bg-emerald-500/10 ring-2 ring-emerald-400/30'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/[0.07]' }}">
+                            <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2
+                                {{ $itemType === 'component' ? 'border-emerald-400 bg-emerald-400' : 'border-white/30' }}">
+                                @if ($itemType === 'component')
+                                    <svg class="h-3.5 w-3.5 text-slate-950" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                @endif
+                            </span>
+                            <span class="flex-1">
+                                <span class="block text-sm font-semibold {{ $itemType === 'component' ? 'text-white' : 'text-slate-200' }}">Component / part</span>
+                                <span class="mt-0.5 block text-xs text-slate-400">A barrel, action, stock, trigger, etc.</span>
+                            </span>
+                        </button>
                     </div>
                     @error('itemType') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
                 </div>
@@ -73,9 +94,10 @@
                 {{-- Conditional: rifle action type OR component type --}}
                 @if ($itemType === 'rifle')
                     <div>
-                        <label class="block text-sm text-slate-400">Action type</label>
+                        <label class="block text-sm font-semibold text-white">Action type</label>
+                        <p class="mt-0.5 text-xs text-slate-500">How the rifle cycles — appears on the letter.</p>
                         <select wire:model="firearmType"
-                            class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20">
+                            class="mt-2 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20">
                             <option value="Bolt action">Bolt action</option>
                             <option value="Semi-automatic">Semi-automatic</option>
                             <option value="Lever action">Lever action</option>
@@ -86,16 +108,18 @@
                         @error('firearmType') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
                     </div>
                 @else
-                    <div>
-                        <label class="block text-sm text-slate-400">Component</label>
+                    <div class="rounded-xl border border-emerald-400/20 bg-emerald-500/[0.04] p-4">
+                        <label class="block text-sm font-semibold text-white">Which component?</label>
+                        <p class="mt-0.5 text-xs text-slate-400">Pick the part you're licensing — required.</p>
                         <select wire:model="componentType"
-                            class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20">
-                            <option value="">Select component...</option>
+                            class="mt-2 block w-full rounded-lg border border-white/10 bg-white/10 px-3 py-2.5 text-sm text-white focus:border-emerald-400/40 focus:outline-none focus:ring-1 focus:ring-emerald-400/30">
+                            <option value="">— Select component —</option>
                             <option value="Barrel">Barrel</option>
                             <option value="Action">Action / receiver</option>
                             <option value="Stock / Chassis">Stock / chassis</option>
                             <option value="Trigger">Trigger</option>
                             <option value="Bolt">Bolt</option>
+                            <option value="Muzzle device">Muzzle device / brake / suppressor</option>
                             <option value="Other">Other</option>
                         </select>
                         @error('componentType') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror

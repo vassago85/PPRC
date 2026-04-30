@@ -145,6 +145,7 @@ class EndorsementRequestResource extends Resource
                                     'Stock / Chassis' => 'Stock / chassis',
                                     'Trigger' => 'Trigger',
                                     'Bolt' => 'Bolt',
+                                    'Muzzle device' => 'Muzzle device / brake / suppressor',
                                     'Other' => 'Other',
                                 ])
                                 ->visible(fn ($get) => $get('item_type') === 'component')

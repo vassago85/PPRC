@@ -60,6 +60,51 @@ class EndorsementRequest extends Model
         return $this->item_type === 'component';
     }
 
+    /**
+     * Loose detection of rimfire vs centerfire from the calibre string.
+     * Anything that looks like a .22 LR / .22 WMR / .17 HMR is treated
+     * as rimfire; everything else falls through to centerfire.
+     */
+    public function isRimfire(): bool
+    {
+        $calibre = mb_strtolower((string) $this->calibre);
+
+        if ($calibre === '') {
+            return false;
+        }
+
+        $rimfirePatterns = [
+            '22 lr', '22lr', '.22lr', '.22 lr',
+            '22 long rifle', '22 short', '22 wmr', '22 mag',
+            '17 hmr', '17hmr', '.17 hmr', '.17hmr',
+            '17 mach 2', '17 mach2',
+            'rimfire',
+        ];
+
+        foreach ($rimfirePatterns as $needle) {
+            if (str_contains($calibre, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Distance range used in the letter body. Precision Rifle disciplines
+     * play out at very different distances depending on whether the rifle
+     * is rimfire (NRL22 / club rimfire) or centerfire (PRS-style stages).
+     */
+    public function distanceRange(): string
+    {
+        return $this->isRimfire() ? '50m and 300m' : '300m and 900m';
+    }
+
+    public function disciplineLabel(): string
+    {
+        return $this->isRimfire() ? 'Rimfire Precision Rifle Shooting' : 'Precision Rifle Shooting';
+    }
+
     protected $casts = [
         'status' => EndorsementStatus::class,
         'reviewed_at' => 'datetime',

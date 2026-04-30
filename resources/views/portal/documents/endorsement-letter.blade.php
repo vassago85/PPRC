@@ -10,6 +10,10 @@
     $firearmLine = $endorsement->describeItem();
     $itemLabel = $isComponent ? 'Component' : 'Firearm';
     $idName = $member->idDocumentName();
+    $isRimfire = $endorsement->isRimfire();
+    $distanceRange = $endorsement->distanceRange();
+    $disciplineLabel = $endorsement->disciplineLabel();
+    $platformLabel = $isRimfire ? 'rimfire precision rifle' : 'centerfire precision rifle';
 @endphp
 <!doctype html>
 <html lang="en">
@@ -155,15 +159,22 @@
                     <strong class="tracking-wide text-slate-900">{{ $idName }}</strong>'s motivation for obtaining a firearm license
                     @if ($isComponent)
                         for a <strong class="text-slate-900">{{ $firearmLine }}</strong>
-                        intended for use on a centerfire precision rifle.
+                        intended for use on a {{ $platformLabel }}.
                     @else
                         for a <strong class="text-slate-900">{{ $firearmLine }}</strong>
-                        centerfire rifle.
+                        {{ $platformLabel }}.
                     @endif
                     Based on our experience, this calibre and firearm platform are highly suitable for
-                    Precision Rifle Shooting, offering excellent ballistic performance, accuracy, and consistency at
-                    extended distances. Precision Rifle competitions typically involve engaging targets at distances
-                    between 300m and 700m, making this {{ $isComponent ? 'component' : 'firearm' }} an optimal choice for participation in the sport.
+                    {{ $disciplineLabel }}, offering excellent ballistic performance, accuracy, and consistency at the
+                    distances at which the discipline is shot.
+                    @if ($isRimfire)
+                        Rimfire Precision Rifle competitions typically involve engaging targets at distances between
+                        <strong class="text-slate-900">{{ $distanceRange }}</strong>,
+                    @else
+                        Precision Rifle competitions typically involve engaging targets at distances between
+                        <strong class="text-slate-900">{{ $distanceRange }}</strong>,
+                    @endif
+                    making this {{ $isComponent ? 'component' : 'firearm' }} an optimal choice for participation in the sport.
                 </p>
 
                 <p>
