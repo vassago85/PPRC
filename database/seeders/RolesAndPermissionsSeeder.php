@@ -38,7 +38,6 @@ class RolesAndPermissionsSeeder extends Seeder
         'content.pages.manage',
         'content.home.manage',
         'content.faqs.manage',
-        'content.exco.manage',
     ];
 
     public function run(): void
@@ -101,6 +100,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'content' => [
                 'content.announcements.manage',
                 'content.contact.manage',
+                'content.exco.manage',
             ],
             // system
             'settings' => [

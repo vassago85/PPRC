@@ -35,9 +35,11 @@ class ExcoMemberResource extends Resource
 
     public static function canViewAny(): bool
     {
-        // Same gate as assigning Spatie roles: Chair / Vice Chair (+ developer)
-        // manage the public committee roster shown on /about.
-        return (bool) auth()->user()?->can('settings.roles.assign');
+        // Roster management is broader than Spatie role assignment — Marketing
+        // and Secretary often need to keep the public /about list current. The
+        // saved hook on ExcoMember still auto-syncs the linked user's Spatie
+        // role; we trust committee admins with that side-effect.
+        return (bool) auth()->user()?->can('content.exco.manage');
     }
 
     public static function shouldRegisterNavigation(): bool
