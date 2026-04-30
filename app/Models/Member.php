@@ -130,6 +130,28 @@ class Member extends Model
             : null;
     }
 
+    /**
+     * Junior status drives match-fee tiers (and any other youth-specific
+     * pricing). Detected primarily from the active membership's type slug —
+     * any slug containing "junior" qualifies. Falls back to age (under 18)
+     * if a date of birth is on file but no membership type is set.
+     */
+    public function isJunior(): bool
+    {
+        $current = $this->currentMembership();
+        $slug = $current?->membership_type_slug_snapshot
+            ?? $current?->membershipType?->slug
+            ?? null;
+
+        if ($slug !== null && str_contains(strtolower((string) $slug), 'junior')) {
+            return true;
+        }
+
+        $age = $this->ageOnDate(now());
+
+        return $age !== null && $age < 18;
+    }
+
     public function fullName(): string
     {
         return trim("{$this->first_name} {$this->last_name}") ?: ($this->user?->name ?? '—');

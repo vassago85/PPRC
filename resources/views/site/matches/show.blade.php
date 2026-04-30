@@ -1,6 +1,7 @@
 @php
     $memberCents = $event->memberPriceCents();
     $nonMemberCents = $event->nonMemberPriceCents();
+    $juniorCents = $event->junior_price_cents;
     $bannerUrl = $event->bannerUrl();
 @endphp
 <x-site.layout
@@ -77,7 +78,7 @@
                 </div>
             @endif
 
-            @if ($memberCents !== null || $nonMemberCents !== null)
+            @if ($memberCents !== null || $nonMemberCents !== null || $juniorCents !== null)
                 <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <dt class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Entry fee</dt>
                     <dd class="mt-2 space-y-1 text-sm">
@@ -85,6 +86,12 @@
                             <div class="flex items-baseline justify-between gap-3">
                                 <span class="text-slate-400">Members</span>
                                 <span class="font-semibold text-white tabular-nums">R {{ number_format($memberCents / 100, 2) }}</span>
+                            </div>
+                        @endif
+                        @if ($juniorCents !== null)
+                            <div class="flex items-baseline justify-between gap-3">
+                                <span class="text-slate-400">Juniors</span>
+                                <span class="font-semibold text-white tabular-nums">R {{ number_format($juniorCents / 100, 2) }}</span>
                             </div>
                         @endif
                         @if ($nonMemberCents !== null)

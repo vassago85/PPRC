@@ -114,6 +114,15 @@ class EventForm
                             ? null
                             : (int) round(((float) $state) * 100))
                         ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100),
+                    TextInput::make('junior_price_cents')
+                        ->label('Junior price (ZAR)')
+                        ->numeric()
+                        ->prefix('R')
+                        ->helperText('Reduced fee for active junior members. Leave blank to charge them the member price.')
+                        ->dehydrateStateUsing(fn ($state) => $state === null || $state === ''
+                            ? null
+                            : (int) round(((float) $state) * 100))
+                        ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100),
                     TextInput::make('max_entries')->numeric()->label('Max entries'),
                     TextInput::make('round_count')
                         ->numeric()

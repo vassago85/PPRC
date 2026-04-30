@@ -32,6 +32,7 @@ class Event extends Model
         'price_cents',
         'member_price_cents',
         'non_member_price_cents',
+        'junior_price_cents',
         'is_saprf_match',
         'saprf_url',
         'max_entries',
@@ -62,6 +63,7 @@ class Event extends Model
         'price_cents' => 'integer',
         'member_price_cents' => 'integer',
         'non_member_price_cents' => 'integer',
+        'junior_price_cents' => 'integer',
         'is_saprf_match' => 'boolean',
         'max_entries' => 'integer',
         'round_count' => 'integer',
@@ -203,6 +205,15 @@ class Event extends Model
     }
 
     /**
+     * Junior shooters fall back to the member price when no junior-specific
+     * price is set, so adding the field is opt-in per match.
+     */
+    public function juniorPriceCents(): ?int
+    {
+        return $this->junior_price_cents ?? $this->memberPriceCents();
+    }
+
+    /**
      * Public S3 URL for the banner, if one is attached.
      */
     public function bannerUrl(): ?string
@@ -218,8 +229,9 @@ class Event extends Model
      * Resolve the fee (in cents) this member would pay for this event.
      * Precedence:
      *   1. ExCo / committee members -> 0 (2026 AGM rule).
-     *   2. Active PPRC member -> member_price_cents.
-     *   3. Everyone else (guest, expired, pending, suspended) -> non_member_price_cents.
+     *   2. Active PPRC junior -> junior_price_cents (falls back to member).
+     *   3. Active PPRC member -> member_price_cents.
+     *   4. Everyone else (guest, expired, pending, suspended) -> non_member_price_cents.
      * Falls back to the legacy price_cents when the tiered fields are unset.
      * Returns null when the match has no price configured at all.
      */
@@ -230,6 +242,10 @@ class Event extends Model
         }
 
         $isActiveMember = $member?->status?->value === 'active';
+
+        if ($isActiveMember && $member?->isJunior()) {
+            return $this->juniorPriceCents();
+        }
 
         return $isActiveMember ? $this->memberPriceCents() : $this->nonMemberPriceCents();
     }
