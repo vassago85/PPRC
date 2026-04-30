@@ -24,10 +24,16 @@
     <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
         @if ($this->membership)
             @php($m = $this->membership)
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Membership</p>
                     <p class="mt-1 text-xl font-semibold">{{ $m->membership_type_name_snapshot }}</p>
+                    @if ($this->member?->membership_number)
+                        <p class="mt-1 text-xs text-slate-400">
+                            Member #
+                            <span class="font-mono font-semibold text-slate-200">{{ $this->member->membership_number }}</span>
+                        </p>
+                    @endif
                 </div>
                 <div class="flex items-center gap-4">
                     @php($statusColor = match($m->status->color()) {

@@ -27,10 +27,16 @@
         <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
             @if ($this->current)
                 @php($m = $this->current)
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Current membership</p>
                         <p class="mt-1 text-xl font-bold text-white">{{ $m->membership_type_name_snapshot }}</p>
+                        @if ($this->member->membership_number)
+                            <p class="mt-1 text-xs text-slate-400">
+                                Member #
+                                <span class="font-mono font-semibold text-slate-200">{{ $this->member->membership_number }}</span>
+                            </p>
+                        @endif
                     </div>
                     @php($statusColor = match($m->status->color()) {
                         'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
@@ -50,8 +56,14 @@
                         <dd class="mt-1 font-medium text-white">{{ $m->period_start->format('d M Y') }} — {{ $m->period_end?->format('d M Y') ?? 'Life' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-slate-500">Price</dt>
-                        <dd class="mt-1 font-medium text-white">R {{ number_format($m->price_cents_snapshot / 100, 2) }}</dd>
+                        <dt class="text-slate-500">Price paid</dt>
+                        <dd class="mt-1 font-medium text-white">
+                            @if ($m->price_cents_snapshot !== null)
+                                R {{ number_format($m->price_cents_snapshot / 100, 2) }}
+                            @else
+                                <span class="text-slate-500">— <span class="text-xs">(not on record)</span></span>
+                            @endif
+                        </dd>
                     </div>
                     @if ($m->period_end)
                         <div>
@@ -196,7 +208,13 @@
                                     <td class="px-6 py-3 text-white">{{ $h->membership_type_name_snapshot }}</td>
                                     <td class="px-6 py-3 text-slate-300">{{ $h->period_start->format('M Y') }} — {{ $h->period_end?->format('M Y') ?? 'Life' }}</td>
                                     <td class="px-6 py-3 text-slate-300">{{ $h->status->label() }}</td>
-                                    <td class="px-6 py-3 text-right text-white">R {{ number_format($h->price_cents_snapshot / 100, 2) }}</td>
+                                    <td class="px-6 py-3 text-right text-white">
+                                        @if ($h->price_cents_snapshot !== null)
+                                            R {{ number_format($h->price_cents_snapshot / 100, 2) }}
+                                        @else
+                                            <span class="text-slate-500">—</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
