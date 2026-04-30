@@ -19,11 +19,14 @@ return [
 
     'number_start' => (int) env('MEMBERSHIP_NUMBER_START', 1),
 
-    'number_prefix' => env('MEMBERSHIP_NUMBER_PREFIX', ''),
+    'number_prefix' => env('MEMBERSHIP_NUMBER_PREFIX', 'PPRC-'),
 
+    // SSMM imports are 4-digit zero-padded (PPRC-0150). Auto-allocated numbers
+    // for new approved members continue from MAX(existing) + 1 in the same
+    // format. DO NOT change this — it rewrites every existing member number.
     'number_pad_length' => env('MEMBERSHIP_NUMBER_PAD_LENGTH') !== null && env('MEMBERSHIP_NUMBER_PAD_LENGTH') !== ''
         ? (int) env('MEMBERSHIP_NUMBER_PAD_LENGTH')
-        : null,
+        : 4,
 
     /*
     |--------------------------------------------------------------------------
