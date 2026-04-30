@@ -252,13 +252,21 @@ class ImportSsmmMembers extends Command
                                 ->toDateString();
                         }
 
+                        // Snapshot the type slug/name (so even if the type is
+                        // renamed later we keep their historic label), but
+                        // leave price_cents_snapshot NULL: the SSMM export
+                        // does not carry a payment amount, so we don't know
+                        // what they actually paid. Stamping the type's
+                        // current price here would be a lie. New memberships
+                        // created through the portal/admin record the real
+                        // paid amount.
                         DB::table('memberships')->insert([
                             'member_id' => $member->id,
                             'membership_type_id' => $type->id,
                             'period_start' => $periodStart,
                             'period_end' => $periodEnd,
                             'status' => $membershipStatus,
-                            'price_cents_snapshot' => $type->price_cents,
+                            'price_cents_snapshot' => null,
                             'membership_type_slug_snapshot' => $type->slug,
                             'membership_type_name_snapshot' => $type->name,
                             'approved_at' => $membershipStatus === 'active' ? now() : null,

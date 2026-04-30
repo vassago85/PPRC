@@ -57,12 +57,14 @@ class MembershipForm
                             ->required()
                             ->default(MembershipStatus::PendingPayment->value),
                         TextInput::make('price_cents_snapshot')
-                            ->label('Price (ZAR)')
-                            ->required()
+                            ->label('Price paid (ZAR)')
+                            ->helperText('Leave empty if the actual paid amount is unknown (e.g. legacy import).')
                             ->numeric()
                             ->prefix('R')
                             ->suffix('.00')
-                            ->dehydrateStateUsing(fn ($state) => (int) round(((float) $state) * 100))
+                            ->dehydrateStateUsing(fn ($state) => $state === null || $state === ''
+                                ? null
+                                : (int) round(((float) $state) * 100))
                             ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100),
                     ]),
                 Section::make('Snapshot (locked at sale)')

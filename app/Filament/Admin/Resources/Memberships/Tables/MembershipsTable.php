@@ -34,8 +34,14 @@ class MembershipsTable
                     ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
                 TextColumn::make('price_cents_snapshot')->label('Price paid')
                     ->formatStateUsing(function ($state, $record) {
-                        $paid = 'R '.number_format($state / 100, 2);
                         $current = $record->membershipType?->price_cents;
+                        if ($state === null) {
+                            return $current !== null
+                                ? '<span class="text-gray-400">—</span> <span class="text-xs text-gray-500">(type R '
+                                    .number_format($current / 100, 2).')</span>'
+                                : '<span class="text-gray-400">—</span>';
+                        }
+                        $paid = 'R '.number_format($state / 100, 2);
                         if ($current !== null && (int) $current !== (int) $state) {
                             $paid .= ' <span class="text-xs text-gray-500">(now R '
                                 .number_format($current / 100, 2).')</span>';
