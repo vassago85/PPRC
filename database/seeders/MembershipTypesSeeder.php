@@ -19,7 +19,7 @@ class MembershipTypesSeeder extends Seeder
         $types = [
             [
                 'slug' => 'full-member',
-                'name' => 'Full Member',
+                'name' => 'Standard Membership',
                 'description' => 'Annual full membership for adult shooters.',
                 'price_cents' => 150000,
                 'counts_as_member' => true,

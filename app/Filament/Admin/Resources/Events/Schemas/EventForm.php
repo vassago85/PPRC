@@ -65,7 +65,7 @@ class EventForm
                         ->label('Banner image')
                         ->image()
                         ->imageEditor()
-                        ->disk('s3')
+                        ->disk(\App\Support\MediaDisk::name())
                         ->directory('events/banners')
                         ->maxSize(5120)
                         ->helperText('Shown on the public match page. Landscape works best (≥ 1600×900).')

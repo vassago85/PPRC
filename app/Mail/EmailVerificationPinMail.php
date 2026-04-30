@@ -31,7 +31,7 @@ class EmailVerificationPinMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.auth.email-verification-pin',
+            view: 'emails.auth.email-verification-pin',
         );
     }
 

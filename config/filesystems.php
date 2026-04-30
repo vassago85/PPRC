@@ -54,11 +54,18 @@ return [
             'region' => env('AWS_DEFAULT_REGION'),
             'bucket' => env('AWS_BUCKET'),
             'url' => env('AWS_URL'),
-            // When set, Laravel rewrites presigned upload/download hosts (see AwsS3V3Adapter).
-            // Use your public HTTPS MinIO proxy (e.g. https://example.com/media) if needed.
             'temporary_url' => env('AWS_TEMPORARY_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'report' => false,
+        ],
+
+        'media' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/media'),
+            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage/media',
+            'visibility' => 'public',
             'throw' => false,
             'report' => false,
         ],

@@ -28,7 +28,7 @@ class GalleryPhotosRelationManager extends RelationManager
                 FileUpload::make('path')
                     ->label('Photo')
                     ->image()
-                    ->disk('s3')
+                    ->disk(\App\Support\MediaDisk::name())
                     ->directory(fn () => 'events/gallery/'.$this->getOwnerRecord()->getKey())
                     ->maxSize(8192)
                     ->required()
@@ -46,7 +46,7 @@ class GalleryPhotosRelationManager extends RelationManager
             ->columns([
                 ImageColumn::make('path')
                     ->label('Preview')
-                    ->disk('s3')
+                    ->disk(\App\Support\MediaDisk::name())
                     ->square(),
                 TextColumn::make('caption')->limit(40)->wrap(),
                 TextColumn::make('sort_order')->label('Order')->sortable(),

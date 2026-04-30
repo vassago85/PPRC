@@ -8,10 +8,12 @@ use App\Enums\PaymentStatus;
 use App\Events\MemberActivated;
 use App\Events\MemberEmailVerified;
 use App\Events\MemberRegistered;
+use App\Mail\MembershipApprovedMail;
 use App\Models\Member;
 use App\Models\Membership;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 
 class MemberService
 {
@@ -64,6 +66,10 @@ class MemberService
     {
         $membership->loadMissing(['member', 'membershipType', 'payments']);
 
+        if ($membership->status === MembershipStatus::Active) {
+            return;
+        }
+
         $membership->update([
             'status' => MembershipStatus::Active,
             'approved_at' => now(),
@@ -91,7 +97,37 @@ class MemberService
             $member->update(['expiry_date' => $membership->period_end]);
         }
 
+        $this->cancelSupersededMemberships($member, $membership);
+
         MemberActivated::dispatch($member, $membership);
+
+        $member->loadMissing('user');
+        if ($member->user?->email) {
+            Mail::to($member->user)->queue(new MembershipApprovedMail($member, $membership));
+        }
+    }
+
+    /**
+     * Cancel any other pending/pending-payment memberships for the same member
+     * that are now superseded by the newly activated one.
+     */
+    protected function cancelSupersededMemberships(Member $member, Membership $activeMembership): void
+    {
+        $superseded = $member->memberships()
+            ->where('id', '!=', $activeMembership->id)
+            ->whereIn('status', [
+                MembershipStatus::PendingPayment->value,
+                MembershipStatus::PendingApproval->value,
+            ])
+            ->get();
+
+        foreach ($superseded as $old) {
+            $old->update(['status' => MembershipStatus::Cancelled]);
+
+            $old->payments()
+                ->where('status', PaymentStatus::Pending->value)
+                ->update(['status' => PaymentStatus::Cancelled->value]);
+        }
     }
 
     /**

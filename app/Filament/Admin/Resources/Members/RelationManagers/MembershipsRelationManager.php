@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\Members\RelationManagers;
 
 use App\Enums\MembershipStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Membership;
 use App\Models\MembershipType;
 use App\Services\Membership\MemberService;
@@ -116,7 +117,20 @@ class MembershipsRelationManager extends RelationManager
                     ->visible(fn (Membership $record) => in_array($record->status, [MembershipStatus::PendingApproval, MembershipStatus::PendingPayment]))
                     ->requiresConfirmation()
                     ->action(fn (Membership $record) => app(MemberService::class)->activate($record, auth()->user())),
-                EditAction::make(),
+                EditAction::make()
+                    ->after(function (Membership $record): void {
+                        if ($record->status === MembershipStatus::Active || $record->price_cents_snapshot === 0) {
+                            $record->payments()
+                                ->where('status', PaymentStatus::Pending->value)
+                                ->update([
+                                    'status' => $record->status === MembershipStatus::Active
+                                        ? PaymentStatus::Confirmed->value
+                                        : PaymentStatus::Cancelled->value,
+                                    'confirmed_at' => $record->status === MembershipStatus::Active ? now() : null,
+                                    'confirmed_by_user_id' => auth()->id(),
+                                ]);
+                        }
+                    }),
                 DeleteAction::make(),
             ])
             ->toolbarActions([

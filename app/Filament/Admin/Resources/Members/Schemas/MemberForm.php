@@ -53,7 +53,7 @@ class MemberForm
                         TextInput::make('phone_number')->tel()->maxLength(32),
                         FileUpload::make('profile_photo_path')
                             ->image()
-                            ->disk('s3')
+                            ->disk(\App\Support\MediaDisk::name())
                             ->directory('members/profile-photos')
                             ->imageEditor()
                             ->columnSpanFull(),

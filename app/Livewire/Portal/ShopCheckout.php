@@ -242,7 +242,7 @@ class ShopCheckout extends Component
         abort_unless($order->status === ShopOrderStatus::PendingPayment, 403);
         abort_unless($order->eft_reference, 403);
 
-        $path = $this->proofUpload->store('shop/orders/proofs', 's3');
+        $path = $this->proofUpload->store('shop/orders/proofs', \App\Support\MediaDisk::name());
 
         $order->update([
             'proof_path' => $path,

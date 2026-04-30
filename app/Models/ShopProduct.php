@@ -48,6 +48,6 @@ class ShopProduct extends Model
             return null;
         }
 
-        return Storage::disk('s3')->url($this->image_path);
+        return Storage::disk(\App\Support\MediaDisk::name())->url($this->image_path);
     }
 }

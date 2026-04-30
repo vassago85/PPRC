@@ -25,7 +25,7 @@ class ExcoMemberForm
                     FileUpload::make('photo_path')
                         ->label('Photo')
                         ->image()
-                        ->disk('s3')
+                        ->disk(\App\Support\MediaDisk::name())
                         ->directory('exco')
                         ->columnSpanFull(),
                     Textarea::make('bio')->rows(4)->columnSpanFull(),

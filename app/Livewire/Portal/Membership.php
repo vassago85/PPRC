@@ -128,7 +128,7 @@ class Membership extends Component
         $payment = MembershipPayment::whereHas('membership', fn ($q) => $q->where('member_id', $this->member()?->id))
             ->findOrFail($paymentId);
 
-        $path = $this->proofUpload->store('memberships/proofs', 's3');
+        $path = $this->proofUpload->store('memberships/proofs', \App\Support\MediaDisk::name());
 
         $payment->update([
             'proof_path' => $path,

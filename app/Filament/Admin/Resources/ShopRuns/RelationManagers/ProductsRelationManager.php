@@ -67,7 +67,7 @@ class ProductsRelationManager extends RelationManager
                 FileUpload::make('image_path')
                     ->label('Image')
                     ->image()
-                    ->disk('s3')
+                    ->disk(\App\Support\MediaDisk::name())
                     ->directory('shop/products')
                     ->imageEditor()
                     ->maxSize(5120)
@@ -82,7 +82,7 @@ class ProductsRelationManager extends RelationManager
             ->columns([
                 ImageColumn::make('image_path')
                     ->label('')
-                    ->disk('s3')
+                    ->disk(\App\Support\MediaDisk::name())
                     ->square()
                     ->toggleable(),
                 TextColumn::make('name')->searchable(),

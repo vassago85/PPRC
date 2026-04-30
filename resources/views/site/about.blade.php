@@ -60,7 +60,7 @@
                         <div class="flex items-center gap-4">
                             @if ($m->photo_path)
                                 <img
-                                    src="{{ \Illuminate\Support\Facades\Storage::disk('s3')->url($m->photo_path) }}"
+                                    src="{{ \App\Support\MediaDisk::url($m->photo_path) }}"
                                     alt="{{ $m->full_name }}"
                                     class="h-16 w-16 rounded-full object-cover bg-white/5"
                                 />

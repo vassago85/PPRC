@@ -118,7 +118,7 @@
                 @if ($photo)
                     <img src="{{ $photo->temporaryUrl() }}" alt="Preview" class="h-16 w-16 rounded-full object-cover ring-2 ring-white/20" />
                 @elseif ($member->profile_photo_path)
-                    <img src="{{ Storage::disk('s3')->url($member->profile_photo_path) }}" alt="Photo" class="h-16 w-16 rounded-full object-cover ring-2 ring-white/20" />
+                    <img src="{{ \App\Support\MediaDisk::url($member->profile_photo_path) }}" alt="Photo" class="h-16 w-16 rounded-full object-cover ring-2 ring-white/20" />
                 @else
                     <div class="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-slate-500">
                         <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>

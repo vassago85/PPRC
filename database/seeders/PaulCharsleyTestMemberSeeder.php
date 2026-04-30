@@ -21,7 +21,7 @@ use Spatie\Permission\Models\Role;
  */
 class PaulCharsleyTestMemberSeeder extends Seeder
 {
-    public const TEST_MEMBER_NUMBER = '990001';
+    public const TEST_MEMBER_NUMBER = 'PPRC-99001';
 
     public function run(): void
     {

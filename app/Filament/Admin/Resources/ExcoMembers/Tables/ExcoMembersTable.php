@@ -19,7 +19,7 @@ class ExcoMembersTable
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
             ->columns([
-                ImageColumn::make('photo_path')->circular()->disk('s3'),
+                ImageColumn::make('photo_path')->circular()->disk(\App\Support\MediaDisk::name()),
                 TextColumn::make('full_name')->searchable()->sortable(),
                 TextColumn::make('position')->badge(),
                 IconColumn::make('is_current')->boolean()->label('Current'),

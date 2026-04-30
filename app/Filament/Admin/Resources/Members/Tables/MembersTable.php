@@ -29,7 +29,7 @@ class MembersTable
             ->columns([
                 ImageColumn::make('profile_photo_path')
                     ->label('')
-                    ->disk('s3')
+                    ->disk(\App\Support\MediaDisk::name())
                     ->circular()
                     ->defaultImageUrl(fn () => 'https://ui-avatars.com/api/?name=PPRC&background=64748b&color=fff'),
                 TextColumn::make('membership_number')->label('Number')->badge()->sortable()->searchable(),

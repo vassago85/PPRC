@@ -225,6 +225,44 @@ class ImportSsmmMembers extends Command
                     $memberAttrs,
                 );
 
+                // Create a Membership record if the member doesn't have one yet
+                if ($typeSlug && isset($typeIdBySlug[$typeSlug])) {
+                    $existingMembership = DB::table('memberships')
+                        ->where('member_id', $member->id)
+                        ->exists();
+
+                    if (! $existingMembership) {
+                        $type = MembershipType::find($typeIdBySlug[$typeSlug]);
+                        $membershipStatus = match ($status) {
+                            'active' => 'active',
+                            'pending' => 'pending_approval',
+                            'expired' => 'expired',
+                            'inactive' => 'cancelled',
+                            default => 'pending_approval',
+                        };
+
+                        $periodStart = $joinDate ?? now()->toDateString();
+                        $periodEnd = $expiryDate;
+                        if (! $periodEnd && $membershipStatus === 'active' && $type) {
+                            $periodEnd = date('Y') . '-12-31';
+                        }
+
+                        DB::table('memberships')->insert([
+                            'member_id' => $member->id,
+                            'membership_type_id' => $type->id,
+                            'period_start' => $periodStart,
+                            'period_end' => $periodEnd,
+                            'status' => $membershipStatus,
+                            'price_cents_snapshot' => $type->price_cents,
+                            'membership_type_slug_snapshot' => $type->slug,
+                            'membership_type_name_snapshot' => $type->name,
+                            'approved_at' => $membershipStatus === 'active' ? now() : null,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+
                 $wasNewUser ? $stats['created']++ : $stats['updated']++;
 
                 if ($wasNewUser && $sendWelcome) {

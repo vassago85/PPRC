@@ -85,7 +85,8 @@ class Member extends Model
         return $this->memberships()
             ->with('payments')
             ->whereIn('status', ['active', 'pending_payment', 'pending_approval'])
-            ->orderByDesc('period_end')
+            ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'pending_approval' THEN 1 WHEN 'pending_payment' THEN 2 ELSE 3 END")
+            ->orderByRaw('period_end IS NOT NULL, period_end DESC')
             ->first();
     }
 
