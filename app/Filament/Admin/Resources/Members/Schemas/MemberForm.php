@@ -56,6 +56,10 @@ class MemberForm
                             ->maxDate(now())
                             ->native(false)
                             ->displayFormat('d M Y'),
+                        TextInput::make('id_number')
+                            ->label('ID number')
+                            ->maxLength(32)
+                            ->helperText('SA ID number — used on endorsement letters.'),
                         TextInput::make('phone_country_code')->default('+27')->maxLength(8),
                         TextInput::make('phone_number')->tel()->maxLength(32),
                         FileUpload::make('profile_photo_path')

@@ -34,6 +34,7 @@ class Member extends Model
         'postal_code',
         'country',
         'date_of_birth',
+        'id_number',
         'shooting_disciplines',
         'profile_photo_path',
         'status',

@@ -40,26 +40,45 @@
     {{-- Request --}}
     <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
         <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Request details</h3>
-        <dl class="space-y-3">
-            <div>
-                <dt class="text-xs text-gray-500">Reason</dt>
+        <dl class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+                <dt class="text-xs text-gray-500">Purpose</dt>
                 <dd class="text-gray-900 dark:text-gray-100">{{ $record->reason ?: '—' }}</dd>
             </div>
             <div>
-                <dt class="text-xs text-gray-500">Firearm type</dt>
-                <dd class="text-gray-900 dark:text-gray-100">{{ $record->firearm_type ?: '—' }}</dd>
+                <dt class="text-xs text-gray-500">Item type</dt>
+                <dd class="text-gray-900 dark:text-gray-100">{{ $record->isComponent() ? 'Component' : 'Complete rifle' }}</dd>
+            </div>
+            @if ($record->isComponent())
+                <div>
+                    <dt class="text-xs text-gray-500">Component</dt>
+                    <dd class="text-gray-900 dark:text-gray-100">{{ $record->component_type ?: '—' }}</dd>
+                </div>
+            @else
+                <div>
+                    <dt class="text-xs text-gray-500">Action type</dt>
+                    <dd class="text-gray-900 dark:text-gray-100">{{ $record->firearm_type ?: '—' }}</dd>
+                </div>
+            @endif
+            <div>
+                <dt class="text-xs text-gray-500">Make / brand</dt>
+                <dd class="text-gray-900 dark:text-gray-100">{{ $record->make ?: '—' }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500">Calibre</dt>
+                <dd class="text-gray-900 dark:text-gray-100">{{ $record->calibre ?: '—' }}</dd>
             </div>
             @if ($record->firearm_details)
-            <div>
-                <dt class="text-xs text-gray-500">Firearm details</dt>
-                <dd class="text-gray-900 dark:text-gray-100 whitespace-pre-line">{{ $record->firearm_details }}</dd>
-            </div>
+                <div class="col-span-2">
+                    <dt class="text-xs text-gray-500">Additional details</dt>
+                    <dd class="text-gray-900 dark:text-gray-100 whitespace-pre-line">{{ $record->firearm_details }}</dd>
+                </div>
             @endif
-            @if ($record->motivation)
-            <div>
-                <dt class="text-xs text-gray-500">Motivation</dt>
-                <dd class="text-gray-900 dark:text-gray-100 whitespace-pre-line">{{ $record->motivation }}</dd>
-            </div>
+            @if ($member?->id_number)
+                <div>
+                    <dt class="text-xs text-gray-500">ID number</dt>
+                    <dd class="text-gray-900 dark:text-gray-100 font-mono">{{ $member->id_number }}</dd>
+                </div>
             @endif
             <div>
                 <dt class="text-xs text-gray-500">Submitted</dt>

@@ -48,15 +48,22 @@
                             <dd class="text-sm font-mono font-medium text-slate-900">{{ $member->membership_number }}</dd>
                         </div>
                     @endif
-                    @if ($endorsement->firearm_type)
+                    @php($itemDescription = $endorsement->describeItem())
+                    @if ($itemDescription !== '')
                         <div class="flex justify-between gap-3">
-                            <dt class="text-sm text-slate-500">Firearm</dt>
+                            <dt class="text-sm text-slate-500">{{ $endorsement->isComponent() ? 'Component' : 'Firearm' }}</dt>
                             <dd class="text-sm font-medium text-slate-900 text-right">
-                                {{ $endorsement->firearm_type }}
+                                {{ $itemDescription }}
                                 @if ($endorsement->firearm_details)
                                     <span class="block text-xs text-slate-500">{{ $endorsement->firearm_details }}</span>
                                 @endif
                             </dd>
+                        </div>
+                    @endif
+                    @if ($endorsement->calibre)
+                        <div class="flex justify-between">
+                            <dt class="text-sm text-slate-500">Calibre</dt>
+                            <dd class="text-sm font-medium text-slate-900">{{ $endorsement->calibre }}</dd>
                         </div>
                     @endif
                     @if ($endorsement->reason)

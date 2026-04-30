@@ -6,7 +6,9 @@
     $verifyUrl = $verifyUrl ?? null;
     $issueDate = $endorsement->reviewed_at ?? now();
     $reference = 'END-'.str_pad((string) $endorsement->id, 5, '0', STR_PAD_LEFT);
-    $firearmLine = trim(($endorsement->firearm_type ?? '').(($endorsement->firearm_type && $endorsement->firearm_details) ? ' — ' : '').($endorsement->firearm_details ?? ''));
+    $isComponent = $endorsement->isComponent();
+    $firearmLine = $endorsement->describeItem();
+    $itemLabel = $isComponent ? 'Component' : 'Firearm';
 @endphp
 <!doctype html>
 <html lang="en">
@@ -63,7 +65,9 @@
             {{-- Letterhead --}}
             <div class="flex items-start justify-between gap-6 border-b border-slate-200 pb-6">
                 <div class="flex items-center gap-4">
-                    <img src="{{ asset('pprclogo.png') }}" alt="PPRC" class="h-20 w-20 rounded-full border border-slate-200" />
+                    <div class="flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                        <img src="{{ asset('pprclogo.png') }}" alt="PPRC" class="h-full w-full object-contain" />
+                    </div>
                     <div>
                         <p class="text-base font-bold tracking-tight text-slate-900">Pretoria Precision Rifle Club</p>
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">EST. 2022</p>
@@ -107,9 +111,15 @@
                         <dd class="text-slate-900">{{ $member->join_date->format('j F Y') }}</dd>
                     </div>
                 @endif
+                @if ($endorsement->calibre)
+                    <div class="flex gap-2">
+                        <dt class="min-w-[140px] font-semibold text-slate-700">Calibre:</dt>
+                        <dd class="text-slate-900">{{ $endorsement->calibre }}</dd>
+                    </div>
+                @endif
                 @if ($firearmLine !== '')
                     <div class="flex gap-2 sm:col-span-2">
-                        <dt class="min-w-[140px] font-semibold text-slate-700">Firearm:</dt>
+                        <dt class="min-w-[140px] font-semibold text-slate-700">{{ $itemLabel }}:</dt>
                         <dd class="text-slate-900">{{ $firearmLine }}</dd>
                     </div>
                 @endif
@@ -130,20 +140,18 @@
                 <p>
                     We have reviewed
                     <strong class="text-slate-900">{{ $member->fullName() }}</strong>'s motivation for obtaining a firearm license
-                    @if ($firearmLine !== '')
+                    @if ($isComponent)
                         for a <strong class="text-slate-900">{{ $firearmLine }}</strong>
+                        intended for use on a centerfire precision rifle.
+                    @else
+                        for a <strong class="text-slate-900">{{ $firearmLine }}</strong>
+                        centerfire rifle.
                     @endif
-                    centerfire rifle. Based on our experience, this calibre and firearm platform are highly suitable for
+                    Based on our experience, this calibre and firearm platform are highly suitable for
                     Precision Rifle Shooting, offering excellent ballistic performance, accuracy, and consistency at
                     extended distances. Precision Rifle competitions typically involve engaging targets at distances
-                    between 300m and 700m, making this firearm an optimal choice for participation in the sport.
+                    between 300m and 700m, making this {{ $isComponent ? 'component' : 'firearm' }} an optimal choice for participation in the sport.
                 </p>
-
-                @if ($endorsement->motivation)
-                    <p class="rounded-lg border-l-4 border-slate-300 bg-slate-50 px-4 py-3 text-slate-700 italic">
-                        {{ $endorsement->motivation }}
-                    </p>
-                @endif
 
                 <p>
                     <strong class="text-slate-900">Pretoria Precision Rifle Club (PPRC)</strong> is an affiliated club of the
@@ -154,7 +162,7 @@
                 </p>
 
                 <p>
-                    Should you require further information regarding the use of this firearm in our sport, please feel
+                    Should you require further information regarding the use of this {{ $isComponent ? 'component' : 'firearm' }} in our sport, please feel
                     free to contact the club directly.
                 </p>
 
