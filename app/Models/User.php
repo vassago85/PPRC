@@ -95,6 +95,23 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     ];
 
     /**
+     * Slug => human label for committee roles. Single source of truth used by
+     * the ExCo roster select and any admin role-assignment UI.
+     */
+    public const COMMITTEE_ROLE_LABELS = [
+        'developer' => 'Developer',
+        'chairperson' => 'Chairperson',
+        'vice_chair' => 'Vice Chair',
+        'treasurer' => 'Treasurer',
+        'secretary' => 'Secretary',
+        'marketing' => 'Marketing',
+        'club_captain' => 'Club Captain',
+        'membership_secretary' => 'Membership Secretary',
+        'match_director' => 'Match Director',
+        'admin' => 'Admin',
+    ];
+
+    /**
      * Roles that qualify for free entry at PPRC-hosted events. Per the 2026
      * AGM, ExCo and other committee / operational position holders don't pay
      * for club events. Developer is excluded because it's a technical account
