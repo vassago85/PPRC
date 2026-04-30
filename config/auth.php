@@ -96,7 +96,13 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            'expire' => 60,
+            // Welcome / "claim your account" invite emails reuse this same
+            // reset flow, and members often don't check email for a day or
+            // two. The default 60 minutes was leading to "invalid token"
+            // reports on otherwise-valid links. 3 days is a sensible
+            // compromise between security and usability — Laravel's docs
+            // explicitly call this out as adjustable per app.
+            'expire' => (int) env('AUTH_PASSWORD_RESET_EXPIRE', 4320),
             'throttle' => 60,
         ],
     ],

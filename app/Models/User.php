@@ -44,6 +44,17 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
+     * Always store login emails lowercased so password reset tokens (keyed by
+     * the email column verbatim) can be looked up reliably regardless of how
+     * the user typed their address. Also matches Fortify's lowercase_usernames
+     * setting for sign-in.
+     */
+    protected function email(): Attribute
+    {
+        return Attribute::set(fn ($value) => $value === null ? null : strtolower(trim((string) $value)));
+    }
+
+    /**
      * PIN-based verification (replaces the default signed URL notification).
      */
     public function sendEmailVerificationNotification(): void
