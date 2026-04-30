@@ -17,6 +17,8 @@ class EndorsementRequest extends Model
         'make',
         'calibre',
         'component_type',
+        'action_serial_number',
+        'barrel_serial_number',
         'firearm_details',
         'motivation',
         'status',

@@ -68,6 +68,14 @@
                 <dt class="text-xs text-gray-500">Calibre</dt>
                 <dd class="text-gray-900 dark:text-gray-100">{{ $record->calibre ?: '—' }}</dd>
             </div>
+            <div>
+                <dt class="text-xs text-gray-500">Action serial</dt>
+                <dd class="text-gray-900 dark:text-gray-100 font-mono">{{ $record->action_serial_number ?: '—' }}</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500">Barrel serial</dt>
+                <dd class="text-gray-900 dark:text-gray-100 font-mono">{{ $record->barrel_serial_number ?: '—' }}</dd>
+            </div>
             @if ($record->firearm_details)
                 <div class="col-span-2">
                     <dt class="text-xs text-gray-500">Additional details</dt>

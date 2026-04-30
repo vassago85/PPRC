@@ -103,6 +103,8 @@ Route::middleware(['web', 'auth', 'verified'])->prefix('portal')->name('portal.'
     Route::get('/profile/edit', ProfileEdit::class)->name('profile.edit');
     Route::get('/documents', Documents::class)->name('documents');
     Route::get('/documents/participation', ParticipationLetterController::class)->name('documents.participation');
+    Route::get('/documents/endorsement/apply', \App\Livewire\Portal\EndorsementApply::class)
+        ->name('documents.endorsement.apply');
     Route::get('/documents/endorsement/{token}', EndorsementLetterController::class)
         ->where('token', '[a-zA-Z0-9]+')
         ->name('documents.endorsement');

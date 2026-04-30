@@ -14,7 +14,11 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Grid;
 use Illuminate\Contracts\View\View;
 use UnitEnum;
 
@@ -29,6 +33,25 @@ class EndorsementRequestResource extends Resource
     protected static ?int $navigationSort = 30;
 
     protected static ?string $navigationLabel = 'Endorsements';
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = EndorsementRequest::query()
+            ->where('status', EndorsementStatus::Pending->value)
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Endorsement requests awaiting review';
+    }
 
     public static function table(Table $table): Table
     {
@@ -66,6 +89,116 @@ class EndorsementRequestResource extends Resource
                         'filament.admin.endorsements.review-modal',
                         ['record' => $record]
                     )),
+                Action::make('edit_request')
+                    ->label('Edit')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->visible(fn (EndorsementRequest $record) => $record->status === EndorsementStatus::Pending)
+                    ->modalHeading(fn (EndorsementRequest $record) => "Edit endorsement — {$record->member?->fullName()}")
+                    ->modalDescription('Tidy up the request before issuing the letter. Members will see your edits on their copy.')
+                    ->modalSubmitActionLabel('Save changes')
+                    ->fillForm(fn (EndorsementRequest $record): array => [
+                        'reason' => $record->reason,
+                        'item_type' => $record->item_type ?? 'rifle',
+                        'firearm_type' => $record->firearm_type,
+                        'component_type' => $record->component_type,
+                        'make' => $record->make,
+                        'calibre' => $record->calibre,
+                        'action_serial_number' => $record->action_serial_number,
+                        'barrel_serial_number' => $record->barrel_serial_number,
+                        'firearm_details' => $record->firearm_details,
+                        'id_number' => $record->member?->id_number,
+                    ])
+                    ->form([
+                        Grid::make(2)->schema([
+                            TextInput::make('id_number')
+                                ->label('Member RSA ID number')
+                                ->maxLength(32)
+                                ->helperText('Saved on the member profile.'),
+                            TextInput::make('reason')
+                                ->label('Purpose')
+                                ->required()
+                                ->maxLength(255),
+                        ]),
+                        Select::make('item_type')
+                            ->label('Item type')
+                            ->options(['rifle' => 'Complete rifle', 'component' => 'Component / part'])
+                            ->required()
+                            ->live(),
+                        Grid::make(2)->schema([
+                            Select::make('firearm_type')
+                                ->label('Action type')
+                                ->options([
+                                    'Bolt action' => 'Bolt action',
+                                    'Semi-automatic' => 'Semi-automatic',
+                                    'Lever action' => 'Lever action',
+                                    'Pump action' => 'Pump action',
+                                    'Single shot' => 'Single shot',
+                                    'Other' => 'Other',
+                                ])
+                                ->visible(fn ($get) => ($get('item_type') ?? 'rifle') === 'rifle'),
+                            Select::make('component_type')
+                                ->label('Component')
+                                ->options([
+                                    'Barrel' => 'Barrel',
+                                    'Action' => 'Action / receiver',
+                                    'Stock / Chassis' => 'Stock / chassis',
+                                    'Trigger' => 'Trigger',
+                                    'Bolt' => 'Bolt',
+                                    'Other' => 'Other',
+                                ])
+                                ->visible(fn ($get) => $get('item_type') === 'component')
+                                ->requiredIf('item_type', 'component'),
+                        ]),
+                        Grid::make(2)->schema([
+                            TextInput::make('make')
+                                ->label('Make / brand')
+                                ->required()
+                                ->maxLength(120),
+                            TextInput::make('calibre')
+                                ->label('Calibre')
+                                ->required()
+                                ->maxLength(60),
+                        ]),
+                        Grid::make(2)->schema([
+                            TextInput::make('action_serial_number')
+                                ->label('Action serial')
+                                ->maxLength(80)
+                                ->requiredWithout('barrel_serial_number')
+                                ->helperText('At least one of action / barrel serial is required.'),
+                            TextInput::make('barrel_serial_number')
+                                ->label('Barrel serial')
+                                ->maxLength(80)
+                                ->requiredWithout('action_serial_number'),
+                        ]),
+                        Textarea::make('firearm_details')
+                            ->label('Additional details')
+                            ->rows(2)
+                            ->maxLength(1000),
+                    ])
+                    ->action(function (EndorsementRequest $record, array $data) {
+                        $idNumber = $data['id_number'] ?? null;
+                        unset($data['id_number']);
+
+                        $isComponent = ($data['item_type'] ?? 'rifle') === 'component';
+                        if ($isComponent) {
+                            $data['firearm_type'] = null;
+                        } else {
+                            $data['component_type'] = null;
+                        }
+
+                        $record->update($data);
+
+                        if ($record->member && $idNumber !== null && $record->member->id_number !== $idNumber) {
+                            $record->member->update(['id_number' => $idNumber]);
+                        }
+
+                        Notification::make()
+                            ->success()
+                            ->title('Endorsement updated')
+                            ->body('Saved. You can now preview or approve.')
+                            ->send();
+                    }),
                 Action::make('preview_letter')
                     ->label('Preview letter')
                     ->icon('heroicon-o-document-magnifying-glass')

@@ -10,6 +10,7 @@ use App\Filament\Admin\Resources\Members\RelationManagers\MembershipsRelationMan
 use App\Filament\Admin\Resources\Members\RelationManagers\SubMembersRelationManager;
 use App\Filament\Admin\Resources\Members\Schemas\MemberForm;
 use App\Filament\Admin\Resources\Members\Tables\MembersTable;
+use App\Enums\MemberStatus;
 use App\Models\Member;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -38,6 +39,25 @@ class MemberResource extends Resource
     public static function shouldRegisterNavigation(): bool
     {
         return static::canViewAny();
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Member::query()
+            ->where('status', MemberStatus::Pending->value)
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Members awaiting onboarding';
     }
 
     public static function form(Schema $schema): Schema

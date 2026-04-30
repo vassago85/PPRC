@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Memberships;
 use App\Filament\Admin\Resources\Memberships\Pages\CreateMembership;
 use App\Filament\Admin\Resources\Memberships\Pages\EditMembership;
 use App\Filament\Admin\Resources\Memberships\Pages\ListMemberships;
+use App\Enums\MembershipStatus;
 use App\Filament\Admin\Resources\Memberships\Schemas\MembershipForm;
 use App\Filament\Admin\Resources\Memberships\Tables\MembershipsTable;
 use App\Models\Membership;
@@ -35,6 +36,25 @@ class MembershipResource extends Resource
     public static function shouldRegisterNavigation(): bool
     {
         return static::canViewAny();
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Membership::query()
+            ->where('status', MembershipStatus::PendingApproval->value)
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Memberships awaiting approval';
     }
 
     public static function form(Schema $schema): Schema

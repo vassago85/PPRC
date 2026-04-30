@@ -83,9 +83,10 @@
         @if ($this->endorsements->count())
             <ul class="mt-4 space-y-2">
                 @foreach ($this->endorsements as $e)
+                    @php($itemSummary = $e->describeItem() ?: ($e->firearm_type ?: 'Firearm'))
                     <li class="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3">
                         <div class="min-w-0 flex-1">
-                            <p class="text-sm font-medium text-white">{{ $e->firearm_type }} — {{ $e->reason }}</p>
+                            <p class="text-sm font-medium text-white">{{ $itemSummary }} — {{ $e->reason }}</p>
                             <p class="text-xs text-slate-500">Requested {{ $e->created_at->format('d M Y') }}</p>
                         </div>
                         @php($eColor = match($e->status->color()) {
@@ -112,111 +113,13 @@
             </ul>
         @endif
 
-        {{-- New request form --}}
+        {{-- Apply CTA --}}
         @if ($this->hasActiveMembership && ! $this->hasPendingEndorsement)
-            <div class="mt-6 rounded-xl border border-white/10 bg-white/[0.02] p-5">
-                <h3 class="text-sm font-semibold text-white">New endorsement request</h3>
-                <p class="mt-1 text-xs text-slate-500">These fields are used verbatim on your endorsement letter — please double-check the calibre and make spelling.</p>
-
-                <div class="mt-4 space-y-4">
-                    {{-- Identity --}}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm text-slate-400">RSA ID number</label>
-                            <input type="text" wire:model="idNumber" maxlength="32" placeholder="e.g. 8501015800087"
-                                class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
-                            @error('idNumber') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm text-slate-400">Purpose</label>
-                            <input type="text" wire:model="reason" placeholder="Sport shooting"
-                                class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
-                            @error('reason') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
-                    {{-- Item type toggle --}}
-                    <div>
-                        <label class="block text-sm text-slate-400 mb-2">Applying for</label>
-                        <div class="flex gap-2">
-                            <label class="flex-1 cursor-pointer">
-                                <input type="radio" wire:model.live="itemType" value="rifle" class="peer sr-only" />
-                                <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-slate-300 transition peer-checked:border-white/40 peer-checked:bg-white/10 peer-checked:text-white">
-                                    Complete Rifle
-                                </div>
-                            </label>
-                            <label class="flex-1 cursor-pointer">
-                                <input type="radio" wire:model.live="itemType" value="component" class="peer sr-only" />
-                                <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-center text-sm text-slate-300 transition peer-checked:border-white/40 peer-checked:bg-white/10 peer-checked:text-white">
-                                    Component / Part
-                                </div>
-                            </label>
-                        </div>
-                        @error('itemType') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                    </div>
-
-                    {{-- Conditional: rifle action type OR component type --}}
-                    @if ($itemType === 'rifle')
-                        <div>
-                            <label class="block text-sm text-slate-400">Action type</label>
-                            <select wire:model="firearmType"
-                                class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20">
-                                <option value="Bolt action">Bolt action</option>
-                                <option value="Semi-automatic">Semi-automatic</option>
-                                <option value="Lever action">Lever action</option>
-                                <option value="Pump action">Pump action</option>
-                                <option value="Single shot">Single shot</option>
-                                <option value="Other">Other</option>
-                            </select>
-                            @error('firearmType') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                        </div>
-                    @else
-                        <div>
-                            <label class="block text-sm text-slate-400">Component</label>
-                            <select wire:model="componentType"
-                                class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20">
-                                <option value="">Select component...</option>
-                                <option value="Barrel">Barrel</option>
-                                <option value="Action">Action / receiver</option>
-                                <option value="Stock / Chassis">Stock / chassis</option>
-                                <option value="Trigger">Trigger</option>
-                                <option value="Bolt">Bolt</option>
-                                <option value="Other">Other</option>
-                            </select>
-                            @error('componentType') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                        </div>
-                    @endif
-
-                    {{-- Make + calibre --}}
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm text-slate-400">Make / brand</label>
-                            <input type="text" wire:model="make" placeholder="e.g. Eagle Barrels, Tikka, Bartlein"
-                                class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
-                            @error('make') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-sm text-slate-400">Calibre</label>
-                            <input type="text" wire:model="calibre" placeholder="e.g. 6mm Dasher, 6.5 Creedmoor, .308 Win"
-                                class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
-                            @error('calibre') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-slate-400">Additional details <span class="text-slate-600">(optional — model, serial number, notes)</span></label>
-                        <input type="text" wire:model="firearmDetails" placeholder="e.g. Stiller TAC30 action, 26'' barrel"
-                            class="mt-1 block w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-600 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
-                        @error('firearmDetails') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
-                    </div>
-
-                    <button type="button" wire:click="requestEndorsement" wire:loading.attr="disabled"
-                        class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:opacity-50">
-                        <span wire:loading.remove wire:target="requestEndorsement">Submit request</span>
-                        <span wire:loading wire:target="requestEndorsement" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
-                    </button>
-                </div>
-            </div>
+            <a href="{{ route('portal.documents.endorsement.apply') }}" wire:navigate
+               class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-200">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                Apply for endorsement
+            </a>
         @elseif ($this->hasPendingEndorsement)
             <p class="mt-4 text-sm text-amber-400">You have a pending endorsement request under review.</p>
         @elseif (! $this->hasActiveMembership)

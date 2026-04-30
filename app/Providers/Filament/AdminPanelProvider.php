@@ -11,6 +11,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use App\Filament\Admin\Widgets\ActionRequiredWidget;
 use App\Filament\Admin\Widgets\ClubOverviewStatsWidget;
 use App\Filament\Admin\Widgets\MatchDirectorStatsWidget;
 use App\Filament\Admin\Widgets\MembershipSecretaryStatsWidget;
@@ -44,6 +45,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\Filament\Admin\Widgets')
             ->widgets([
                 AccountWidget::class,
+                ActionRequiredWidget::class,
                 ClubOverviewStatsWidget::class,
                 TreasurerStatsWidget::class,
                 MembershipSecretaryStatsWidget::class,

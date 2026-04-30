@@ -9,6 +9,7 @@
     $isComponent = $endorsement->isComponent();
     $firearmLine = $endorsement->describeItem();
     $itemLabel = $isComponent ? 'Component' : 'Firearm';
+    $idName = $member->idDocumentName();
 @endphp
 <!doctype html>
 <html lang="en">
@@ -89,9 +90,9 @@
 
             {{-- Applicant details panel --}}
             <dl class="mt-5 grid grid-cols-1 gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
-                <div class="flex gap-2">
-                    <dt class="min-w-[140px] font-semibold text-slate-700">Name:</dt>
-                    <dd class="text-slate-900">{{ $member->fullName() }}</dd>
+                <div class="flex gap-2 sm:col-span-2">
+                    <dt class="min-w-[140px] font-semibold text-slate-700">Name (as per ID):</dt>
+                    <dd class="font-semibold tracking-wide text-slate-900">{{ $idName }}</dd>
                 </div>
                 @if (! empty($member->id_number))
                     <div class="flex gap-2">
@@ -123,6 +124,18 @@
                         <dd class="text-slate-900">{{ $firearmLine }}</dd>
                     </div>
                 @endif
+                @if ($endorsement->action_serial_number)
+                    <div class="flex gap-2">
+                        <dt class="min-w-[140px] font-semibold text-slate-700">Action serial:</dt>
+                        <dd class="text-slate-900 font-mono">{{ $endorsement->action_serial_number }}</dd>
+                    </div>
+                @endif
+                @if ($endorsement->barrel_serial_number)
+                    <div class="flex gap-2">
+                        <dt class="min-w-[140px] font-semibold text-slate-700">Barrel serial:</dt>
+                        <dd class="text-slate-900 font-mono">{{ $endorsement->barrel_serial_number }}</dd>
+                    </div>
+                @endif
                 @if ($endorsement->reason)
                     <div class="flex gap-2 sm:col-span-2">
                         <dt class="min-w-[140px] font-semibold text-slate-700">Purpose:</dt>
@@ -139,7 +152,7 @@
 
                 <p>
                     We have reviewed
-                    <strong class="text-slate-900">{{ $member->fullName() }}</strong>'s motivation for obtaining a firearm license
+                    <strong class="tracking-wide text-slate-900">{{ $idName }}</strong>'s motivation for obtaining a firearm license
                     @if ($isComponent)
                         for a <strong class="text-slate-900">{{ $firearmLine }}</strong>
                         intended for use on a centerfire precision rifle.

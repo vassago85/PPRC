@@ -66,6 +66,18 @@
                             <dd class="text-sm font-medium text-slate-900">{{ $endorsement->calibre }}</dd>
                         </div>
                     @endif
+                    @if ($endorsement->action_serial_number)
+                        <div class="flex justify-between gap-3">
+                            <dt class="text-sm text-slate-500">Action serial</dt>
+                            <dd class="text-sm font-mono text-slate-900 text-right">{{ $endorsement->action_serial_number }}</dd>
+                        </div>
+                    @endif
+                    @if ($endorsement->barrel_serial_number)
+                        <div class="flex justify-between gap-3">
+                            <dt class="text-sm text-slate-500">Barrel serial</dt>
+                            <dd class="text-sm font-mono text-slate-900 text-right">{{ $endorsement->barrel_serial_number }}</dd>
+                        </div>
+                    @endif
                     @if ($endorsement->reason)
                         <div class="flex justify-between">
                             <dt class="text-sm text-slate-500">Purpose</dt>

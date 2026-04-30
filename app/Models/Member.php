@@ -135,6 +135,22 @@ class Member extends Model
         return trim("{$this->first_name} {$this->last_name}") ?: ($this->user?->name ?? '—');
     }
 
+    /**
+     * Name as it appears on the South African ID — full first and surname
+     * in upper case (e.g. "PAUL CHARSLEY"). Used on official documents
+     * such as endorsement letters where the name must match the ID document.
+     */
+    public function idDocumentName(): string
+    {
+        $name = trim("{$this->first_name} {$this->last_name}");
+
+        if ($name === '') {
+            $name = (string) ($this->user?->name ?? '');
+        }
+
+        return mb_strtoupper(trim($name));
+    }
+
     public function isSaprfVerified(): bool
     {
         if (! $this->saprf_membership_number) {
