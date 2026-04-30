@@ -37,6 +37,7 @@ class SendMemberWelcomeEmails extends Command
     protected $signature = 'members:send-welcome
         {--status=active* : Member status(es) to include. Repeatable. Defaults to active only.}
         {--email=* : Only send to these specific email addresses (bypasses --status filter)}
+        {--already-welcomed : Resend to every address that has ever been welcomed (bypasses --status; implies --resend). Useful after a token / mailer fix.}
         {--resend : Send even if a welcome has already been logged for this address}
         {--limit=0 : Maximum emails to send this run (0 = no limit)}
         {--dry-run : Resolve recipients and print what would be sent, without sending}';
@@ -49,9 +50,29 @@ class SendMemberWelcomeEmails extends Command
         $statuses = array_values(array_filter((array) $this->option('status')));
         /** @var array<int, string> $emails */
         $emails = array_values(array_filter(array_map('strtolower', (array) $this->option('email'))));
-        $resend = (bool) $this->option('resend');
+        $alreadyWelcomed = (bool) $this->option('already-welcomed');
+        $resend = (bool) $this->option('resend') || $alreadyWelcomed;
         $limit = (int) $this->option('limit');
         $dryRun = (bool) $this->option('dry-run');
+
+        if ($alreadyWelcomed) {
+            $emails = EmailLog::query()
+                ->where('mailable_class', MemberWelcomeInvite::class)
+                ->where('status', EmailLog::STATUS_SENT)
+                ->pluck('to_email')
+                ->map(fn ($e) => strtolower(trim((string) $e)))
+                ->unique()
+                ->values()
+                ->all();
+
+            if (empty($emails)) {
+                $this->warn('No previously-welcomed addresses found in email_logs — nothing to resend.');
+
+                return self::SUCCESS;
+            }
+
+            $this->info('Resending welcome to '.count($emails).' previously-invited address(es).');
+        }
 
         $query = User::query()
             ->whereHas('member', function ($q) use ($statuses, $emails) {
