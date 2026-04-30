@@ -6,10 +6,12 @@ use App\Enums\MemberStatus;
 use App\Models\Member;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -22,13 +24,13 @@ class MemberForm
                 Section::make('Account')
                     ->columns(2)
                     ->schema([
-                        Select::make('user_id')
-                            ->label('User account')
-                            ->relationship('user', 'email')
-                            ->searchable()
-                            ->preload()
+                        TextInput::make('email')
+                            ->label('Email')
+                            ->email()
                             ->required()
-                            ->unique(table: 'members', column: 'user_id', ignoreRecord: true),
+                            ->maxLength(190)
+                            ->helperText('On create, a user account is provisioned automatically. On edit, changes here update the linked user\'s login email.')
+                            ->dehydrated(false),
                         Select::make('status')
                             ->options(collect(MemberStatus::cases())
                                 ->mapWithKeys(fn ($c) => [$c->value => $c->label()])
@@ -37,6 +39,13 @@ class MemberForm
                             ->default(MemberStatus::Pending->value),
                         TextInput::make('membership_number')
                             ->helperText('Leave blank for auto-assignment when a membership becomes active. Numbers are sequential; resigned or deleted members do not free their number for reuse.'),
+                        Toggle::make('send_welcome_email')
+                            ->label('Send welcome email on save')
+                            ->helperText('Sends the account-claim invite so the member can set their own password.')
+                            ->default(true)
+                            ->visible(fn ($operation) => $operation === 'create')
+                            ->dehydrated(false),
+                        Hidden::make('user_id'),
                     ]),
 
                 Section::make('Personal details')
