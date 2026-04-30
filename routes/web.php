@@ -72,6 +72,11 @@ Route::post('/contact', [ContactController::class, 'submit'])
     ->middleware('throttle:5,10')
     ->name('contact.submit');
 
+// Public QR-based verification of an issued endorsement letter.
+Route::get('/endorsement/verify/{token}', [EndorsementLetterController::class, 'verify'])
+    ->where('token', '[a-zA-Z0-9]+')
+    ->name('portal.documents.endorsement.verify');
+
 // Admin endorsement letter preview (committee only)
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/admin/endorsements/{endorsement}/preview-letter', [EndorsementLetterController::class, 'preview'])
