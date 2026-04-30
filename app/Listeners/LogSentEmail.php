@@ -30,6 +30,19 @@ class LogSentEmail
                 return;
             }
 
+            $messageId = $message->getHeaders()->get('Message-ID')?->getBodyAsString();
+
+            // Idempotency guard. Some mail-driver paths (Symfony transports
+            // wrapped by Laravel) fire MessageSent twice for a single send,
+            // which previously produced duplicate "sent" rows for every
+            // welcome email. Only the first observation per Message-ID wins.
+            if ($messageId && EmailLog::query()
+                ->where('message_id', $messageId)
+                ->where('status', EmailLog::STATUS_SENT)
+                ->exists()) {
+                return;
+            }
+
             $mailableClass = $event->data['__laravel_mailable'] ?? null;
             if (is_object($mailableClass)) {
                 $mailableClass = get_class($mailableClass);
@@ -49,7 +62,7 @@ class LogSentEmail
                     'bcc' => $this->addresses($message->getBcc()),
                     'reply_to' => $this->addresses($message->getReplyTo()),
                 ],
-                'message_id' => $message->getHeaders()->get('Message-ID')?->getBodyAsString(),
+                'message_id' => $messageId,
                 'sent_at' => now(),
             ]);
         } catch (\Throwable $e) {

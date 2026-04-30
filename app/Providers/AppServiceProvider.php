@@ -20,6 +20,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Capture every outbound email into email_logs for audit + idempotency
         // (used by the welcome-invite sender to skip already-contacted members).
+        // The listener itself is idempotent on message_id, so even if the mail
+        // stack fires MessageSent twice for the same delivery (some Symfony
+        // transports do), only one email_logs row is written.
         Event::listen(MessageSent::class, LogSentEmail::class);
 
         // CSV / SSMM imports: confirming access with the issued password is enough;
