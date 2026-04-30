@@ -161,6 +161,16 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
+     * Mirrors {@see canAccessPanel()} so views can hide the admin link when
+     * the user would just hit a 403. Don't rely on `isCommittee()` alone for
+     * this — Filament also requires a verified email to enter the panel.
+     */
+    public function canSeeAdminLink(): bool
+    {
+        return $this->isCommittee() && $this->hasVerifiedEmail();
+    }
+
+    /**
      * Broad “committee admin” flag — any Filament committee role qualifies.
      * Fine-grained UI is still driven by Spatie permissions where it matters
      * (e.g. chairperson and vice_chair hold `settings.roles.assign`).
