@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentStatus;
+use App\Filament\Admin\Resources\Memberships\MembershipResource;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -37,17 +38,20 @@ class TreasurerStatsWidget extends BaseWidget
             Stat::make('Proofs to verify', number_format($awaitingVerification))
                 ->description('EFT payments submitted')
                 ->descriptionIcon('heroicon-m-document-check')
-                ->color($awaitingVerification > 0 ? 'warning' : 'gray'),
+                ->color($awaitingVerification > 0 ? 'warning' : 'gray')
+                ->url(MembershipResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'pending_payment']]])),
 
             Stat::make('Memberships awaiting approval', number_format($pendingApproval))
                 ->description('payment verified, not yet active')
                 ->descriptionIcon('heroicon-m-clock')
-                ->color($pendingApproval > 0 ? 'warning' : 'gray'),
+                ->color($pendingApproval > 0 ? 'warning' : 'gray')
+                ->url(MembershipResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'pending_approval']]])),
 
             Stat::make('Revenue this month', 'R '.number_format($monthTotal / 100, 2))
                 ->description('membership payments completed')
                 ->descriptionIcon('heroicon-m-banknotes')
-                ->color('success'),
+                ->color('success')
+                ->url(MembershipResource::getUrl('index')),
         ];
     }
 }

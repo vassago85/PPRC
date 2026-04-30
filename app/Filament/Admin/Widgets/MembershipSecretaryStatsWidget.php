@@ -4,6 +4,8 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Enums\MemberStatus;
 use App\Enums\MembershipStatus;
+use App\Filament\Admin\Resources\Members\MemberResource;
+use App\Filament\Admin\Resources\Memberships\MembershipResource;
 use App\Models\Member;
 use App\Models\Membership;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
@@ -15,8 +17,6 @@ class MembershipSecretaryStatsWidget extends BaseWidget
 
     public static function canView(): bool
     {
-        // Gate on the action-you-can-take permission so anyone who can approve
-        // memberships (membership_secretary, chairperson, vice_chair) sees this.
         return (bool) auth()->user()?->can('memberships.approve');
     }
 
@@ -43,17 +43,20 @@ class MembershipSecretaryStatsWidget extends BaseWidget
             Stat::make('Memberships awaiting approval', number_format($pendingApproval))
                 ->description('ready for committee sign-off')
                 ->descriptionIcon('heroicon-m-clipboard-document-check')
-                ->color($pendingApproval > 0 ? 'warning' : 'gray'),
+                ->color($pendingApproval > 0 ? 'warning' : 'gray')
+                ->url(MembershipResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'pending_approval']]])),
 
             Stat::make('Expiring in 30 days', number_format($expiringSoon))
                 ->description('renewal reminders due')
                 ->descriptionIcon('heroicon-m-clock')
-                ->color($expiringSoon > 0 ? 'warning' : 'gray'),
+                ->color($expiringSoon > 0 ? 'warning' : 'gray')
+                ->url(MembershipResource::getUrl('index')),
 
             Stat::make('New members this month', number_format($newThisMonth))
                 ->description($pendingMembers.' still pending onboarding')
                 ->descriptionIcon('heroicon-m-user-plus')
-                ->color('success'),
+                ->color('success')
+                ->url(MemberResource::getUrl('index')),
         ];
     }
 }

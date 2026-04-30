@@ -2,6 +2,9 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Filament\Admin\Resources\Announcements\AnnouncementResource;
+use App\Filament\Admin\Resources\EmailLogs\EmailLogResource;
+use App\Filament\Admin\Resources\ExcoMembers\ExcoMemberResource;
 use App\Models\Announcement;
 use App\Models\EmailLog;
 use App\Models\ExcoMember;
@@ -35,17 +38,20 @@ class SecretaryStatsWidget extends BaseWidget
             Stat::make('Live announcements', number_format($liveAnnouncements))
                 ->description($draftAnnouncements.' in draft')
                 ->descriptionIcon('heroicon-m-megaphone')
-                ->color('info'),
+                ->color('info')
+                ->url(AnnouncementResource::getUrl('index')),
 
             Stat::make('Committee members', number_format($excoCount))
                 ->description('shown on /about')
                 ->descriptionIcon('heroicon-m-user-group')
-                ->color('gray'),
+                ->color('gray')
+                ->url(ExcoMemberResource::getUrl('index')),
 
             Stat::make('Emails sent this month', number_format($emailsThisMonth))
                 ->description('system + committee outbound')
                 ->descriptionIcon('heroicon-m-envelope')
-                ->color('primary'),
+                ->color('primary')
+                ->url(EmailLogResource::getUrl('index')),
         ];
     }
 }
