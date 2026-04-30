@@ -46,7 +46,9 @@
                         <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Pretoria Precision Rifle Club</p>
                         <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-900">Membership Certificate</h1>
                     </div>
-                    <img src="{{ asset('pprclogo.png') }}" alt="PPRC" class="h-16 w-16 rounded-full border-2 border-slate-200" />
+                    <div class="flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                        <img src="{{ asset('pprclogo.png') }}" alt="PPRC" class="h-full w-full object-contain" />
+                    </div>
                 </div>
 
                 <div class="mt-8 h-px bg-slate-200"></div>
