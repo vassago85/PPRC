@@ -129,6 +129,23 @@ class EventForm
                         ->seconds(false),
                 ]),
 
+            Section::make('SAPRF sanctioning')
+                ->description('Mark a match as SAPRF-sanctioned to publish the SAPRF registration link on the public match page and let non-PPRC SAPRF members enter without paying us (they pay through SAPRF).')
+                ->columns(2)
+                ->schema([
+                    Toggle::make('is_saprf_match')
+                        ->label('SAPRF-sanctioned match')
+                        ->live()
+                        ->inline(false),
+                    TextInput::make('saprf_url')
+                        ->label('SAPRF registration URL')
+                        ->url()
+                        ->maxLength(500)
+                        ->placeholder('https://www.saprf.co.za/match/...')
+                        ->visible(fn ($get) => (bool) $get('is_saprf_match'))
+                        ->helperText('Link shown on the public match page so SAPRF members can register through their portal.'),
+                ]),
+
             Section::make('Registration: division & category')
                 ->description('Defaults follow SAPRF equipment divisions (Classic, Factory, Limited, Open) and standard categories (General, Ladies, Junior, Senior, Mil/LEO, Not applicable). Leave the tag lists empty to use those defaults, or add your own tags to replace the list entirely (e.g. only “Club Open”).')
                 ->schema([

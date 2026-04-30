@@ -7,6 +7,7 @@ use App\Mail\EventGuestRegistrationPinMail;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Member;
+use App\Models\SaprfShooter;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
@@ -28,6 +29,11 @@ class EventRegister extends Component
     public string $division = '';
 
     public string $category = '';
+
+    /** Set true on SAPRF-sanctioned matches when the entrant pays via SAPRF. */
+    public bool $viaSaprf = false;
+
+    public string $saprfNumber = '';
 
     /** guest | pin | done */
     public string $guestStep = 'guest';
@@ -156,6 +162,8 @@ class EventRegister extends Component
             return;
         }
 
+        $isSaprfEntry = $this->event->is_saprf_match && $this->viaSaprf;
+
         try {
             EventRegistration::create([
                 'event_id' => $this->event->id,
@@ -165,6 +173,11 @@ class EventRegister extends Component
                 'guest_phone' => $this->guestPhone ?: null,
                 'division' => $this->normalizedDivision(),
                 'category' => $this->normalizedCategory(),
+                'is_saprf_entry' => $isSaprfEntry,
+                'fee_cents' => $isSaprfEntry ? 0 : null,
+                'notes' => $isSaprfEntry && $this->saprfNumber !== ''
+                    ? 'SAPRF #' . trim($this->saprfNumber)
+                    : null,
                 'status' => EventRegistrationStatus::Registered,
                 'registered_at' => now(),
             ]);
@@ -177,7 +190,9 @@ class EventRegister extends Component
         Cache::forget($this->verifiedCacheKey($email));
 
         $this->guestStep = 'done';
-        $this->toast = 'You are registered. We will see you at the range.';
+        $this->toast = $isSaprfEntry
+            ? 'You are registered as a SAPRF entry. Pay via the SAPRF portal — see you at the range.'
+            : 'You are registered. We will see you at the range.';
     }
 
     public function registerMember(): void
@@ -206,6 +221,8 @@ class EventRegister extends Component
 
         $this->validate($this->registrationFieldRules());
 
+        $isSaprfEntry = $this->event->is_saprf_match && $this->viaSaprf;
+
         EventRegistration::create([
             'event_id' => $this->event->id,
             'member_id' => $member->id,
@@ -214,11 +231,18 @@ class EventRegister extends Component
             'guest_phone' => null,
             'division' => $this->normalizedDivision(),
             'category' => $this->normalizedCategory(),
+            'is_saprf_entry' => $isSaprfEntry,
+            'fee_cents' => $isSaprfEntry ? 0 : null,
+            'notes' => $isSaprfEntry && $this->saprfNumber !== ''
+                ? 'SAPRF #' . trim($this->saprfNumber)
+                : null,
             'status' => EventRegistrationStatus::Registered,
             'registered_at' => now(),
         ]);
 
-        $this->toast = 'You are registered for this match.';
+        $this->toast = $isSaprfEntry
+            ? 'You are registered as a SAPRF entry. Pay via the SAPRF portal.'
+            : 'You are registered for this match.';
     }
 
     private function pinCacheKey(string $emailLower): string

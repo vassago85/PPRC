@@ -46,10 +46,33 @@
                             @php($fee = $event->effectivePriceCentsFor($this->member))
                             @if ($fee !== null)
                                 <span class="text-slate-500"> · </span>
-                                <span class="tabular-nums text-brand-100">R {{ number_format($fee / 100, 2) }}</span>
-                                <span class="text-slate-500">entry</span>
+                                @if ($viaSaprf)
+                                    <span class="font-semibold text-amber-200">Free</span>
+                                    <span class="text-slate-500">(paid via SAPRF)</span>
+                                @else
+                                    <span class="tabular-nums text-brand-100">R {{ number_format($fee / 100, 2) }}</span>
+                                    <span class="text-slate-500">entry</span>
+                                @endif
                             @endif
                         </p>
+                        @if ($event->is_saprf_match)
+                            <div class="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/5 p-4">
+                                <label class="flex items-start gap-3 text-sm text-slate-200 cursor-pointer">
+                                    <input type="checkbox" wire:model.live="viaSaprf" class="mt-1 h-4 w-4 rounded border-white/20 bg-slate-950 text-amber-500 focus:ring-amber-500/40" />
+                                    <span>
+                                        <span class="font-medium text-white">I am entering through SAPRF</span>
+                                        <span class="block mt-0.5 text-xs text-slate-400">PPRC entry fee waived. Pay via the SAPRF portal.</span>
+                                    </span>
+                                </label>
+                                @if ($viaSaprf)
+                                    <div class="mt-3">
+                                        <label class="text-xs font-medium uppercase tracking-wider text-slate-500">SAPRF membership # (optional)</label>
+                                        <input type="text" wire:model="saprfNumber" placeholder="e.g. SAPRF-1234"
+                                            class="mt-1.5 w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/30" />
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
                         @if ($event->collectsDivisionAtRegistration() || $event->collectsCategoryAtRegistration())
                             @php($regSelectClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30')
                             <div class="mt-4 space-y-3 border-t border-white/10 pt-4">
@@ -191,12 +214,36 @@
                                 @endif
                             </div>
                         @endif
+                        @if ($event->is_saprf_match)
+                            <div class="rounded-lg border border-amber-400/30 bg-amber-500/5 p-4">
+                                <label class="flex items-start gap-3 text-sm text-slate-200 cursor-pointer">
+                                    <input type="checkbox" wire:model.live="viaSaprf" class="mt-1 h-4 w-4 rounded border-white/20 bg-slate-950 text-amber-500 focus:ring-amber-500/40" />
+                                    <span>
+                                        <span class="font-medium text-white">I am a SAPRF member entering through SAPRF</span>
+                                        <span class="block mt-0.5 text-xs text-slate-400">No PPRC entry fee. Pay via the SAPRF portal.</span>
+                                    </span>
+                                </label>
+                                @if ($viaSaprf)
+                                    <div class="mt-3">
+                                        <label class="text-xs font-medium uppercase tracking-wider text-slate-500">SAPRF membership # (optional)</label>
+                                        <input type="text" wire:model="saprfNumber" placeholder="e.g. SAPRF-1234"
+                                            class="mt-1.5 w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-amber-400/50 focus:outline-none focus:ring-2 focus:ring-amber-500/30" />
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+
                         @php($guestFee = $event->effectivePriceCentsFor(null))
                         @if ($guestFee !== null)
                             <p class="text-sm text-slate-400">
                                 Typical guest entry:
-                                <span class="font-semibold tabular-nums text-white">R {{ number_format($guestFee / 100, 2) }}</span>
-                                <span class="text-slate-500">(collected per club payment rules)</span>
+                                @if ($viaSaprf)
+                                    <span class="font-semibold text-amber-200">Free</span>
+                                    <span class="text-slate-500">(paid via SAPRF)</span>
+                                @else
+                                    <span class="font-semibold tabular-nums text-white">R {{ number_format($guestFee / 100, 2) }}</span>
+                                    <span class="text-slate-500">(collected per club payment rules)</span>
+                                @endif
                             </p>
                         @endif
                         <button

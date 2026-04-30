@@ -110,6 +110,31 @@
             </div>
         </dl>
 
+        @if ($event->is_saprf_match)
+            <div class="mt-8 overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-5 sm:p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-200">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">SAPRF-sanctioned match</p>
+                            <p class="mt-1 text-sm text-slate-200">
+                                This match counts towards SAPRF rankings. SAPRF members can enter and pay through the SAPRF portal — entry is still free of charge to PPRC for SAPRF entries.
+                            </p>
+                        </div>
+                    </div>
+                    @if ($event->saprf_url)
+                        <a href="{{ $event->saprf_url }}" target="_blank" rel="noopener"
+                           class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-md transition hover:bg-amber-400">
+                            Register on SAPRF
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H6.75A2.25 2.25 0 004.5 8.25v9A2.25 2.25 0 006.75 19.5h9a2.25 2.25 0 002.25-2.25V10.5M19.5 4.5h-6m6 0v6m0-6L9 15"/></svg>
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         @if ($event->description)
             <div class="prose prose-invert mt-10 max-w-3xl border-t border-white/10 pt-10">
                 {!! $event->description !!}
