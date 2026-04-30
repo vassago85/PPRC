@@ -48,6 +48,11 @@
             {{-- Desktop CTA --}}
             <div class="hidden lg:flex items-center gap-3">
                 @auth
+                    @if (auth()->user()->isCommittee())
+                        <a href="{{ url('/admin') }}" class="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-200 transition hover:bg-amber-500/20">
+                            Admin
+                        </a>
+                    @endif
                     <x-site.button :href="url('/portal')" size="sm">Portal</x-site.button>
                 @else
                     <a href="{{ url('/login') }}" class="text-sm text-slate-300 hover:text-white">Sign in</a>
@@ -84,6 +89,11 @@
 
             <div class="pt-4 space-y-2">
                 @auth
+                    @if (auth()->user()->isCommittee())
+                        <a href="{{ url('/admin') }}" class="block rounded-md border border-amber-400/30 bg-amber-500/10 px-3 py-3 text-center text-sm font-semibold uppercase tracking-wider text-amber-200 hover:bg-amber-500/20">
+                            Admin
+                        </a>
+                    @endif
                     <x-site.button :href="url('/portal')" fullWidth>Portal</x-site.button>
                 @else
                     <a href="{{ url('/login') }}" class="block rounded-md px-3 py-3 text-slate-300 hover:bg-white/5 hover:text-white">Sign in</a>
