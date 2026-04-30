@@ -1,13 +1,14 @@
 @php
     /** @var \App\Models\EndorsementRequest $endorsement */
     /** @var \App\Models\Member $member */
+    $isPreview = $isPreview ?? false;
 @endphp
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Endorsement letter · {{ $member->fullName() }}</title>
+    <title>{{ $isPreview ? 'PREVIEW · ' : '' }}Endorsement letter · {{ $member->fullName() }}</title>
     @vite(['resources/css/app.css'])
     <style>
         @media print {
@@ -15,12 +16,35 @@
             body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; }
         }
         @page { margin: 2cm; }
+        .draft-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-30deg);
+            font-size: 8rem;
+            font-weight: 900;
+            color: rgba(220, 38, 38, 0.12);
+            letter-spacing: 0.2em;
+            pointer-events: none;
+            z-index: 1;
+            user-select: none;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+    @if ($isPreview)
+        <div class="draft-watermark">DRAFT PREVIEW</div>
+        <div class="no-print mx-auto max-w-3xl px-4 pt-6">
+            <div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                <strong>Preview mode</strong> — this is a draft. The letter has not been issued.
+                Status: <strong>{{ $endorsement->status->label() }}</strong>.
+            </div>
+        </div>
+    @endif
+
     <div class="no-print mx-auto max-w-3xl px-4 py-6 text-center">
         <button type="button" onclick="window.print()" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-            Print / Save as PDF
+            {{ $isPreview ? 'Print preview' : 'Print / Save as PDF' }}
         </button>
     </div>
 

@@ -304,8 +304,8 @@
                         section on the website.
                     </p>
                     <p>
-                        Membership is aligned to the calendar year and requires annual renewal. Participation in
-                        matches is encouraged as part of the club environment.
+                        Membership runs for one year from the date you join, and requires annual renewal.
+                        Participation in matches is encouraged as part of the club environment.
                     </p>
                 </x-site.faq-item>
             </x-site.faq-group>

@@ -72,6 +72,12 @@ Route::post('/contact', [ContactController::class, 'submit'])
     ->middleware('throttle:5,10')
     ->name('contact.submit');
 
+// Admin endorsement letter preview (committee only)
+Route::middleware(['web', 'auth'])->group(function () {
+    Route::get('/admin/endorsements/{endorsement}/preview-letter', [EndorsementLetterController::class, 'preview'])
+        ->name('admin.endorsements.preview-letter');
+});
+
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/email/verify', [EmailVerificationPinController::class, 'show'])
         ->name('verification.notice');

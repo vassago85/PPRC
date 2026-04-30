@@ -32,11 +32,17 @@ class MembershipsTable
                     ->badge()
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
                     ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
-                TextColumn::make('membershipType.price_cents')->label('Price')
-                    ->formatStateUsing(fn ($state, $record) => 'R '.number_format(($state ?? $record->price_cents_snapshot) / 100, 2))
-                    ->tooltip(fn ($record) => $record->price_cents_snapshot !== ($record->membershipType?->price_cents ?? $record->price_cents_snapshot)
-                        ? 'Snapshot at creation: R '.number_format($record->price_cents_snapshot / 100, 2)
-                        : null)
+                TextColumn::make('price_cents_snapshot')->label('Price paid')
+                    ->formatStateUsing(function ($state, $record) {
+                        $paid = 'R '.number_format($state / 100, 2);
+                        $current = $record->membershipType?->price_cents;
+                        if ($current !== null && (int) $current !== (int) $state) {
+                            $paid .= ' <span class="text-xs text-gray-500">(now R '
+                                .number_format($current / 100, 2).')</span>';
+                        }
+                        return $paid;
+                    })
+                    ->html()
                     ->alignEnd(),
                 TextColumn::make('approved_at')->dateTime('d M Y')->toggleable()->label('Approved'),
             ])

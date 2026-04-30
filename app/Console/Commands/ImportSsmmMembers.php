@@ -246,7 +246,10 @@ class ImportSsmmMembers extends Command
                         $periodEnd = $expiryDate;
                         $isLifetime = $typeSlug === 'life-member';
                         if (! $periodEnd && $membershipStatus === 'active' && $type && ! $isLifetime) {
-                            $periodEnd = date('Y') . '-12-31';
+                            $periodEnd = \Illuminate\Support\Carbon::parse($periodStart)
+                                ->addMonths($type->duration_months ?: 12)
+                                ->subDay()
+                                ->toDateString();
                         }
 
                         DB::table('memberships')->insert([

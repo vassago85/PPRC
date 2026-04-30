@@ -15,6 +15,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Filament\Forms\Components\Textarea;
+use Illuminate\Contracts\View\View;
 use UnitEnum;
 
 class EndorsementRequestResource extends Resource
@@ -54,6 +55,23 @@ class EndorsementRequestResource extends Resource
                     ->default(EndorsementStatus::Pending->value),
             ])
             ->recordActions([
+                Action::make('review')
+                    ->label('Review')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->modalHeading(fn (EndorsementRequest $record) => "Endorsement request — {$record->member?->fullName()}")
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close')
+                    ->modalContent(fn (EndorsementRequest $record): View => view(
+                        'filament.admin.endorsements.review-modal',
+                        ['record' => $record]
+                    )),
+                Action::make('preview_letter')
+                    ->label('Preview letter')
+                    ->icon('heroicon-o-document-magnifying-glass')
+                    ->color('info')
+                    ->url(fn (EndorsementRequest $record) => route('admin.endorsements.preview-letter', $record))
+                    ->openUrlInNewTab(),
                 Action::make('approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
@@ -95,8 +113,9 @@ class EndorsementRequestResource extends Resource
                         ]);
                     }),
                 Action::make('view_letter')
+                    ->label('Issued letter')
                     ->icon('heroicon-o-document-text')
-                    ->color('info')
+                    ->color('success')
                     ->url(fn (EndorsementRequest $record) => $record->token
                         ? route('portal.documents.endorsement', $record->token)
                         : null)
