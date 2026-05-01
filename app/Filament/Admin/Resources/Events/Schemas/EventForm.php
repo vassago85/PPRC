@@ -144,6 +144,27 @@ class EventForm
                         ->numeric()
                         ->label('PPRC club course rounds')
                         ->helperText('Optional shorter club-only course for PPRC members on combined days. Leave empty for a single-course match.'),
+                    TextInput::make('stage_count')
+                        ->numeric()
+                        ->label('Stages')
+                        ->helperText('e.g. 6'),
+                    TextInput::make('shots_per_stage_full')
+                        ->numeric()
+                        ->label('Shots/stage (full course)')
+                        ->helperText('e.g. 10 (PRS)'),
+                    TextInput::make('shots_per_stage_club')
+                        ->numeric()
+                        ->label('Shots/stage (club course)')
+                        ->helperText('e.g. 7 (PPRC short course). Leave blank for a single-course match.'),
+                    TextInput::make('stage_time_seconds')
+                        ->numeric()
+                        ->label('Time per stage (seconds)')
+                        ->suffix('sec')
+                        ->helperText('e.g. 105'),
+                    TextInput::make('tiebreaker_stage_number')
+                        ->numeric()
+                        ->label('Tie-breaker stage')
+                        ->helperText('Stage number used to break ties on the leaderboard. e.g. 1'),
                     Toggle::make('registrations_open')->inline(false),
                     DateTimePicker::make('registrations_close_at')
                         ->label('Registrations close at')

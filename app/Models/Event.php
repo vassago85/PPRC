@@ -39,6 +39,11 @@ class Event extends Model
         'max_entries',
         'round_count',
         'club_round_count',
+        'stage_count',
+        'shots_per_stage_full',
+        'shots_per_stage_club',
+        'stage_time_seconds',
+        'tiebreaker_stage_number',
         'registration_division_options',
         'registration_category_options',
         'registration_require_division',
@@ -69,6 +74,11 @@ class Event extends Model
         'max_entries' => 'integer',
         'round_count' => 'integer',
         'club_round_count' => 'integer',
+        'stage_count' => 'integer',
+        'shots_per_stage_full' => 'integer',
+        'shots_per_stage_club' => 'integer',
+        'stage_time_seconds' => 'integer',
+        'tiebreaker_stage_number' => 'integer',
         'registration_division_options' => 'array',
         'registration_category_options' => 'array',
         'registration_require_division' => 'boolean',
@@ -229,6 +239,51 @@ class Event extends Model
     public function hasMatchBook(): bool
     {
         return ! empty($this->match_book_path);
+    }
+
+    /**
+     * True for combined matches that run both the full SAPRF course and a
+     * shorter PPRC club course on the same day. Drives the "Course" picker
+     * on the public registration form and per-shooter labels in squad lists.
+     */
+    public function offersBothCourses(): bool
+    {
+        return ($this->round_count ?? 0) > 0 && ($this->club_round_count ?? 0) > 0;
+    }
+
+    /**
+     * Round count for a given course key. Falls back to the legacy round
+     * fields if the per-stage shots aren't set yet.
+     */
+    public function roundsForCourse(?string $course): ?int
+    {
+        $course = $course === 'club' ? 'club' : 'full';
+
+        $stages = $this->stage_count;
+        if ($stages !== null && $stages > 0) {
+            $perStage = $course === 'club'
+                ? $this->shots_per_stage_club
+                : $this->shots_per_stage_full;
+            if ($perStage !== null && $perStage > 0) {
+                return $stages * $perStage;
+            }
+        }
+
+        return $course === 'club' ? $this->club_round_count : $this->round_count;
+    }
+
+    /**
+     * Friendly label ("SAPRF Provincial" / "PPRC club match") used in squad
+     * lists and on entry rows. Returns null when only one course exists, so
+     * UIs can hide the column entirely.
+     */
+    public function courseLabel(?string $course): ?string
+    {
+        if (! $this->offersBothCourses()) {
+            return null;
+        }
+
+        return $course === 'club' ? 'PPRC club match' : 'SAPRF Provincial';
     }
 
     /**

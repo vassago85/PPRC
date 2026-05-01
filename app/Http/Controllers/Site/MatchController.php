@@ -38,8 +38,22 @@ class MatchController extends Controller
         $event->loadCount('registrations');
         $event->load(['matchFormat', 'results', 'galleryPhotos']);
 
+        // Group all squadded entries by squad number for the public squad
+        // list. Unsquadded entries collapse into an "Unassigned" bucket so
+        // shooters can still see who has signed up. Order within a squad
+        // follows firing_order if it's set, then name.
+        $squads = $event->registrations()
+            ->with('member:id,first_name,last_name,membership_number')
+            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->orderByRaw('squad_number IS NULL, squad_number')
+            ->orderByRaw('firing_order IS NULL, firing_order')
+            ->orderBy('id')
+            ->get()
+            ->groupBy(fn ($r) => $r->squad_number);
+
         return view('site.matches.show', [
             'event' => $event,
+            'squads' => $squads,
             'results' => $event->results()
                 ->orderBy('rank')
                 ->orderBy('shooter_name')

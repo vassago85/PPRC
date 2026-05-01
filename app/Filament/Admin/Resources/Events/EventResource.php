@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Events;
 use App\Filament\Admin\Resources\Events\Pages\CreateEvent;
 use App\Filament\Admin\Resources\Events\Pages\EditEvent;
 use App\Filament\Admin\Resources\Events\Pages\ListEvents;
+use App\Filament\Admin\Resources\Events\Pages\ManageSquads;
 use App\Filament\Admin\Resources\Events\RelationManagers\GalleryPhotosRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\RegistrationsRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\ResultsRelationManager;
@@ -71,6 +72,7 @@ class EventResource extends Resource
             'index' => ListEvents::route('/'),
             'create' => CreateEvent::route('/create'),
             'edit' => EditEvent::route('/{record}/edit'),
+            'squads' => ManageSquads::route('/{record}/squads'),
         ];
     }
 

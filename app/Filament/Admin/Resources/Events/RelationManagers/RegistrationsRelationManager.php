@@ -73,6 +73,15 @@ class RegistrationsRelationManager extends RelationManager
                     ->searchable()
                     ->nullable(),
 
+                Select::make('course')
+                    ->label('Course')
+                    ->options([
+                        'full' => 'Full course (provincial / SAPRF)',
+                        'club' => 'Club course (PPRC short)',
+                    ])
+                    ->visible(fn () => $this->getOwnerRecord()->offersBothCourses())
+                    ->helperText('Which course of fire this shooter is doing — only relevant on combined matches.'),
+
                 Select::make('status')
                     ->options(collect(EventRegistrationStatus::cases())
                         ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all())
@@ -153,6 +162,16 @@ class RegistrationsRelationManager extends RelationManager
                     }),
                 TextColumn::make('division')->label('Div.')->toggleable(),
                 TextColumn::make('category')->label('Cat.')->toggleable(),
+                TextColumn::make('course')
+                    ->label('Course')
+                    ->formatStateUsing(fn (?string $state) => match ($state) {
+                        'full' => 'Full',
+                        'club' => 'Club',
+                        default => null,
+                    })
+                    ->badge()
+                    ->color(fn (?string $state) => $state === 'club' ? 'info' : 'primary')
+                    ->toggleable(),
                 IconColumn::make('is_saprf_entry')->boolean()->label('SAPRF')->toggleable(),
                 IconColumn::make('is_junior')->boolean()->label('Junior')->toggleable(),
                 IconColumn::make('attended')->boolean()->label('Attended'),

@@ -119,6 +119,44 @@
             </div>
         </dl>
 
+        @if ($event->stage_count || $event->stage_time_seconds || $event->shots_per_stage_full || $event->shots_per_stage_club || $event->tiebreaker_stage_number)
+            <div class="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Stage spec</p>
+                <dl class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    @if ($event->stage_count)
+                        <div>
+                            <dt class="text-xs uppercase tracking-wider text-slate-500">Stages</dt>
+                            <dd class="mt-1 text-2xl font-semibold tabular-nums text-white">{{ $event->stage_count }}</dd>
+                        </div>
+                    @endif
+                    @if ($event->shots_per_stage_full)
+                        <div>
+                            <dt class="text-xs uppercase tracking-wider text-slate-500">Shots / stage{{ $event->offersBothCourses() ? ' (full)' : '' }}</dt>
+                            <dd class="mt-1 text-2xl font-semibold tabular-nums text-white">{{ $event->shots_per_stage_full }}</dd>
+                        </div>
+                    @endif
+                    @if ($event->shots_per_stage_club)
+                        <div>
+                            <dt class="text-xs uppercase tracking-wider text-slate-500">Shots / stage (club)</dt>
+                            <dd class="mt-1 text-2xl font-semibold tabular-nums text-white">{{ $event->shots_per_stage_club }}</dd>
+                        </div>
+                    @endif
+                    @if ($event->stage_time_seconds)
+                        <div>
+                            <dt class="text-xs uppercase tracking-wider text-slate-500">Time / stage</dt>
+                            <dd class="mt-1 text-2xl font-semibold tabular-nums text-white">{{ $event->stage_time_seconds }}<span class="ml-1 text-base font-normal text-slate-400">sec</span></dd>
+                        </div>
+                    @endif
+                    @if ($event->tiebreaker_stage_number)
+                        <div>
+                            <dt class="text-xs uppercase tracking-wider text-slate-500">Tie-breaker</dt>
+                            <dd class="mt-1 text-2xl font-semibold tabular-nums text-white">Stage {{ $event->tiebreaker_stage_number }}</dd>
+                        </div>
+                    @endif
+                </dl>
+            </div>
+        @endif
+
         @if ($event->is_saprf_match)
             <div class="mt-8 overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-5 sm:p-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -156,6 +194,66 @@
             </div>
         @endunless
     </x-site.section>
+
+    @if ($squads->isNotEmpty() && $squads->flatten()->count() > 0)
+        <x-site.section padding="default" id="squads">
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Shooters</p>
+                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Squads</h2>
+                </div>
+                <p class="text-sm text-slate-500">{{ $squads->flatten()->count() }} entries</p>
+            </div>
+
+            @php
+                $orderedKeys = $squads->keys()
+                    ->sortBy(fn ($k) => $k === null ? PHP_INT_MAX : (int) $k)
+                    ->values();
+            @endphp
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                @foreach ($orderedKeys as $squadKey)
+                    @php($entries = $squads[$squadKey])
+                    <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                        <div class="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
+                            <h3 class="text-base font-semibold text-white">
+                                {{ $squadKey === null ? 'Unassigned' : 'Squad '.$squadKey }}
+                            </h3>
+                            <span class="text-xs uppercase tracking-wider text-slate-500">
+                                {{ $entries->count() }} {{ \Illuminate\Support\Str::plural('shooter', $entries->count()) }}
+                            </span>
+                        </div>
+                        <ol class="mt-3 space-y-2 text-sm">
+                            @foreach ($entries as $entry)
+                                @php
+                                    $name = $entry->shooterName();
+                                    $division = $entry->division;
+                                    $courseLabel = $event->courseLabel($entry->course);
+                                    $rounds = $event->roundsForCourse($entry->course);
+                                @endphp
+                                <li class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.04]">
+                                    @if ($entry->firing_order)
+                                        <span class="w-5 shrink-0 text-xs tabular-nums text-slate-500">{{ $entry->firing_order }}.</span>
+                                    @endif
+                                    <span class="font-medium text-white">{{ $name }}</span>
+                                    @if ($division)
+                                        <span class="text-xs uppercase tracking-wider text-slate-400">{{ $division }}</span>
+                                    @endif
+                                    @if ($courseLabel)
+                                        <span class="text-xs text-slate-500">·</span>
+                                        <span class="text-xs text-slate-400">{{ $courseLabel }}</span>
+                                    @endif
+                                    @if ($rounds)
+                                        <span class="text-xs text-slate-500">·</span>
+                                        <span class="text-xs tabular-nums text-slate-400">{{ $rounds }} rounds</span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ol>
+                    </div>
+                @endforeach
+            </div>
+        </x-site.section>
+    @endif
 
     @if ($event->hasMatchBook())
         <x-site.section padding="default" id="match-book">

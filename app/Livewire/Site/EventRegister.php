@@ -30,6 +30,9 @@ class EventRegister extends Component
 
     public string $category = '';
 
+    /** 'full' (provincial) or 'club' — only collected on combined matches. */
+    public string $course = '';
+
     /** Set true on SAPRF-sanctioned matches when the entrant pays via SAPRF. */
     public bool $viaSaprf = false;
 
@@ -181,6 +184,7 @@ class EventRegister extends Component
                 'guest_phone' => $this->guestPhone ?: null,
                 'division' => $this->normalizedDivision(),
                 'category' => $this->normalizedCategory(),
+                'course' => $this->normalizedCourse(),
                 'is_saprf_entry' => $isSaprfEntry,
                 'is_junior' => $isJuniorEntry,
                 'fee_cents' => $isSaprfEntry ? 0 : null,
@@ -240,6 +244,7 @@ class EventRegister extends Component
             'guest_phone' => null,
             'division' => $this->normalizedDivision(),
             'category' => $this->normalizedCategory(),
+            'course' => $this->normalizedCourse(),
             'is_saprf_entry' => $isSaprfEntry,
             'fee_cents' => $isSaprfEntry ? 0 : null,
             'notes' => $isSaprfEntry && $this->saprfNumber !== ''
@@ -289,6 +294,12 @@ class EventRegister extends Component
             $rules['category'] = ['nullable', 'string', 'max:80'];
         }
 
+        if ($this->event->offersBothCourses()) {
+            $rules['course'] = ['required', 'string', Rule::in(['full', 'club'])];
+        } else {
+            $rules['course'] = ['nullable'];
+        }
+
         return $rules;
     }
 
@@ -308,6 +319,15 @@ class EventRegister extends Component
         }
 
         return $this->category === '' ? null : $this->category;
+    }
+
+    private function normalizedCourse(): ?string
+    {
+        if (! $this->event->offersBothCourses()) {
+            return null;
+        }
+
+        return in_array($this->course, ['full', 'club'], true) ? $this->course : null;
     }
 
     /**
