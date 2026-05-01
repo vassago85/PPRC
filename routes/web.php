@@ -10,6 +10,7 @@ use App\Http\Controllers\Portal\EndorsementLetterController;
 use App\Http\Controllers\Portal\ParticipationLetterController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\MatchController;
+use App\Http\Controllers\Site\MembershipCancellationController;
 use App\Http\Controllers\Site\MembershipController;
 use App\Http\Controllers\Site\ResultController;
 use App\Http\Controllers\Site\ShopController;
@@ -50,6 +51,13 @@ Route::get('/membership/certificate/{token}', [CertificateController::class, 'sh
 Route::get('/membership/verify/{token}', [CertificateController::class, 'verify'])
     ->where('token', '[a-zA-Z0-9]+')
     ->name('membership.certificate.verify');
+
+// Self-service cancellation reachable via the signed link in renewal reminders.
+// No auth so lapsed members who've forgotten their password can still opt out.
+Route::get('/membership/cancel/{member}', [MembershipCancellationController::class, 'confirm'])
+    ->name('membership.cancel.confirm');
+Route::post('/membership/cancel/{member}', [MembershipCancellationController::class, 'apply'])
+    ->name('membership.cancel.apply');
 Route::redirect('/events', '/matches');
 Route::get('/results', [ResultController::class, 'index'])->name('results');
 Route::get('/gallery', [GalleryController::class, 'index'])->name('gallery');
