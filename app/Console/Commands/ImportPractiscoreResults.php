@@ -233,16 +233,27 @@ class ImportPractiscoreResults extends Command
      */
     private function parseMatchMeta(string $html): array
     {
+        // Use the wrapper page's <title> first since the og:title metadata
+        // is the cleanest source of the match name.
         libxml_use_internal_errors(true);
         $doc = new DOMDocument;
         $doc->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xp = new DOMXPath($doc);
 
         $title = '';
-        $titleNode = $xp->query('//title')->item(0);
-        if ($titleNode) {
-            // PractiScore titles are usually "<Match Name> | PractiScore" — drop the suffix.
-            $title = trim(preg_replace('/\s*\|\s*PractiScore.*$/i', '', $titleNode->textContent ?? ''));
+
+        // PractiScore exposes the canonical match name in og:title — prefer it
+        // over <title> because <title> sometimes has trailing whitespace/newlines.
+        $og = $xp->query('//meta[@property="og:title"]/@content')->item(0);
+        if ($og) {
+            $title = trim($og->nodeValue ?? '');
+        }
+
+        if ($title === '') {
+            $titleNode = $xp->query('//title')->item(0);
+            if ($titleNode) {
+                $title = trim(preg_replace('/\s*\|\s*PractiScore.*$/i', '', $titleNode->textContent ?? ''));
+            }
         }
 
         if ($title === '') {
@@ -254,10 +265,10 @@ class ImportPractiscoreResults extends Command
 
         $title = preg_replace('/\s+/u', ' ', $title);
 
-        // Look for a date anywhere on the page in the most common formats. PractiScore
-        // tends to render "Match Date: 2025-08-17" or "Aug 17, 2025" near the header.
+        // Date can be inside the embedded data string (e.g. "Match Name : 2026-03-14"),
+        // not in the wrapper page body, so search the unwrapped text too.
         $date = null;
-        $bodyText = $doc->textContent ?? '';
+        $bodyText = ($doc->textContent ?? '').' '.$this->unwrapEmbeddedResults($html);
         if (preg_match('/(\d{4}-\d{2}-\d{2})/', $bodyText, $m)) {
             try {
                 $date = Carbon::parse($m[1]);
@@ -393,67 +404,77 @@ class ImportPractiscoreResults extends Command
      */
     private function parseRows(string $html): array
     {
+        $html = $this->unwrapEmbeddedResults($html);
+
         libxml_use_internal_errors(true);
         $doc = new DOMDocument;
         $doc->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xp = new DOMXPath($doc);
 
-        // PractiScore renders the standings inside a <table>; find one whose
-        // header row contains both a "Place" / "Rank" cell and a percentage.
-        $tables = $xp->query('//table');
-        $best = null;
-        $bestHeaders = [];
-        foreach ($tables as $table) {
-            $headerCells = $xp->query('.//thead//th | .//tr[1]/th | .//tr[1]/td', $table);
-            $headers = [];
-            foreach ($headerCells as $h) {
-                $headers[] = $this->normaliseHeader($h->textContent);
-            }
-            if ($headers === []) {
-                continue;
-            }
-
-            $hasRank = (bool) array_intersect($headers, ['place', 'rank', '#', 'pos', 'position']);
-            $hasName = (bool) array_intersect($headers, ['shooter', 'name', 'competitor', 'shooter_name']);
-            if ($hasRank && $hasName) {
-                $best = $table;
-                $bestHeaders = $headers;
-                break;
-            }
-        }
-
-        if ($best === null) {
-            return [];
-        }
-
+        // PractiScore renders standings as one or more <table>s. Each table can
+        // have a banner row ("Match Results - Combined") above the real header
+        // row, and SAPRF exports often skip <thead>/<tbody> entirely. Walk every
+        // row, find the one that looks like the column header (contains a Place
+        // and a Name cell), then treat every later row with data cells as a
+        // shooter line. We collect rows from every table and concatenate so
+        // multi-table exports (per-division) still aggregate.
         $rows = [];
-        $bodyRows = $xp->query('.//tbody/tr', $best);
-        if ($bodyRows->length === 0) {
-            // Some pages render rows directly inside <table> without <tbody>; skip the header row.
-            $allRows = $xp->query('.//tr', $best);
-            $bodyRows = [];
-            foreach ($allRows as $i => $r) {
-                if ($i === 0) {
+        $tables = $xp->query('//table');
+
+        foreach ($tables as $table) {
+            $allRows = iterator_to_array($xp->query('.//tr', $table));
+            $headers = [];
+            $headerIndex = null;
+
+            foreach ($allRows as $i => $tr) {
+                $candidate = [];
+                foreach ($xp->query('./th | ./td', $tr) as $cell) {
+                    $candidate[] = $this->normaliseHeader($cell->textContent ?? '');
+                }
+                if ($candidate === []) {
                     continue;
                 }
-                $bodyRows[] = $r;
-            }
-        }
 
-        foreach ($bodyRows as $tr) {
-            $cells = $xp->query('.//td', $tr);
-            if ($cells->length === 0) {
+                $hasRank = (bool) array_intersect($candidate, ['rank']);
+                $hasName = (bool) array_intersect($candidate, ['shooter']);
+                if ($hasRank && $hasName) {
+                    $headers = $candidate;
+                    $headerIndex = $i;
+                    break;
+                }
+            }
+
+            if ($headerIndex === null) {
                 continue;
             }
 
-            $values = [];
-            foreach ($cells as $c) {
-                $values[] = trim(preg_replace('/\s+/u', ' ', $c->textContent ?? ''));
-            }
+            for ($i = $headerIndex + 1; $i < count($allRows); $i++) {
+                $tr = $allRows[$i];
+                $cells = $xp->query('./td', $tr);
+                if ($cells->length === 0) {
+                    continue;
+                }
 
-            $row = $this->mapRow($bestHeaders, $values);
-            if ($row !== null) {
-                $rows[] = $row;
+                // Skip "division" banner rows that appear between sections —
+                // they typically have a single <td colspan="…"> with bold text.
+                if ($cells->length === 1) {
+                    /** @var \DOMElement $only */
+                    $only = $cells->item(0);
+                    $colspan = (int) $only->getAttribute('colspan');
+                    if ($colspan > 1) {
+                        continue;
+                    }
+                }
+
+                $values = [];
+                foreach ($cells as $c) {
+                    $values[] = trim(preg_replace('/\s+/u', ' ', $c->textContent ?? ''));
+                }
+
+                $row = $this->mapRow($headers, $values);
+                if ($row !== null) {
+                    $rows[] = $row;
+                }
             }
         }
 
@@ -464,6 +485,7 @@ class ImportPractiscoreResults extends Command
     {
         $h = strtolower(trim($raw));
         $h = preg_replace('/\s+/', ' ', $h);
+        $h = rtrim($h, '.');
 
         return match (true) {
             str_contains($h, 'shooter') || str_contains($h, 'name') || str_contains($h, 'competitor') => 'shooter',
@@ -471,14 +493,52 @@ class ImportPractiscoreResults extends Command
             str_contains($h, 'div') => 'division',
             str_contains($h, 'class') => 'class',
             str_contains($h, '%') || str_contains($h, 'percent') => 'percentage',
-            str_contains($h, 'point') || $h === 'pts' || str_contains($h, 'score') => 'points',
+            str_contains($h, 'point') || str_contains($h, 'pts') || str_contains($h, 'score') => 'points',
             str_contains($h, 'hit') => 'hits',
             str_contains($h, 'time') => 'time',
             str_contains($h, 'dq') => 'dq',
             str_contains($h, 'dnf') => 'dnf',
-            str_contains($h, 'mem') || str_contains($h, 'member') => 'mem_number',
+            str_contains($h, 'category') || str_contains($h, 'cat') => 'category',
+            // PractiScore SAPRF-style exports use a "No." column for the membership number.
+            $h === 'no' || str_contains($h, 'mem') || str_contains($h, 'member') => 'mem_number',
             default => $h,
         };
+    }
+
+    /**
+     * Some PractiScore "Save As" exports embed the entire results document as
+     * a JS string assigned to `var data = "..."` — the table never makes it
+     * into the static markup. Detect that, decode the JS string, and hand the
+     * inner HTML back so the rest of the parser can treat it normally.
+     */
+    private function unwrapEmbeddedResults(string $html): string
+    {
+        if (! preg_match('/var\s+data\s*=\s*"((?:\\\\.|[^"\\\\])*)"\s*;/s', $html, $m)) {
+            return $html;
+        }
+
+        $escaped = $m[1];
+        $decoded = preg_replace_callback(
+            '/\\\\(["\\\\\/])|\\\\n|\\\\r|\\\\t|\\\\u([0-9a-fA-F]{4})/',
+            function ($match) {
+                if (isset($match[1]) && $match[1] !== '') {
+                    return $match[1];
+                }
+                if (str_starts_with($match[0], '\\u') && isset($match[2])) {
+                    return mb_convert_encoding(pack('H*', $match[2]), 'UTF-8', 'UCS-2BE');
+                }
+
+                return match ($match[0]) {
+                    '\\n' => "\n",
+                    '\\r' => "\r",
+                    '\\t' => "\t",
+                    default => $match[0],
+                };
+            },
+            $escaped
+        );
+
+        return is_string($decoded) && $decoded !== '' ? $decoded : $html;
     }
 
     /**
@@ -543,6 +603,12 @@ class ImportPractiscoreResults extends Command
         $dq = (bool) $cell('dq') && in_array(strtolower($cell('dq')), ['1', 'y', 'yes', 'true', 'dq'], true);
         $dnf = (bool) $cell('dnf') && in_array(strtolower($cell('dnf')), ['1', 'y', 'yes', 'true', 'dnf'], true);
 
+        // SAPRF-style exports record the discipline (CSSTO/NSBTO/etc) under
+        // "Class" and gender bracket under "Category". Push the category into
+        // notes so it survives — useful for filtering Junior/Ladies later.
+        $category = $cell('category');
+        $points = self::nullableFloat($cell('points'));
+
         return [
             'shooter_name' => $name,
             'division' => $cell('division'),
@@ -550,12 +616,12 @@ class ImportPractiscoreResults extends Command
             'rank' => $rank,
             'score_hits' => self::nullableInt($hits),
             'score_possible' => self::nullableInt($possible),
-            'score_points' => self::nullableInt($cell('points')),
+            'score_points' => $points !== null ? (int) round($points) : null,
             'score_percentage' => $pct,
             'score_time_ms' => $timeMs,
             'dnf' => $dnf,
             'dq' => $dq,
-            'notes' => null,
+            'notes' => $category,
             '_mem_number' => $cell('mem_number'),
         ];
     }
@@ -618,5 +684,15 @@ class ImportPractiscoreResults extends Command
         $clean = preg_replace('/[^0-9-]/', '', $v);
 
         return $clean === '' ? null : (int) $clean;
+    }
+
+    private static function nullableFloat(?string $v): ?float
+    {
+        if ($v === null) {
+            return null;
+        }
+        $clean = preg_replace('/[^0-9.\-]/', '', $v);
+
+        return $clean === '' || ! is_numeric($clean) ? null : (float) $clean;
     }
 }
