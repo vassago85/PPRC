@@ -15,6 +15,7 @@ use App\Filament\Admin\Widgets\ActionRequiredWidget;
 use App\Filament\Admin\Widgets\ClubOverviewStatsWidget;
 use App\Filament\Admin\Widgets\MatchDirectorStatsWidget;
 use App\Filament\Admin\Widgets\MembershipSecretaryStatsWidget;
+use App\Filament\Admin\Widgets\RecentMembershipPaymentsWidget;
 use App\Filament\Admin\Widgets\SecretaryStatsWidget;
 use App\Filament\Admin\Widgets\TreasurerStatsWidget;
 use Filament\Widgets\AccountWidget;
@@ -51,6 +52,7 @@ class AdminPanelProvider extends PanelProvider
                 MembershipSecretaryStatsWidget::class,
                 MatchDirectorStatsWidget::class,
                 SecretaryStatsWidget::class,
+                RecentMembershipPaymentsWidget::class,
             ])
             ->userMenuItems([
                 MenuItem::make()

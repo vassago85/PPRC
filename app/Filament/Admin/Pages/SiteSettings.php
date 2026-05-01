@@ -86,6 +86,7 @@ class SiteSettings extends Page
                 'account_number' => (string) SiteSetting::get('payments.bank.account_number', ''),
                 'branch_code' => (string) SiteSetting::get('payments.bank.branch_code', ''),
                 'account_type' => (string) SiteSetting::get('payments.bank.account_type', 'cheque'),
+                'reference_prefix' => (string) SiteSetting::get('payments.bank.reference_prefix', 'PPRC'),
                 'reference_format' => (string) SiteSetting::get('payments.bank.reference_format', 'PPRC-MEM-{id}'),
                 'notes' => (string) SiteSetting::get('payments.bank.notes', ''),
             ],
@@ -207,9 +208,14 @@ class SiteSettings extends Page
                                                 'business' => 'Business',
                                             ])
                                             ->default('cheque'),
+                                        TextInput::make('bank.reference_prefix')
+                                            ->label('Payment reference prefix')
+                                            ->helperText('Used as the leading part of every auto-generated EFT reference, e.g. "PPRC" → PPRC-20260501-0001. Letters/numbers/dashes only.')
+                                            ->default('PPRC')
+                                            ->maxLength(12),
                                         TextInput::make('bank.reference_format')
-                                            ->label('Reference format')
-                                            ->helperText('Use {id} for member id, {number} for membership number, {year} for current year.')
+                                            ->label('Legacy reference format (display only)')
+                                            ->helperText('Kept for backwards compatibility. The actual generator uses the prefix above.')
                                             ->default('PPRC-MEM-{id}')
                                             ->maxLength(80),
                                         Textarea::make('bank.notes')
@@ -569,6 +575,7 @@ class SiteSettings extends Page
             ['bank.account_number',   'payments.bank.account_number',   'payments', 'Account number',    false, false],
             ['bank.branch_code',      'payments.bank.branch_code',      'payments', 'Branch code',       false, false],
             ['bank.account_type',     'payments.bank.account_type',     'payments', 'Account type',      false, false],
+            ['bank.reference_prefix', 'payments.bank.reference_prefix', 'payments', 'Reference prefix',  false, false],
             ['bank.reference_format', 'payments.bank.reference_format', 'payments', 'Reference format',  false, false],
             ['bank.notes',            'payments.bank.notes',            'payments', 'Bank notes',        false, false],
 

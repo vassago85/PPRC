@@ -117,6 +117,19 @@ class Member extends Model
             ->first();
     }
 
+    /**
+     * Most recent payment row across all of this member's memberships.
+     * Surfaces in the admin Members list so a treasurer can see at a
+     * glance what reference (and what state) the member is sitting on.
+     */
+    public function latestPayment(): ?MembershipPayment
+    {
+        return MembershipPayment::query()
+            ->whereIn('membership_id', $this->memberships()->select('id'))
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
     public function hasActiveMembership(): bool
     {
         return $this->memberships()

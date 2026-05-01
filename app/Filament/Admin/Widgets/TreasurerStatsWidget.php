@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentStatus;
+use App\Filament\Admin\Resources\MembershipPayments\MembershipPaymentResource;
 use App\Filament\Admin\Resources\Memberships\MembershipResource;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
@@ -36,10 +37,14 @@ class TreasurerStatsWidget extends BaseWidget
 
         return [
             Stat::make('Proofs to verify', number_format($awaitingVerification))
-                ->description('EFT payments submitted')
+                ->description('EFT payments submitted, awaiting your check')
                 ->descriptionIcon('heroicon-m-document-check')
                 ->color($awaitingVerification > 0 ? 'warning' : 'gray')
-                ->url(MembershipResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'pending_payment']]])),
+                // Land on the Payments queue filtered to Submitted so the
+                // treasurer sees exactly what they need to action.
+                ->url(MembershipPaymentResource::getUrl('index', [
+                    'activeTab' => 'awaiting',
+                ])),
 
             Stat::make('Memberships awaiting approval', number_format($pendingApproval))
                 ->description('payment verified, not yet active')
@@ -48,10 +53,12 @@ class TreasurerStatsWidget extends BaseWidget
                 ->url(MembershipResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'pending_approval']]])),
 
             Stat::make('Revenue this month', 'R '.number_format($monthTotal / 100, 2))
-                ->description('membership payments completed')
+                ->description('membership payments confirmed this month')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success')
-                ->url(MembershipResource::getUrl('index')),
+                ->url(MembershipPaymentResource::getUrl('index', [
+                    'activeTab' => 'confirmed',
+                ])),
         ];
     }
 }

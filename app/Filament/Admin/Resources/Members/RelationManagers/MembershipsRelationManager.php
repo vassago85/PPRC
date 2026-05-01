@@ -3,11 +3,14 @@
 namespace App\Filament\Admin\Resources\Members\RelationManagers;
 
 use App\Enums\MembershipStatus;
+use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
 use App\Models\Membership;
+use App\Models\MembershipPayment;
 use App\Models\MembershipType;
 use App\Services\Membership\MemberService;
 use App\Services\Membership\MembershipTypeService;
+use App\Services\Membership\PaymentReferenceGenerator;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -90,6 +93,7 @@ class MembershipsRelationManager extends RelationManager
     {
         return $table
             ->defaultSort('period_end', 'desc')
+            ->modifyQueryUsing(fn ($query) => $query->with(['payments' => fn ($q) => $q->latest('created_at')]))
             ->columns([
                 TextColumn::make('membership_type_name_snapshot')->label('Type')->badge(),
                 TextColumn::make('period_start')->date('d M Y')->label('Start'),
@@ -99,6 +103,22 @@ class MembershipsRelationManager extends RelationManager
                     ->badge()
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
                     ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
+
+                TextColumn::make('payment_reference')
+                    ->label('Payment ref')
+                    ->state(fn (Membership $record) => $record->payments->first()?->reference)
+                    ->copyable()
+                    ->copyMessage('Reference copied')
+                    ->fontFamily('mono')
+                    ->placeholder('—'),
+
+                TextColumn::make('payment_status')
+                    ->label('Payment')
+                    ->state(fn (Membership $record) => $record->payments->first()?->status)
+                    ->badge()
+                    ->formatStateUsing(fn (?PaymentStatus $state) => $state?->label() ?? '—')
+                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray'),
+
                 TextColumn::make('price_cents_snapshot')
                     ->label('Price paid')
                     ->formatStateUsing(function ($state, $record) {
@@ -125,7 +145,33 @@ class MembershipsRelationManager extends RelationManager
                         ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all()),
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->after(function (Membership $record): void {
+                        // Mirror the standalone Memberships create page:
+                        // generate the EFT reference up-front for any
+                        // pending_payment membership so the treasurer
+                        // (and member) have the reference immediately.
+                        if ($record->status !== MembershipStatus::PendingPayment) {
+                            return;
+                        }
+
+                        if ($record->payments()->exists()) {
+                            return;
+                        }
+
+                        $reference = app(PaymentReferenceGenerator::class)->generate();
+
+                        MembershipPayment::create([
+                            'membership_id' => $record->id,
+                            'provider' => PaymentProvider::ManualEft->value,
+                            'status' => PaymentStatus::Pending->value,
+                            'amount_cents' => $record->price_cents_snapshot
+                                ?? $record->membershipType?->price_cents
+                                ?? 0,
+                            'currency' => 'ZAR',
+                            'reference' => $reference,
+                        ]);
+                    }),
             ])
             ->recordActions([
                 Action::make('approve')

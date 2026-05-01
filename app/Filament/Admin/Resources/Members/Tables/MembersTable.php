@@ -3,9 +3,11 @@
 namespace App\Filament\Admin\Resources\Members\Tables;
 
 use App\Enums\MemberStatus;
+use App\Enums\PaymentStatus;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\Member;
+use App\Models\MembershipPayment;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -47,6 +49,28 @@ class MembersTable
                 TextColumn::make('expiry_date')->date('d M Y')
                     ->color(fn ($record) => $record->expiry_date && $record->expiry_date->isPast() ? 'danger' : null)
                     ->sortable(),
+
+                TextColumn::make('latest_payment_reference')
+                    ->label('Latest payment ref')
+                    ->state(fn (Member $r) => $r->latestPayment()?->reference)
+                    ->copyable()
+                    ->copyMessage('Reference copied')
+                    ->fontFamily('mono')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->searchable(query: function ($query, string $search) {
+                        $query->whereHas('memberships.payments', fn ($q) => $q
+                            ->where('reference', 'like', "%{$search}%"));
+                    }),
+
+                TextColumn::make('latest_payment_status')
+                    ->label('Last payment')
+                    ->state(fn (Member $r) => $r->latestPayment()?->status)
+                    ->badge()
+                    ->formatStateUsing(fn (?PaymentStatus $state) => $state?->label() ?? '—')
+                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('saprf_membership_number')->label('SAPRF #')->toggleable()->placeholder('—'),
             ])
             ->filters([

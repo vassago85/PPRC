@@ -30,9 +30,13 @@ class ClubOverviewStatsWidget extends BaseWidget
 
         $totalMembers = Member::query()->count();
 
+        // Treat null period_end (life / honorary memberships) as still
+        // active so the count doesn't silently miss them.
         $activeMemberships = Membership::query()
             ->where('status', MembershipStatus::Active->value)
-            ->where('period_end', '>=', now()->toDateString())
+            ->where(fn ($q) => $q
+                ->whereNull('period_end')
+                ->orWhere('period_end', '>=', now()->toDateString()))
             ->count();
 
         $upcomingMatches = Event::query()

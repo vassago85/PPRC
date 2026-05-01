@@ -85,6 +85,19 @@ class Membership extends Model
         return $this->hasMany(MembershipPayment::class);
     }
 
+    /**
+     * The most recent payment row regardless of status. Used to surface
+     * the EFT reference an admin needs when reconciling against bank
+     * statements — pending or submitted reference is what the member
+     * was actually told to use.
+     */
+    public function latestPayment(): ?MembershipPayment
+    {
+        return $this->payments()
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
     public function confirmedPayment(): ?MembershipPayment
     {
         return $this->payments()->where('status', 'confirmed')->latest('confirmed_at')->first();

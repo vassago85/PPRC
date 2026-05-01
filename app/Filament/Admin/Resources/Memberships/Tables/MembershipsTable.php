@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\Memberships\Tables;
 
 use App\Enums\MembershipStatus;
+use App\Enums\PaymentStatus;
 use App\Services\Membership\MemberService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -18,6 +19,7 @@ class MembershipsTable
     {
         return $table
             ->defaultSort('period_end', 'desc')
+            ->modifyQueryUsing(fn ($query) => $query->with(['payments' => fn ($q) => $q->latest('created_at')]))
             ->columns([
                 TextColumn::make('member.membership_number')->label('#')->badge()->sortable()->searchable(),
                 TextColumn::make('member.first_name')->label('Member')
@@ -32,6 +34,24 @@ class MembershipsTable
                     ->badge()
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
                     ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
+
+                TextColumn::make('payment_reference')
+                    ->label('Payment ref')
+                    ->state(fn ($record) => $record->payments->first()?->reference)
+                    ->copyable()
+                    ->copyMessage('Reference copied')
+                    ->fontFamily('mono')
+                    ->placeholder('—')
+                    ->searchable(query: function ($query, string $search) {
+                        $query->whereHas('payments', fn ($q) => $q->where('reference', 'like', "%{$search}%"));
+                    }),
+
+                TextColumn::make('payment_status')
+                    ->label('Payment')
+                    ->state(fn ($record) => $record->payments->first()?->status)
+                    ->badge()
+                    ->formatStateUsing(fn (?PaymentStatus $state) => $state?->label() ?? '—')
+                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray'),
                 TextColumn::make('price_cents_snapshot')->label('Price paid')
                     ->formatStateUsing(function ($state, $record) {
                         $current = $record->membershipType?->price_cents;
