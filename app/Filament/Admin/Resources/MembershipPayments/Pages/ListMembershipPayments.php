@@ -16,26 +16,26 @@ class ListMembershipPayments extends ListRecords
     public function getTabs(): array
     {
         $count = fn (?string $status) => MembershipPayment::query()
-            ->when($status !== null, fn (Builder $q) => $q->where('status', $status))
+            ->when($status !== null, fn (Builder $query) => $query->where('status', $status))
             ->count();
 
         $awaitingCount = $count(PaymentStatus::Submitted->value);
 
         return [
             'awaiting' => Tab::make('Awaiting verification')
-                ->modifyQueryUsing(fn (Builder $q) => $q->where('status', PaymentStatus::Submitted->value))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', PaymentStatus::Submitted->value))
                 ->badge($awaitingCount)
                 ->badgeColor($awaitingCount > 0 ? 'warning' : 'gray'),
 
             'pending' => Tab::make('Pending (no proof yet)')
-                ->modifyQueryUsing(fn (Builder $q) => $q->where('status', PaymentStatus::Pending->value))
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', PaymentStatus::Pending->value))
                 ->badge($count(PaymentStatus::Pending->value)),
 
             'confirmed' => Tab::make('Confirmed')
-                ->modifyQueryUsing(fn (Builder $q) => $q->where('status', PaymentStatus::Confirmed->value)),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', PaymentStatus::Confirmed->value)),
 
             'failed' => Tab::make('Failed / cancelled')
-                ->modifyQueryUsing(fn (Builder $q) => $q->whereIn('status', [
+                ->modifyQueryUsing(fn (Builder $query) => $query->whereIn('status', [
                     PaymentStatus::Failed->value,
                     PaymentStatus::Cancelled->value,
                 ])),

@@ -134,13 +134,13 @@ class MembershipPaymentsTable
                     ->trueLabel('Has proof')
                     ->falseLabel('No proof yet')
                     ->queries(
-                        true: fn (Builder $q) => $q->whereNotNull('proof_path'),
-                        false: fn (Builder $q) => $q->whereNull('proof_path'),
+                        true: fn (Builder $query) => $query->whereNotNull('proof_path'),
+                        false: fn (Builder $query) => $query->whereNull('proof_path'),
                     ),
 
                 Filter::make('confirmed_this_month')
                     ->label('Confirmed this month')
-                    ->query(fn (Builder $q) => $q
+                    ->query(fn (Builder $query) => $query
                         ->where('status', PaymentStatus::Confirmed->value)
                         ->where('confirmed_at', '>=', now()->startOfMonth())),
             ])
