@@ -35,19 +35,23 @@ class ImportPractiscoreResults extends Command
         {--event= : Event id or slug on this site (omit with --create to use the PractiScore name)}
         {--url= : Full PractiScore HTML results URL}
         {--match-id= : PractiScore match UUID (alternative to --url)}
+        {--file= : Path to a saved PractiScore HTML file (use this if PractiScore 403s the server)}
         {--page=overall-combined : PractiScore page key (overall-combined, overall, etc.)}
         {--create : If --event is missing or the slug does not exist, create the event from the PractiScore page (title + date)}
         {--replace : Wipe existing EventResult rows for this event before import}
         {--publish : Mark the event as having published results when done}
-        {--dry-run : Parse and report only — no DB writes}';
+        {--dry-run : Parse and report only — no DB writes}
+        {--debug : Print fetch diagnostics (status, headers, body snippet) and exit}';
 
     protected $description = 'Import match results from a public PractiScore results page.';
 
     public function handle(): int
     {
+        $file = $this->option('file');
         $url = $this->resolveUrl();
-        if ($url === null) {
-            $this->error('Pass --url=<full-url> or --match-id=<uuid>');
+
+        if ($file === null && $url === null) {
+            $this->error('Pass --file=<path>, --url=<full-url>, or --match-id=<uuid>');
 
             return self::INVALID;
         }
@@ -56,16 +60,31 @@ class ImportPractiscoreResults extends Command
         $autoCreate = (bool) $this->option('create');
 
         if ($eventRef === '' && ! $autoCreate) {
-            $this->error('Pass --event=<id-or-slug>, or use --create to auto-create from the PractiScore page.');
+            $this->error('Pass --event=<id-or-slug>, or use --create to auto-create from the source.');
 
             return self::INVALID;
         }
 
-        $this->info("Source: {$url}");
+        if ($file !== null) {
+            $this->info("Source: file://{$file}");
+            if (! is_readable($file)) {
+                $this->error("File not readable: {$file}");
 
-        $html = $this->fetchHtml($url);
-        if ($html === null) {
-            return self::FAILURE;
+                return self::FAILURE;
+            }
+            $html = (string) file_get_contents($file);
+        } else {
+            $this->info("Source: {$url}");
+            $html = $this->fetchHtml($url);
+            if ($html === null) {
+                return self::FAILURE;
+            }
+        }
+
+        if ($this->option('debug')) {
+            $this->line('--- first 800 chars of body ---');
+            $this->line(substr($html, 0, 800));
+            $this->line('--- end snippet ---');
         }
 
         $event = $this->resolveOrCreateEvent($eventRef, $autoCreate, $html);
@@ -274,21 +293,99 @@ class ImportPractiscoreResults extends Command
 
     private function fetchHtml(string $url): ?string
     {
-        $response = Http::withHeaders([
-            // Real browser UA — PractiScore 403s on plain Guzzle/curl identifiers.
-            'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-                .'(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        $debug = (bool) $this->option('debug');
+        $candidates = $this->buildUrlCandidates($url);
+
+        $headers = [
+            // PractiScore's CDN sniffs these — match a real Chrome request.
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                .'(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,'
+                .'image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language' => 'en-ZA,en;q=0.9',
-        ])->timeout(30)->get($url);
+            'Accept-Encoding' => 'gzip, deflate, br',
+            'Cache-Control' => 'no-cache',
+            'Pragma' => 'no-cache',
+            'Sec-Ch-Ua' => '"Chromium";v="126", "Not.A/Brand";v="24", "Google Chrome";v="126"',
+            'Sec-Ch-Ua-Mobile' => '?0',
+            'Sec-Ch-Ua-Platform' => '"Windows"',
+            'Sec-Fetch-Dest' => 'document',
+            'Sec-Fetch-Mode' => 'navigate',
+            'Sec-Fetch-Site' => 'none',
+            'Sec-Fetch-User' => '?1',
+            'Upgrade-Insecure-Requests' => '1',
+            'DNT' => '1',
+            'Connection' => 'keep-alive',
+        ];
 
-        if (! $response->ok()) {
-            $this->error("PractiScore responded {$response->status()} when fetching results.");
+        $lastStatus = null;
+        foreach ($candidates as $candidate) {
+            try {
+                $response = Http::withHeaders($headers)->timeout(30)->withOptions([
+                    'allow_redirects' => true,
+                    'verify' => true,
+                ])->get($candidate);
+            } catch (\Throwable $e) {
+                if ($debug) {
+                    $this->warn("  Try {$candidate} → exception: ".$e->getMessage());
+                }
+                continue;
+            }
 
-            return null;
+            $lastStatus = $response->status();
+
+            if ($debug) {
+                $this->line("  Try {$candidate} → HTTP {$lastStatus}");
+                foreach ($response->headers() as $h => $v) {
+                    $this->line('    '.$h.': '.implode(', ', (array) $v));
+                }
+            }
+
+            if ($response->ok() && trim($response->body()) !== '') {
+                if ($candidate !== $url) {
+                    $this->info("Resolved via fallback URL: {$candidate}");
+                }
+
+                return $response->body();
+            }
         }
 
-        return $response->body();
+        $this->error("PractiScore returned HTTP {$lastStatus} for every URL variant.");
+        $this->warn('PractiScore (Cloudflare) likely blocks this server\'s IP. Workaround:');
+        $this->warn('  1. Open the results page in your browser.');
+        $this->warn('  2. View source / save the page as practiscore.html.');
+        $this->warn('  3. Re-run the command with --file=/path/to/practiscore.html (you can scp it onto the server).');
+
+        return null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function buildUrlCandidates(string $url): array
+    {
+        $candidates = [$url];
+
+        // Pull the UUID out so we can also try the SPA "new" view, which is
+        // sometimes served from a less-aggressive cache rule on PractiScore.
+        if (preg_match('~/results/(?:html|new)/([0-9a-f-]{36})~i', $url, $m)) {
+            $uuid = $m[1];
+            $page = (string) $this->option('page') ?: 'overall-combined';
+
+            $alts = [
+                "https://practiscore.com/results/html/{$uuid}",
+                "https://practiscore.com/results/html/{$uuid}?page={$page}",
+                "https://practiscore.com/results/new/{$uuid}",
+            ];
+
+            foreach ($alts as $alt) {
+                if (! in_array($alt, $candidates, true)) {
+                    $candidates[] = $alt;
+                }
+            }
+        }
+
+        return $candidates;
     }
 
     /**
