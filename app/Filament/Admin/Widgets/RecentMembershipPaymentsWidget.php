@@ -68,13 +68,13 @@ class RecentMembershipPaymentsWidget extends BaseWidget
 
                 TextColumn::make('amount_cents')
                     ->label('Amount')
-                    ->formatStateUsing(fn (?int $s) => $s !== null ? 'R '.number_format($s / 100, 2) : '—')
+                    ->formatStateUsing(fn (?int $state) => $state !== null ? 'R '.number_format($state / 100, 2) : '—')
                     ->alignEnd(),
 
                 TextColumn::make('status')
                     ->badge()
-                    ->formatStateUsing(fn (?PaymentStatus $s) => $s?->label())
-                    ->color(fn (?PaymentStatus $s) => $s?->color() ?? 'gray'),
+                    ->formatStateUsing(fn (?PaymentStatus $state) => $state?->label())
+                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray'),
             ])
             ->recordActions([
                 Action::make('confirm')
