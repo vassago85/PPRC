@@ -71,6 +71,18 @@ class EventForm
                         ->helperText('Shown on the public match page. Landscape works best (≥ 1600×900).')
                         ->columnSpanFull(),
 
+                    FileUpload::make('match_book_path')
+                        ->label('Match book (PDF)')
+                        ->disk(\App\Support\MediaDisk::name())
+                        ->directory('events/match-books')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(20480)
+                        ->openable()
+                        ->downloadable()
+                        ->previewable(false)
+                        ->helperText('Stage descriptions / shooter pack. Embedded in a PDF viewer on the public match page so shooters can read it from their phones.')
+                        ->columnSpanFull(),
+
                     RichEditor::make('description')
                         ->label('Full description')
                         ->columnSpanFull(),

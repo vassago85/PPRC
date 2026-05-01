@@ -22,6 +22,7 @@ class Event extends Model
         'summary',
         'description',
         'banner_path',
+        'match_book_path',
         'start_date',
         'start_time',
         'end_date',
@@ -223,6 +224,23 @@ class Event extends Model
         }
 
         return Storage::disk(\App\Support\MediaDisk::name())->url($this->banner_path);
+    }
+
+    public function hasMatchBook(): bool
+    {
+        return ! empty($this->match_book_path);
+    }
+
+    /**
+     * Public URL for the uploaded match-book PDF.
+     */
+    public function matchBookUrl(): ?string
+    {
+        if (! $this->hasMatchBook()) {
+            return null;
+        }
+
+        return Storage::disk(\App\Support\MediaDisk::name())->url($this->match_book_path);
     }
 
     /**

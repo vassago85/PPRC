@@ -157,6 +157,49 @@
         @endunless
     </x-site.section>
 
+    @if ($event->hasMatchBook())
+        <x-site.section padding="default" id="match-book">
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Stage briefing</p>
+                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Match book</h2>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ $event->matchBookUrl() }}" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H6.75A2.25 2.25 0 0 0 4.5 8.25v9A2.25 2.25 0 0 0 6.75 19.5h9a2.25 2.25 0 0 0 2.25-2.25V10.5M19.5 4.5h-6m6 0v6m0-6L9 15"/></svg>
+                        Open in new tab
+                    </a>
+                    <a href="{{ $event->matchBookUrl() }}" download
+                       class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-brand-500">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9 4.5 4.5m0 0 4.5-4.5m-4.5 4.5V3"/></svg>
+                        Download PDF
+                    </a>
+                </div>
+            </div>
+
+            {{-- Browser PDF viewer. Uses <object> with a <embed> fallback so iOS Safari, --}}
+            {{-- Firefox and Chrome all render natively without an external JS lib. --}}
+            <div class="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40">
+                <object
+                    data="{{ $event->matchBookUrl() }}#view=FitH"
+                    type="application/pdf"
+                    class="block w-full"
+                    style="height: min(80vh, 900px); min-height: 480px;">
+                    <div class="p-8 text-center text-sm text-slate-300">
+                        <p>Your browser couldn't open the PDF inline.</p>
+                        <p class="mt-2">
+                            <a href="{{ $event->matchBookUrl() }}" target="_blank" rel="noopener" class="font-semibold text-brand-300 hover:text-brand-200">
+                                Open the match book in a new tab
+                            </a>
+                            or use the Download button above.
+                        </p>
+                    </div>
+                </object>
+            </div>
+        </x-site.section>
+    @endif
+
     @if ($event->galleryPhotos->isNotEmpty())
         <x-site.section padding="default" id="gallery">
             <div class="mb-8 flex items-end justify-between gap-4">
