@@ -87,6 +87,11 @@ class RegistrationsRelationManager extends RelationManager
                     ->helperText('Shooter pays through the SAPRF website. PPRC doesn\'t charge them.')
                     ->inline(false),
 
+                Toggle::make('is_junior')
+                    ->label('Junior shooter (under 18)')
+                    ->helperText('Applies the junior fee tier. Members under 18 are detected automatically — only flag this for guests or to override.')
+                    ->inline(false),
+
                 TextInput::make('fee_cents')
                     ->label('Fee override (ZAR)')
                     ->numeric()
@@ -149,6 +154,7 @@ class RegistrationsRelationManager extends RelationManager
                 TextColumn::make('division')->label('Div.')->toggleable(),
                 TextColumn::make('category')->label('Cat.')->toggleable(),
                 IconColumn::make('is_saprf_entry')->boolean()->label('SAPRF')->toggleable(),
+                IconColumn::make('is_junior')->boolean()->label('Junior')->toggleable(),
                 IconColumn::make('attended')->boolean()->label('Attended'),
                 TextColumn::make('checked_in_at')->dateTime('d M H:i')->label('Checked in')->toggleable(),
             ])

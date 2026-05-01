@@ -233,7 +233,17 @@
                             </div>
                         @endif
 
-                        @php($guestFee = $event->effectivePriceCentsFor(null))
+                        @if ($this->canFlagJunior() && ! $viaSaprf)
+                            <label class="flex items-start gap-3 rounded-lg border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-200 cursor-pointer">
+                                <input type="checkbox" wire:model.live="isJunior" class="mt-1 h-4 w-4 rounded border-white/20 bg-slate-950 text-brand-500 focus:ring-brand-500/40" />
+                                <span>
+                                    <span class="font-medium text-white">Junior shooter (under 18)</span>
+                                    <span class="block mt-0.5 text-xs text-slate-400">Junior entry fee applies.</span>
+                                </span>
+                            </label>
+                        @endif
+
+                        @php($guestFee = $event->effectivePriceCentsFor(null, $this->canFlagJunior() && $isJunior))
                         @if ($guestFee !== null)
                             <p class="text-sm text-slate-400">
                                 Typical guest entry:
@@ -242,7 +252,11 @@
                                     <span class="text-slate-500">(paid via SAPRF)</span>
                                 @else
                                     <span class="font-semibold tabular-nums text-white">R {{ number_format($guestFee / 100, 2) }}</span>
-                                    <span class="text-slate-500">(collected per club payment rules)</span>
+                                    @if ($this->canFlagJunior() && $isJunior)
+                                        <span class="text-slate-500">(junior rate)</span>
+                                    @else
+                                        <span class="text-slate-500">(collected per club payment rules)</span>
+                                    @endif
                                 @endif
                             </p>
                         @endif

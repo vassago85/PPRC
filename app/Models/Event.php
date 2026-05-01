@@ -229,13 +229,14 @@ class Event extends Model
      * Resolve the fee (in cents) this member would pay for this event.
      * Precedence:
      *   1. ExCo / committee members -> 0 (2026 AGM rule).
-     *   2. Active PPRC junior -> junior_price_cents (falls back to member).
+     *   2. Active PPRC junior, or any entry explicitly flagged as a junior
+     *      (e.g. a guest under 18) -> junior_price_cents (falls back to member).
      *   3. Active PPRC member -> member_price_cents.
      *   4. Everyone else (guest, expired, pending, suspended) -> non_member_price_cents.
      * Falls back to the legacy price_cents when the tiered fields are unset.
      * Returns null when the match has no price configured at all.
      */
-    public function effectivePriceCentsFor(?Member $member): ?int
+    public function effectivePriceCentsFor(?Member $member, bool $treatAsJunior = false): ?int
     {
         if ($member?->user?->hasFreeEventEntry()) {
             return 0;
@@ -243,7 +244,7 @@ class Event extends Model
 
         $isActiveMember = $member?->status?->value === 'active';
 
-        if ($isActiveMember && $member?->isJunior()) {
+        if ($treatAsJunior || ($isActiveMember && $member?->isJunior())) {
             return $this->juniorPriceCents();
         }
 

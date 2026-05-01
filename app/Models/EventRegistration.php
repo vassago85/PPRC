@@ -20,6 +20,7 @@ class EventRegistration extends Model
         'firing_order',
         'fee_cents',
         'is_saprf_entry',
+        'is_junior',
         'status',
         'attended',
         'notes',
@@ -31,6 +32,7 @@ class EventRegistration extends Model
     protected $casts = [
         'attended' => 'boolean',
         'is_saprf_entry' => 'boolean',
+        'is_junior' => 'boolean',
         'registered_at' => 'datetime',
         'checked_in_at' => 'datetime',
         'status' => EventRegistrationStatus::class,
@@ -124,7 +126,7 @@ class EventRegistration extends Model
 
         $member = $this->relationLoaded('member') ? $this->member : $this->member;
 
-        return $this->event?->effectivePriceCentsFor($member);
+        return $this->event?->effectivePriceCentsFor($member, (bool) $this->is_junior);
     }
 
     /**

@@ -35,6 +35,13 @@ class EventRegister extends Component
 
     public string $saprfNumber = '';
 
+    /**
+     * Guest-side flag for "I'm under 18" — surfaces the junior fee tier when
+     * the event has one configured. Members are detected automatically from
+     * their membership type / age so this property is only used on the guest path.
+     */
+    public bool $isJunior = false;
+
     /** guest | pin | done */
     public string $guestStep = 'guest';
 
@@ -163,6 +170,7 @@ class EventRegister extends Component
         }
 
         $isSaprfEntry = $this->event->is_saprf_match && $this->viaSaprf;
+        $isJuniorEntry = ! $isSaprfEntry && $this->canFlagJunior() && $this->isJunior;
 
         try {
             EventRegistration::create([
@@ -174,6 +182,7 @@ class EventRegister extends Component
                 'division' => $this->normalizedDivision(),
                 'category' => $this->normalizedCategory(),
                 'is_saprf_entry' => $isSaprfEntry,
+                'is_junior' => $isJuniorEntry,
                 'fee_cents' => $isSaprfEntry ? 0 : null,
                 'notes' => $isSaprfEntry && $this->saprfNumber !== ''
                     ? 'SAPRF #' . trim($this->saprfNumber)
@@ -299,6 +308,15 @@ class EventRegister extends Component
         }
 
         return $this->category === '' ? null : $this->category;
+    }
+
+    /**
+     * Only show the junior toggle when the event has set a junior price tier
+     * — otherwise there's no benefit to ticking it and it just adds noise.
+     */
+    public function canFlagJunior(): bool
+    {
+        return $this->event->junior_price_cents !== null;
     }
 
     public function render()
