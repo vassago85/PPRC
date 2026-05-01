@@ -109,7 +109,9 @@
                 <dd class="mt-2 font-medium text-white">
                     {{ $event->registrations_count ?? 0 }}@if ($event->max_entries) / {{ $event->max_entries }}@endif
                 </dd>
-                @if ($event->isRegistrationOpen())
+                @if ($event->isFinished())
+                    <dd class="mt-1 text-sm text-slate-400">Match {{ $event->status->value === 'cancelled' ? 'cancelled' : 'completed' }}</dd>
+                @elseif ($event->isRegistrationOpen())
                     <dd class="mt-1 text-sm text-success-300">Registrations open</dd>
                 @elseif ($event->registrations_open === false)
                     <dd class="mt-1 text-sm text-slate-400">Registrations closed</dd>
@@ -131,7 +133,7 @@
                             </p>
                         </div>
                     </div>
-                    @if ($event->saprf_url)
+                    @if ($event->saprf_url && ! $event->isFinished())
                         <a href="{{ $event->saprf_url }}" target="_blank" rel="noopener"
                            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-md transition hover:bg-amber-400">
                             Register on SAPRF
@@ -148,9 +150,11 @@
             </div>
         @endif
 
-        <div id="enter" @class(['scroll-mt-28', 'mt-10' => filled($event->description), 'mt-8' => ! filled($event->description)])>
-            <livewire:site.event-register :event="$event" :key="'evt-reg-'.$event->id" />
-        </div>
+        @unless ($event->isFinished())
+            <div id="enter" @class(['scroll-mt-28', 'mt-10' => filled($event->description), 'mt-8' => ! filled($event->description)])>
+                <livewire:site.event-register :event="$event" :key="'evt-reg-'.$event->id" />
+            </div>
+        @endunless
     </x-site.section>
 
     @if ($event->galleryPhotos->isNotEmpty())

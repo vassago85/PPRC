@@ -252,6 +252,10 @@ class Event extends Model
 
     public function isRegistrationOpen(): bool
     {
+        if ($this->isFinished()) {
+            return false;
+        }
+
         if (! $this->registrations_open) {
             return false;
         }
@@ -265,6 +269,26 @@ class Event extends Model
         }
 
         return true;
+    }
+
+    /**
+     * True for matches that have happened or have been called off — used to
+     * hide the public registration form, "registrations closed" sub-line, and
+     * any other inputs that no longer make sense.
+     */
+    public function isFinished(): bool
+    {
+        $status = $this->status instanceof EventStatus
+            ? $this->status
+            : EventStatus::tryFrom((string) $this->status);
+
+        if (in_array($status, [EventStatus::Completed, EventStatus::Cancelled], true)) {
+            return true;
+        }
+
+        // Defensive — an admin can leave a match Published past its date and we
+        // still want the front page to stop trying to take entries for it.
+        return $this->start_date !== null && $this->start_date->isPast();
     }
 
     /**
