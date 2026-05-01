@@ -2,14 +2,17 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\EventStatus;
 use App\Models\Event;
 use App\Models\EventResult;
 use App\Models\Member;
+use Carbon\Carbon;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 /**
  * Pull a finished match's results page from PractiScore and import each
@@ -29,10 +32,11 @@ use Illuminate\Support\Facades\Http;
 class ImportPractiscoreResults extends Command
 {
     protected $signature = 'results:import-practiscore
-        {--event= : Event id or slug on this site}
+        {--event= : Event id or slug on this site (omit with --create to use the PractiScore name)}
         {--url= : Full PractiScore HTML results URL}
         {--match-id= : PractiScore match UUID (alternative to --url)}
         {--page=overall-combined : PractiScore page key (overall-combined, overall, etc.)}
+        {--create : If --event is missing or the slug does not exist, create the event from the PractiScore page (title + date)}
         {--replace : Wipe existing EventResult rows for this event before import}
         {--publish : Mark the event as having published results when done}
         {--dry-run : Parse and report only — no DB writes}';
@@ -41,23 +45,6 @@ class ImportPractiscoreResults extends Command
 
     public function handle(): int
     {
-        $eventRef = (string) $this->option('event');
-        if ($eventRef === '') {
-            $this->error('Pass --event=<id-or-slug>');
-
-            return self::INVALID;
-        }
-
-        $event = ctype_digit($eventRef)
-            ? Event::find((int) $eventRef)
-            : Event::where('slug', $eventRef)->first();
-
-        if (! $event) {
-            $this->error("Event '{$eventRef}' not found.");
-
-            return self::FAILURE;
-        }
-
         $url = $this->resolveUrl();
         if ($url === null) {
             $this->error('Pass --url=<full-url> or --match-id=<uuid>');
@@ -65,13 +52,28 @@ class ImportPractiscoreResults extends Command
             return self::INVALID;
         }
 
-        $this->info("Event:  {$event->title} (#{$event->id})");
+        $eventRef = trim((string) $this->option('event'));
+        $autoCreate = (bool) $this->option('create');
+
+        if ($eventRef === '' && ! $autoCreate) {
+            $this->error('Pass --event=<id-or-slug>, or use --create to auto-create from the PractiScore page.');
+
+            return self::INVALID;
+        }
+
         $this->info("Source: {$url}");
 
         $html = $this->fetchHtml($url);
         if ($html === null) {
             return self::FAILURE;
         }
+
+        $event = $this->resolveOrCreateEvent($eventRef, $autoCreate, $html);
+        if (! $event) {
+            return self::FAILURE;
+        }
+
+        $this->info("Event:  {$event->title} (#{$event->id}, slug={$event->slug})");
 
         $rows = $this->parseRows($html);
         if (empty($rows)) {
@@ -143,6 +145,116 @@ class ImportPractiscoreResults extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function resolveOrCreateEvent(string $eventRef, bool $autoCreate, string $html): ?Event
+    {
+        if ($eventRef !== '') {
+            $event = ctype_digit($eventRef)
+                ? Event::find((int) $eventRef)
+                : Event::where('slug', $eventRef)->first();
+
+            if ($event) {
+                return $event;
+            }
+
+            if (! $autoCreate) {
+                $this->error("Event '{$eventRef}' not found. Re-run with --create to make a new one from the PractiScore page.");
+
+                return null;
+            }
+        }
+
+        $meta = $this->parseMatchMeta($html);
+        $title = $meta['title'] ?: 'PractiScore Match '.now()->format('Y-m-d H:i');
+        $startDate = $meta['date'] ?? Carbon::today();
+
+        $slug = $eventRef !== '' && ! ctype_digit($eventRef)
+            ? Str::slug($eventRef)
+            : Str::slug($title);
+
+        if ($existing = Event::where('slug', $slug)->first()) {
+            return $existing;
+        }
+
+        if ($this->option('dry-run')) {
+            $this->warn("Would create event: title='{$title}', slug='{$slug}', start_date={$startDate->toDateString()}");
+
+            // Build an unsaved Event so the dry-run report still has something to render.
+            return (new Event)->forceFill([
+                'id' => 0,
+                'title' => $title,
+                'slug' => $slug,
+                'start_date' => $startDate,
+                'status' => EventStatus::Completed,
+            ]);
+        }
+
+        $event = Event::create([
+            'title' => $title,
+            'slug' => $slug,
+            'summary' => 'Imported from PractiScore.',
+            'start_date' => $startDate,
+            'end_date' => $startDate,
+            'status' => EventStatus::Completed,
+            'registrations_open' => false,
+            'published_at' => now(),
+            'results_published_at' => null,
+        ]);
+
+        $this->info("Created event #{$event->id}: {$event->title}");
+
+        return $event;
+    }
+
+    /**
+     * Pull the match name and date out of the PractiScore HTML.
+     *
+     * @return array{title: string, date: ?Carbon}
+     */
+    private function parseMatchMeta(string $html): array
+    {
+        libxml_use_internal_errors(true);
+        $doc = new DOMDocument;
+        $doc->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xp = new DOMXPath($doc);
+
+        $title = '';
+        $titleNode = $xp->query('//title')->item(0);
+        if ($titleNode) {
+            // PractiScore titles are usually "<Match Name> | PractiScore" — drop the suffix.
+            $title = trim(preg_replace('/\s*\|\s*PractiScore.*$/i', '', $titleNode->textContent ?? ''));
+        }
+
+        if ($title === '') {
+            $h1 = $xp->query('//h1')->item(0);
+            if ($h1) {
+                $title = trim($h1->textContent ?? '');
+            }
+        }
+
+        $title = preg_replace('/\s+/u', ' ', $title);
+
+        // Look for a date anywhere on the page in the most common formats. PractiScore
+        // tends to render "Match Date: 2025-08-17" or "Aug 17, 2025" near the header.
+        $date = null;
+        $bodyText = $doc->textContent ?? '';
+        if (preg_match('/(\d{4}-\d{2}-\d{2})/', $bodyText, $m)) {
+            try {
+                $date = Carbon::parse($m[1]);
+            } catch (\Throwable) {
+                $date = null;
+            }
+        }
+        if ($date === null && preg_match('/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})\b/u', $bodyText, $m)) {
+            try {
+                $date = Carbon::parse($m[1]);
+            } catch (\Throwable) {
+                $date = null;
+            }
+        }
+
+        return ['title' => $title, 'date' => $date];
     }
 
     private function resolveUrl(): ?string
