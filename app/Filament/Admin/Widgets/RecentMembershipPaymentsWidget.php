@@ -16,6 +16,9 @@ use Filament\Widgets\TableWidget as BaseWidget;
  * "Recent renewals & payments" — the at-a-glance list a treasurer or
  * membership secretary actually wants on the dashboard. Drops people
  * straight into the payments queue and lets them confirm inline.
+ *
+ * Kept intentionally minimal: TableWidget forces simple pagination
+ * and a fixed page size, so we don't try to override either.
  */
 class RecentMembershipPaymentsWidget extends BaseWidget
 {
@@ -38,15 +41,6 @@ class RecentMembershipPaymentsWidget extends BaseWidget
                     ->with(['membership.member', 'membership.membershipType'])
                     ->latest('created_at'),
             )
-            ->defaultPaginationPageOption(10)
-            ->paginated([10, 25, 50])
-            ->headerActions([
-                Action::make('openPaymentsQueue')
-                    ->label('Open full payments queue')
-                    ->icon('heroicon-m-arrow-top-right-on-square')
-                    ->color('gray')
-                    ->url(MembershipPaymentResource::getUrl('index')),
-            ])
             ->columns([
                 TextColumn::make('created_at')
                     ->label('When')
@@ -59,15 +53,15 @@ class RecentMembershipPaymentsWidget extends BaseWidget
                     ->copyMessage('Reference copied')
                     ->fontFamily('mono')
                     ->weight('semibold')
-                    ->placeholder('—')
-                    ->searchable(),
+                    ->placeholder('—'),
 
-                TextColumn::make('membership.member.membership_number')
+                TextColumn::make('member_number')
                     ->label('#')
+                    ->state(fn (MembershipPayment $r) => $r->membership?->member?->membership_number)
                     ->badge()
                     ->placeholder('—'),
 
-                TextColumn::make('membership.member.full_name')
+                TextColumn::make('member_name')
                     ->label('Member')
                     ->state(fn (MembershipPayment $r) => $r->membership?->member?->fullName() ?? '—')
                     ->description(fn (MembershipPayment $r) => $r->membership?->membership_type_name_snapshot),
@@ -94,6 +88,7 @@ class RecentMembershipPaymentsWidget extends BaseWidget
                     ->action(function (MembershipPayment $r) {
                         if (! $r->membership) {
                             Notification::make()->danger()->title('No membership attached')->send();
+
                             return;
                         }
                         app(MemberService::class)->activate($r->membership, auth()->user());
