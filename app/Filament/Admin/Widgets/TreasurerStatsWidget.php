@@ -2,15 +2,20 @@
 
 namespace App\Filament\Admin\Widgets;
 
-use App\Enums\MembershipStatus;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Resources\MembershipPayments\MembershipPaymentResource;
-use App\Filament\Admin\Resources\Memberships\MembershipResource;
-use App\Models\Membership;
 use App\Models\MembershipPayment;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
+/**
+ * Treasurer-only secondary metrics.
+ *
+ * The big-ticket numbers (revenue this month, pending approvals) now live
+ * in PrimaryKpiWidget, so this widget focuses on the secondary cash-flow
+ * signals a treasurer cares about: confirmed payments this week and
+ * year-to-date revenue.
+ */
 class TreasurerStatsWidget extends BaseWidget
 {
     protected static ?int $sort = 2;
@@ -22,43 +27,41 @@ class TreasurerStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $awaitingVerification = MembershipPayment::query()
-            ->where('status', PaymentStatus::Submitted->value)
-            ->count();
-
-        $pendingApproval = Membership::query()
-            ->where('status', MembershipStatus::PendingApproval->value)
-            ->count();
-
-        $monthTotal = MembershipPayment::query()
+        $confirmedThisWeek = MembershipPayment::query()
             ->where('status', PaymentStatus::Confirmed->value)
-            ->where('confirmed_at', '>=', now()->startOfMonth())
+            ->where('confirmed_at', '>=', now()->startOfWeek())
+            ->count();
+
+        $ytdCents = MembershipPayment::query()
+            ->where('status', PaymentStatus::Confirmed->value)
+            ->where('confirmed_at', '>=', now()->startOfYear())
             ->sum('amount_cents');
 
+        $failedThisMonth = MembershipPayment::query()
+            ->whereIn('status', [PaymentStatus::Failed->value, PaymentStatus::Cancelled->value])
+            ->where('updated_at', '>=', now()->startOfMonth())
+            ->count();
+
         return [
-            Stat::make('Proofs to verify', number_format($awaitingVerification))
-                ->description('EFT payments submitted, awaiting your check')
-                ->descriptionIcon('heroicon-m-document-check')
-                ->color($awaitingVerification > 0 ? 'warning' : 'gray')
-                // Land on the Payments queue filtered to Submitted so the
-                // treasurer sees exactly what they need to action.
-                ->url(MembershipPaymentResource::getUrl('index', [
-                    'activeTab' => 'awaiting',
-                ])),
-
-            Stat::make('Memberships awaiting approval', number_format($pendingApproval))
-                ->description('payment verified, not yet active')
-                ->descriptionIcon('heroicon-m-clock')
-                ->color($pendingApproval > 0 ? 'warning' : 'gray')
-                ->url(MembershipResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'pending_approval']]])),
-
-            Stat::make('Revenue this month', 'R '.number_format($monthTotal / 100, 2))
-                ->description('membership payments confirmed this month')
-                ->descriptionIcon('heroicon-m-banknotes')
+            Stat::make('Payments confirmed this week', number_format($confirmedThisWeek))
+                ->description('Since '.now()->startOfWeek()->format('D j M'))
+                ->descriptionIcon('heroicon-m-check-badge')
                 ->color('success')
-                ->url(MembershipPaymentResource::getUrl('index', [
-                    'activeTab' => 'confirmed',
-                ])),
+                ->url(MembershipPaymentResource::getUrl('index', ['activeTab' => 'confirmed'])),
+
+            Stat::make('Revenue YTD', 'R '.number_format($ytdCents / 100, 2))
+                ->description('Confirmed since '.now()->startOfYear()->format('j M Y'))
+                ->descriptionIcon('heroicon-m-chart-bar')
+                ->color('info')
+                ->url(MembershipPaymentResource::getUrl('index', ['activeTab' => 'confirmed'])),
+
+            Stat::make('Failed / cancelled this month', number_format($failedThisMonth))
+                ->description($failedThisMonth > 0
+                    ? 'Worth a look — member may need a nudge'
+                    : 'Nothing rejected this month')
+                ->descriptionIcon('heroicon-m-x-circle')
+                ->color($failedThisMonth > 0 ? 'danger' : 'gray')
+                ->url(MembershipPaymentResource::getUrl('index', ['activeTab' => 'failed'])),
         ];
     }
 }

@@ -68,6 +68,22 @@ class MembershipPaymentResource extends Resource
         return 'Payments awaiting verification';
     }
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['reference', 'paystack_reference'];
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return array_filter([
+            'Member' => $record->membership?->member?->fullName(),
+            'Status' => $record->status?->label() ?? null,
+            'Amount' => $record->amount_cents !== null
+                ? 'R '.number_format($record->amount_cents / 100, 2)
+                : null,
+        ]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return MembershipPaymentForm::configure($schema);

@@ -60,6 +60,38 @@ class MemberResource extends Resource
         return 'Members awaiting onboarding';
     }
 
+    /**
+     * Powers the global search field in the topbar. We index the columns
+     * an admin would actually type — name, membership number, contact.
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'membership_number',
+            'first_name',
+            'last_name',
+            'phone_number',
+            'id_number',
+            'saprf_membership_number',
+        ];
+    }
+
+    public static function getGlobalSearchResultTitle($record): string
+    {
+        $name = trim($record->first_name.' '.$record->last_name);
+
+        return $name !== '' ? $name : ('Member #'.$record->membership_number);
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return array_filter([
+            'Member #' => $record->membership_number,
+            'Phone' => $record->phone_number,
+            'Status' => $record->status?->label() ?? null,
+        ]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return MemberForm::configure($schema);

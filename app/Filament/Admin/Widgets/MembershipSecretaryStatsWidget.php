@@ -11,6 +11,14 @@ use App\Models\Membership;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
+/**
+ * Membership-secretary view of the renewal pipeline.
+ *
+ * "Memberships awaiting approval" lives in PrimaryKpiWidget now (under
+ * Pending Approvals), so this widget focuses on the upstream signals:
+ * who's about to expire, who has already lapsed, and how many fresh
+ * applications came in this month.
+ */
 class MembershipSecretaryStatsWidget extends BaseWidget
 {
     protected static ?int $sort = 3;
@@ -22,13 +30,14 @@ class MembershipSecretaryStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $pendingApproval = Membership::query()
-            ->where('status', MembershipStatus::PendingApproval->value)
-            ->count();
-
         $expiringSoon = Membership::query()
             ->where('status', MembershipStatus::Active->value)
             ->whereBetween('period_end', [now()->toDateString(), now()->addDays(30)->toDateString()])
+            ->count();
+
+        $lapsedRecently = Membership::query()
+            ->where('status', MembershipStatus::Expired->value)
+            ->where('period_end', '>=', now()->subDays(60)->toDateString())
             ->count();
 
         $newThisMonth = Member::query()
@@ -40,20 +49,24 @@ class MembershipSecretaryStatsWidget extends BaseWidget
             ->count();
 
         return [
-            Stat::make('Memberships awaiting approval', number_format($pendingApproval))
-                ->description('ready for committee sign-off')
-                ->descriptionIcon('heroicon-m-clipboard-document-check')
-                ->color($pendingApproval > 0 ? 'warning' : 'gray')
-                ->url(MembershipResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'pending_approval']]])),
-
             Stat::make('Expiring in 30 days', number_format($expiringSoon))
-                ->description('renewal reminders due')
+                ->description($expiringSoon > 0 ? 'Renewal reminders are due' : 'Nobody expiring soon')
                 ->descriptionIcon('heroicon-m-clock')
                 ->color($expiringSoon > 0 ? 'warning' : 'gray')
                 ->url(MembershipResource::getUrl('index')),
 
+            Stat::make('Recently lapsed', number_format($lapsedRecently))
+                ->description('Expired in the last 60 days')
+                ->descriptionIcon('heroicon-m-arrow-trending-down')
+                ->color($lapsedRecently > 0 ? 'danger' : 'gray')
+                ->url(MembershipResource::getUrl('index', [
+                    'tableFilters' => ['status' => ['value' => MembershipStatus::Expired->value]],
+                ])),
+
             Stat::make('New members this month', number_format($newThisMonth))
-                ->description($pendingMembers.' still pending onboarding')
+                ->description($pendingMembers > 0
+                    ? $pendingMembers.' still pending onboarding'
+                    : 'All onboarded')
                 ->descriptionIcon('heroicon-m-user-plus')
                 ->color('success')
                 ->url(MemberResource::getUrl('index')),

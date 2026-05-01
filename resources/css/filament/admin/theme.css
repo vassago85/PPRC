@@ -1,0 +1,492 @@
+/*
+ * PPRC Admin — Premium SaaS theme
+ * --------------------------------
+ * Inspired by Stripe Dashboard + Linear: tighter sidebar, dark active item,
+ * higher-contrast typography, refined shadows, cleaner table chrome, and
+ * generous breathing room between sections.
+ *
+ * Pure CSS / Tailwind layering only. No HTML structure, no Livewire, no
+ * Alpine, no Filament class names are renamed — every rule targets the
+ * default `.fi-*` classes Filament already emits.
+ */
+
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament';
+@source '../../../../resources/views/filament';
+
+/* ---------------------------------------------------------------- */
+/*  Tokens — keep the rest of the file declarative                    */
+/* ---------------------------------------------------------------- */
+:root {
+    /* Subtle, layered shadows (Stripe-style) */
+    --pprc-shadow-xs: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+    --pprc-shadow-sm:
+        0 1px 2px 0 rgb(15 23 42 / 0.05),
+        0 1px 3px 0 rgb(15 23 42 / 0.06);
+    --pprc-shadow-md:
+        0 4px 6px -2px rgb(15 23 42 / 0.05),
+        0 10px 25px -5px rgb(15 23 42 / 0.08);
+
+    /* Base surfaces */
+    --pprc-app-bg: #f6f7f9; /* canvas */
+    --pprc-surface: #ffffff;
+    --pprc-border: rgb(15 23 42 / 0.07);
+
+    /* Text */
+    --pprc-text: #0b1220;
+    --pprc-text-muted: #4b5563;
+    --pprc-text-subtle: #6b7280;
+
+    /* Active nav (dark, Linear-esque) */
+    --pprc-nav-active-bg: #0f172a; /* slate-900 */
+    --pprc-nav-active-fg: #ffffff;
+    --pprc-nav-active-icon: #ffffff;
+    --pprc-nav-hover-bg: rgb(15 23 42 / 0.04);
+}
+
+/* ---------------------------------------------------------------- */
+/*  Global typography + canvas                                       */
+/* ---------------------------------------------------------------- */
+.fi-body {
+    background-color: var(--pprc-app-bg);
+    color: var(--pprc-text);
+    font-feature-settings:
+        'cv11' on,
+        'ss01' on,
+        'ss03' on,
+        'ss04' on,
+        'cv01' on;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.005em;
+}
+
+/* ---------------------------------------------------------------- */
+/*  Sidebar — narrow (230px), tighter spacing, dark active item       */
+/* ---------------------------------------------------------------- */
+.fi-sidebar {
+    background-color: var(--pprc-surface) !important;
+    border-right: 1px solid var(--pprc-border);
+}
+
+/* Tighter overall padding inside the sidebar */
+.fi-sidebar .fi-sidebar-nav {
+    padding: 1.25rem 0.875rem 1.5rem;
+    gap: 1.25rem;
+}
+
+.fi-sidebar .fi-sidebar-nav-groups {
+    margin-inline: -0.25rem;
+    gap: 1.25rem;
+}
+
+/* Section labels: smaller, uppercase, tracked */
+.fi-sidebar .fi-sidebar-group-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    padding: 0 0.5rem;
+}
+
+/* Group buttons (collapsible parents) */
+.fi-sidebar .fi-sidebar-group-btn {
+    padding: 0.25rem 0.25rem;
+}
+
+/* Item rows */
+.fi-sidebar .fi-sidebar-item-btn {
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    gap: 0.625rem;
+    transition:
+        background-color 120ms ease,
+        color 120ms ease;
+}
+
+.fi-sidebar .fi-sidebar-item-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #1f2937;
+    line-height: 1.25rem;
+}
+
+.fi-sidebar .fi-sidebar-item-btn > .fi-icon {
+    color: #94a3b8;
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+/* Hover */
+.fi-sidebar .fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover,
+.fi-sidebar .fi-sidebar-item-has-url > .fi-sidebar-item-btn:focus-visible {
+    background-color: var(--pprc-nav-hover-bg) !important;
+}
+
+/* Active item — dark Linear-style chip */
+.fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: var(--pprc-nav-active-bg) !important;
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.08),
+        0 1px 2px 0 rgb(15 23 42 / 0.12);
+}
+
+.fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: var(--pprc-nav-active-fg) !important;
+}
+
+.fi-sidebar
+    .fi-sidebar-item.fi-active
+    > .fi-sidebar-item-btn
+    > .fi-sidebar-item-grouped-border
+    > .fi-sidebar-item-grouped-border-part {
+    background-color: #ffffff !important;
+}
+
+/* Sidebar header (logo) */
+.fi-sidebar .fi-sidebar-header {
+    height: 4rem;
+    padding-inline: 1rem;
+    border-bottom: 1px solid var(--pprc-border);
+}
+
+/* Active group icon recolour: keep it subtle, not primary blue */
+.fi-sidebar .fi-sidebar-group.fi-active .fi-sidebar-group-dropdown-trigger-btn .fi-icon {
+    color: var(--pprc-text) !important;
+}
+
+/* ---------------------------------------------------------------- */
+/*  Topbar — cleaner shadow, refined search                          */
+/* ---------------------------------------------------------------- */
+.fi-topbar {
+    background-color: var(--pprc-surface);
+    box-shadow: var(--pprc-shadow-xs);
+    border-bottom: 1px solid var(--pprc-border);
+    --tw-ring-shadow: 0 0 #0000;
+}
+
+/* Filament's global search input — make it feel like a real header search */
+.fi-topbar .fi-global-search-field {
+    min-width: 22rem;
+}
+
+.fi-topbar .fi-input,
+.fi-topbar .fi-input-wrp {
+    background-color: #f3f4f6;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.fi-topbar .fi-input-wrp:focus-within {
+    background-color: var(--pprc-surface);
+    box-shadow: 0 0 0 3px rgb(15 23 42 / 0.06);
+    border-color: rgb(15 23 42 / 0.18);
+}
+
+/* ---------------------------------------------------------------- */
+/*  Page header — strong hierarchy, with subheading                   */
+/* ---------------------------------------------------------------- */
+.fi-page-header-main-ctn {
+    padding-block: 2rem 1.25rem;
+    gap: 1.5rem;
+}
+
+.fi-header-heading {
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--pprc-text);
+    line-height: 1.15;
+}
+
+.fi-header-subheading {
+    font-size: 0.9375rem;
+    color: var(--pprc-text-subtle);
+    margin-top: 0.375rem;
+    line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------- */
+/*  Page content — wider gaps between sections                        */
+/* ---------------------------------------------------------------- */
+.fi-page-content {
+    gap: 1.75rem;
+}
+
+.fi-main {
+    padding-inline: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    .fi-main {
+        padding-inline: 2rem;
+    }
+}
+
+/* ---------------------------------------------------------------- */
+/*  Cards / contained sections / form sections                       */
+/*  Only style "contained" sections — `contained=false` sections     */
+/*  (stats overview, etc.) keep their open layout.                   */
+/* ---------------------------------------------------------------- */
+.fi-section:not(.fi-section-not-contained),
+.fi-fo-section {
+    background-color: var(--pprc-surface);
+    border: 1px solid var(--pprc-border);
+    border-radius: 0.75rem;
+    box-shadow: var(--pprc-shadow-xs);
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+}
+
+.fi-section:not(.fi-section-not-contained):hover {
+    box-shadow: var(--pprc-shadow-sm);
+}
+
+.fi-section:not(.fi-section-not-contained) > .fi-section-header {
+    padding: 1.125rem 1.25rem;
+    border-bottom: 1px solid var(--pprc-border);
+}
+
+.fi-section-header-heading {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--pprc-text);
+    letter-spacing: -0.01em;
+}
+
+.fi-section-header-description {
+    font-size: 0.8125rem;
+    color: var(--pprc-text-subtle);
+}
+
+/* ---------------------------------------------------------------- */
+/*  Stats overview cards (KPI cards)                                 */
+/* ---------------------------------------------------------------- */
+.fi-wi-stats-overview-stat {
+    background-color: var(--pprc-surface);
+    border: 1px solid var(--pprc-border);
+    border-radius: 0.75rem;
+    box-shadow: var(--pprc-shadow-xs);
+    padding: 1.125rem 1.25rem;
+    transition:
+        transform 180ms ease,
+        box-shadow 180ms ease,
+        border-color 180ms ease;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+}
+
+.fi-wi-stats-overview-stat:hover {
+    box-shadow: var(--pprc-shadow-sm);
+    border-color: rgb(15 23 42 / 0.12);
+}
+
+.fi-wi-stats-overview-stat-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--pprc-text-subtle);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.fi-wi-stats-overview-stat-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--pprc-text);
+    letter-spacing: -0.025em;
+    margin-top: 0.375rem;
+    line-height: 1.1;
+}
+
+.fi-wi-stats-overview-stat-description {
+    font-size: 0.8125rem;
+    color: var(--pprc-text-subtle);
+    margin-top: 0.5rem;
+}
+
+.fi-wi-stats-overview-stat-description-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+}
+
+/* ---------------------------------------------------------------- */
+/*  Tables — premium, dense, clean                                   */
+/* ---------------------------------------------------------------- */
+.fi-ta {
+    border-radius: 0.75rem;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+    border: 1px solid var(--pprc-border);
+    box-shadow: var(--pprc-shadow-xs);
+}
+
+.fi-ta-content {
+    background-color: var(--pprc-surface);
+}
+
+.fi-ta-header-toolbar {
+    padding: 0.875rem 1.125rem;
+    border-bottom: 1px solid var(--pprc-border);
+}
+
+.fi-ta-header-cell {
+    background-color: #fafbfc;
+    color: var(--pprc-text-subtle);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding-block: 0.625rem;
+}
+
+.fi-ta-row {
+    transition: background-color 120ms ease;
+}
+
+.fi-ta-row:hover {
+    background-color: rgb(15 23 42 / 0.025);
+}
+
+.fi-ta-cell {
+    padding-block: 0.875rem;
+    font-size: 0.875rem;
+    color: var(--pprc-text);
+}
+
+/* Column dividers off — Stripe-style fully open table */
+.fi-ta-row + .fi-ta-row .fi-ta-cell {
+    border-top: 1px solid rgb(15 23 42 / 0.05);
+}
+
+/* Badges inside tables */
+.fi-badge {
+    font-weight: 600;
+    letter-spacing: 0.005em;
+}
+
+/* ---------------------------------------------------------------- */
+/*  Tabs row                                                          */
+/* ---------------------------------------------------------------- */
+.fi-tabs {
+    border-bottom: 1px solid var(--pprc-border);
+}
+
+.fi-tabs-item {
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.fi-tabs-item.fi-active {
+    color: var(--pprc-text);
+}
+
+/* ---------------------------------------------------------------- */
+/*  Buttons — quieter shadows, sharper contrast                       */
+/* ---------------------------------------------------------------- */
+.fi-btn {
+    box-shadow: var(--pprc-shadow-xs);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+}
+
+.fi-btn.fi-color-primary {
+    background-image: none;
+    background-color: var(--pprc-nav-active-bg);
+    color: #ffffff;
+}
+
+.fi-btn.fi-color-primary:hover {
+    background-color: #1e293b;
+}
+
+/* ---------------------------------------------------------------- */
+/*  Dropdown panel polish                                            */
+/* ---------------------------------------------------------------- */
+.fi-dropdown-panel {
+    border-radius: 0.625rem;
+    border: 1px solid var(--pprc-border);
+    box-shadow: var(--pprc-shadow-md);
+}
+
+/* ---------------------------------------------------------------- */
+/*  Empty/scroll state polish                                        */
+/* ---------------------------------------------------------------- */
+.fi-ta-empty-state-heading {
+    font-weight: 600;
+    color: var(--pprc-text);
+}
+
+.fi-ta-empty-state-description {
+    color: var(--pprc-text-subtle);
+}
+
+/* ---------------------------------------------------------------- */
+/*  Dark mode overrides                                              */
+/* ---------------------------------------------------------------- */
+.dark .fi-body {
+    background-color: #0a0e17;
+}
+
+.dark {
+    --pprc-surface: #111826;
+    --pprc-border: rgb(255 255 255 / 0.06);
+    --pprc-text: #f3f4f6;
+    --pprc-text-muted: #9ca3af;
+    --pprc-text-subtle: #94a3b8;
+    --pprc-nav-active-bg: #f8fafc;
+    --pprc-nav-active-fg: #0b1220;
+    --pprc-nav-hover-bg: rgb(255 255 255 / 0.04);
+}
+
+.dark .fi-sidebar {
+    background-color: var(--pprc-surface) !important;
+}
+
+.dark .fi-topbar {
+    background-color: var(--pprc-surface);
+}
+
+.dark .fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon,
+.dark .fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: var(--pprc-nav-active-fg) !important;
+}
+
+.dark .fi-ta-header-cell {
+    background-color: #0f1623;
+}
+
+.dark .fi-ta-row:hover {
+    background-color: rgb(255 255 255 / 0.025);
+}
+
+.dark .fi-ta-row + .fi-ta-row .fi-ta-cell {
+    border-top-color: rgb(255 255 255 / 0.04);
+}
+
+.dark .fi-topbar .fi-input-wrp {
+    background-color: #0f1623;
+}
+
+.dark .fi-topbar .fi-input-wrp:focus-within {
+    background-color: var(--pprc-surface);
+}
+
+/* ---------------------------------------------------------------- */
+/*  Responsive: tighten paddings on small screens                     */
+/* ---------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .fi-page-header-main-ctn {
+        padding-block: 1.5rem 1rem;
+    }
+
+    .fi-header-heading {
+        font-size: 1.375rem;
+    }
+
+    .fi-wi-stats-overview-stat-value {
+        font-size: 1.5rem;
+    }
+}

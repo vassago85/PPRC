@@ -8,6 +8,13 @@ use App\Models\Event;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
+/**
+ * Match-director secondary metrics.
+ *
+ * "Upcoming matches" sits in PrimaryKpiWidget now, so this widget covers
+ * the editorial side: drafts not yet published and finished matches still
+ * waiting on results.
+ */
 class MatchDirectorStatsWidget extends BaseWidget
 {
     protected static ?int $sort = 4;
@@ -19,8 +26,6 @@ class MatchDirectorStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $upcoming = Event::query()->upcoming()->count();
-
         $drafts = Event::query()
             ->where('status', EventStatus::Draft->value)
             ->count();
@@ -30,24 +35,31 @@ class MatchDirectorStatsWidget extends BaseWidget
             ->whereNull('results_published_at')
             ->count();
 
-        return [
-            Stat::make('Upcoming matches', number_format($upcoming))
-                ->description('published and scheduled')
-                ->descriptionIcon('heroicon-m-calendar-days')
-                ->color('primary')
-                ->url(EventResource::getUrl('index')),
+        $registrationsThisMonth = Event::query()
+            ->where('start_date', '>=', now()->startOfMonth())
+            ->where('start_date', '<=', now()->endOfMonth())
+            ->withCount('registrations')
+            ->get()
+            ->sum('registrations_count');
 
+        return [
             Stat::make('Draft matches', number_format($drafts))
-                ->description('not yet published')
+                ->description($drafts > 0 ? 'Not yet published to the site' : 'Nothing in draft')
                 ->descriptionIcon('heroicon-m-pencil-square')
                 ->color($drafts > 0 ? 'warning' : 'gray')
                 ->url(EventResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'draft']]])),
 
             Stat::make('Results to publish', number_format($awaitingResults))
-                ->description('completed matches without results')
+                ->description($awaitingResults > 0 ? 'Completed matches without results' : 'All caught up')
                 ->descriptionIcon('heroicon-m-megaphone')
                 ->color($awaitingResults > 0 ? 'warning' : 'gray')
                 ->url(EventResource::getUrl('index', ['tableFilters' => ['status' => ['value' => 'completed']]])),
+
+            Stat::make('Registrations this month', number_format($registrationsThisMonth))
+                ->description('Across matches starting in '.now()->format('F'))
+                ->descriptionIcon('heroicon-m-clipboard-document-list')
+                ->color('info')
+                ->url(EventResource::getUrl('index')),
         ];
     }
 }

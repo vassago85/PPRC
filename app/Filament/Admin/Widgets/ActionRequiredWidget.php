@@ -4,101 +4,68 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Enums\EndorsementStatus;
 use App\Enums\MemberStatus;
-use App\Enums\MembershipStatus;
 use App\Filament\Admin\Resources\EndorsementRequests\EndorsementRequestResource;
 use App\Filament\Admin\Resources\Members\MemberResource;
-use App\Filament\Admin\Resources\Memberships\MembershipResource;
 use App\Models\EndorsementRequest;
 use App\Models\Member;
-use App\Models\Membership;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 /**
- * Top-of-dashboard "what needs your attention right now" panel.
+ * "What needs your attention" — secondary action queue.
  *
- * Each stat is colour-coded — warning when there is something pending,
- * gray when everything is clear — and links straight to the relevant
- * resource with the right filter applied so the admin can act in one click.
+ * The marquee approval queues (memberships + payments) are surfaced in
+ * PrimaryKpiWidget as "Pending approvals". This widget covers the longer
+ * tail: new member onboarding paperwork and endorsement requests.
+ *
+ * Each stat is colour-coded — warning when something is pending, gray
+ * when the queue is clear — and links straight to the right filter.
  */
 class ActionRequiredWidget extends BaseWidget
 {
-    protected static ?int $sort = 0;
+    protected static ?int $sort = 1;
 
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
     {
-        $user = auth()->user();
-
-        return (bool) ($user?->can('members.view')
-            || $user?->can('memberships.approve')
-            || $user?->can('memberships.manage'));
+        return (bool) auth()->user()?->can('members.view');
     }
 
     protected function getStats(): array
     {
-        $user = auth()->user();
         $stats = [];
 
-        if ($user?->can('members.view')) {
-            $pendingMembers = Member::query()
-                ->where('status', MemberStatus::Pending->value)
-                ->count();
+        $pendingMembers = Member::query()
+            ->where('status', MemberStatus::Pending->value)
+            ->count();
 
-            $stats[] = Stat::make('New members to onboard', number_format($pendingMembers))
-                ->description($pendingMembers > 0
-                    ? 'awaiting profile completion'
-                    : 'nothing outstanding')
-                ->descriptionIcon('heroicon-m-user-plus')
-                ->color($pendingMembers > 0 ? 'warning' : 'gray')
-                ->url(MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Pending->value]],
-                ]));
-        }
+        $stats[] = Stat::make('New members to onboard', number_format($pendingMembers))
+            ->description($pendingMembers > 0
+                ? 'Awaiting profile completion'
+                : 'Nothing outstanding')
+            ->descriptionIcon('heroicon-m-user-plus')
+            ->color($pendingMembers > 0 ? 'warning' : 'gray')
+            ->url(MemberResource::getUrl('index', [
+                'tableFilters' => ['status' => ['value' => MemberStatus::Pending->value]],
+            ]));
 
-        if ($user?->can('memberships.approve') || $user?->can('memberships.manage')) {
-            $awaitingApproval = Membership::query()
-                ->where('status', MembershipStatus::PendingApproval->value)
-                ->count();
+        $pendingEndorsements = EndorsementRequest::query()
+            ->where('status', EndorsementStatus::Pending->value)
+            ->count();
 
-            $awaitingPayment = Membership::query()
-                ->where('status', MembershipStatus::PendingPayment->value)
-                ->count();
+        $latest = EndorsementRequest::query()
+            ->where('status', EndorsementStatus::Pending->value)
+            ->latest()
+            ->first();
 
-            $stats[] = Stat::make('Memberships to approve', number_format($awaitingApproval))
-                ->description($awaitingPayment > 0
-                    ? "{$awaitingPayment} awaiting payment"
-                    : 'committee sign-off')
-                ->descriptionIcon('heroicon-m-clipboard-document-check')
-                ->color($awaitingApproval > 0 ? 'warning' : 'gray')
-                ->url(MembershipResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MembershipStatus::PendingApproval->value]],
-                ]));
-        }
-
-        // Endorsement requests are gated by the same Members section access:
-        // any admin who can view members can review endorsements.
-        if ($user?->can('members.view')) {
-            $pendingEndorsements = EndorsementRequest::query()
-                ->where('status', EndorsementStatus::Pending->value)
-                ->count();
-
-            $latest = EndorsementRequest::query()
-                ->where('status', EndorsementStatus::Pending->value)
-                ->latest()
-                ->first();
-
-            $description = $pendingEndorsements > 0 && $latest
-                ? 'oldest: '.$latest->created_at->diffForHumans()
-                : 'nothing waiting';
-
-            $stats[] = Stat::make('Endorsements to review', number_format($pendingEndorsements))
-                ->description($description)
-                ->descriptionIcon('heroicon-m-shield-check')
-                ->color($pendingEndorsements > 0 ? 'warning' : 'gray')
-                ->url(EndorsementRequestResource::getUrl('index'));
-        }
+        $stats[] = Stat::make('Endorsements to review', number_format($pendingEndorsements))
+            ->description($pendingEndorsements > 0 && $latest
+                ? 'Oldest: '.$latest->created_at->diffForHumans()
+                : 'Nothing waiting')
+            ->descriptionIcon('heroicon-m-shield-check')
+            ->color($pendingEndorsements > 0 ? 'warning' : 'gray')
+            ->url(EndorsementRequestResource::getUrl('index'));
 
         return $stats;
     }

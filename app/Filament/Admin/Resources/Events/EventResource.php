@@ -47,6 +47,19 @@ class EventResource extends Resource
         return static::canViewAny();
     }
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['title', 'slug', 'summary'];
+    }
+
+    public static function getGlobalSearchResultDetails($record): array
+    {
+        return array_filter([
+            'When' => $record->start_date?->format('D j M Y'),
+            'Status' => $record->status?->value ?? null,
+        ]);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return EventForm::configure($schema);
