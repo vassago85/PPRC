@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\EventStatus;
 use App\Models\Event;
 use App\Models\EventResult;
+use App\Models\MatchFormat;
 use App\Models\Member;
 use Carbon\Carbon;
 use DOMDocument;
@@ -209,6 +210,8 @@ class ImportPractiscoreResults extends Command
             ]);
         }
 
+        $matchFormat = $this->pickMatchFormat($title);
+
         $event = Event::create([
             'title' => $title,
             'slug' => $slug,
@@ -219,11 +222,32 @@ class ImportPractiscoreResults extends Command
             'registrations_open' => false,
             'published_at' => now(),
             'results_published_at' => null,
+            'match_format_id' => $matchFormat?->id,
         ]);
 
         $this->info("Created event #{$event->id}: {$event->title}");
 
         return $event;
+    }
+
+    /**
+     * Choose the match format for an auto-created event. Best-effort guess from
+     * the title so .22 / rimfire matches land under PR22 and everything else
+     * under the centerfire PRS bucket. Falls back to whichever active format
+     * exists if both lookups fail (so we never throw away a match).
+     */
+    private function pickMatchFormat(string $title): ?MatchFormat
+    {
+        $needle = strtolower($title);
+        $isRimfire = str_contains($needle, '.22')
+            || str_contains($needle, 'rimfire')
+            || str_contains($needle, 'pr22');
+
+        $slug = $isRimfire ? 'pr22' : 'prs-centerfire';
+
+        return MatchFormat::where('slug', $slug)->first()
+            ?? MatchFormat::where('is_active', true)->orderBy('sort_order')->first()
+            ?? MatchFormat::orderBy('id')->first();
     }
 
     /**
@@ -252,7 +276,10 @@ class ImportPractiscoreResults extends Command
         if ($title === '') {
             $titleNode = $xp->query('//title')->item(0);
             if ($titleNode) {
-                $title = trim(preg_replace('/\s*\|\s*PractiScore.*$/i', '', $titleNode->textContent ?? ''));
+                $raw = (string) ($titleNode->textContent ?? '');
+                // Strip the trailing "| PractiScore" suffix and any surrounding whitespace,
+                // including newlines (the wrapper page's <title> is multi-line).
+                $title = trim(preg_replace('/\s*\|\s*PractiScore[\s\S]*$/i', '', $raw));
             }
         }
 
