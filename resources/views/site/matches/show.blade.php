@@ -189,7 +189,7 @@
         @endif
 
         @unless ($event->isFinished())
-            <div id="enter" @class(['scroll-mt-28', 'mt-10' => filled($event->description), 'mt-8' => ! filled($event->description)])>
+            <div id="enter" class="scroll-mt-28 {{ filled($event->description) ? 'mt-10' : 'mt-8' }}">
                 <livewire:site.event-register :event="$event" :key="'evt-reg-'.$event->id" />
             </div>
         @endunless

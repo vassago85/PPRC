@@ -1,19 +1,7 @@
 # syntax=docker/dockerfile:1.7
-# ---------- Stage 1: node asset build ----------
-FROM node:22-alpine AS assets
-
-WORKDIR /build
-
-COPY package.json package-lock.json* ./
-RUN npm ci --no-audit --no-fund
-
-COPY vite.config.js ./
-COPY resources ./resources
-COPY public ./public
-
-RUN npm run build
-
-# ---------- Stage 2: composer dependencies ----------
+# ---------- Stage 1: composer dependencies ----------
+# Pulled forward so the asset stage can mount vendor/filament/* — the
+# Filament v5 theme imports its panels CSS from the vendor directory.
 FROM composer:2 AS vendor
 
 WORKDIR /app
@@ -29,6 +17,24 @@ RUN composer install \
     --no-interaction \
     --prefer-dist \
     --ignore-platform-reqs
+
+# ---------- Stage 2: node asset build ----------
+# Needs vendor/filament/* (theme.css @import) and app/Filament/* + the
+# resources/views/filament tree (Tailwind @source content discovery).
+FROM node:22-alpine AS assets
+
+WORKDIR /build
+
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+
+COPY vite.config.js ./
+COPY resources ./resources
+COPY public ./public
+COPY app ./app
+COPY --from=vendor /app/vendor ./vendor
+
+RUN npm run build
 
 # ---------- Stage 3: runtime (nginx + php-fpm + supervisor) ----------
 FROM php:8.3-fpm-bookworm AS runtime
