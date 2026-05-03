@@ -316,23 +316,31 @@
                             <table class="min-w-full divide-y divide-white/10 text-sm">
                                 <thead class="bg-white/[0.03] text-left text-xs uppercase tracking-[0.16em] text-slate-400">
                                     <tr>
-                                        <th class="px-4 py-3 font-semibold">#</th>
-                                        <th class="px-4 py-3 font-semibold">Shooter</th>
-                                        <th class="px-4 py-3 font-semibold">Division</th>
-                                        <th class="px-4 py-3 font-semibold">Category</th>
-                                        <th class="px-4 py-3 text-right font-semibold">Score</th>
-                                        <th class="px-4 py-3 text-right font-semibold">%</th>
+                                        <th class="px-2 py-3 font-semibold sm:px-4">#</th>
+                                        <th class="px-2 py-3 font-semibold sm:px-4">Shooter</th>
+                                        <th class="hidden px-4 py-3 font-semibold md:table-cell">Division</th>
+                                        <th class="hidden px-4 py-3 font-semibold md:table-cell">Category</th>
+                                        <th class="px-2 py-3 text-right font-semibold sm:px-4">Score</th>
+                                        <th class="px-2 py-3 text-right font-semibold sm:px-4">%</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-white/5 bg-slate-950/40">
                                     @foreach ($filtered as $r)
                                         <tr class="hover:bg-white/[0.02]">
-                                            <td class="px-4 py-3 font-semibold text-white">{{ $hasActiveFilter ? $loop->iteration : ($r->rank ?? '—') }}</td>
-                                            <td class="px-4 py-3 text-slate-200">{{ $r->shooter_name }}</td>
-                                            <td class="px-4 py-3 text-slate-400">{{ $r->division ?? '—' }}</td>
-                                            <td class="px-4 py-3 text-slate-400">{{ $r->category ?? '—' }}</td>
-                                            <td class="px-4 py-3 text-right tabular-nums text-slate-200">{{ $r->displayScore() }}</td>
-                                            <td class="px-4 py-3 text-right tabular-nums text-slate-400">
+                                            <td class="px-2 py-2.5 font-semibold text-white sm:px-4 sm:py-3">{{ $hasActiveFilter ? $loop->iteration : ($r->rank ?? '—') }}</td>
+                                            <td class="px-2 py-2.5 sm:px-4 sm:py-3">
+                                                <span class="text-slate-200">{{ $r->shooter_name }}</span>
+                                                {{-- Show division/category inline on mobile --}}
+                                                @if ($r->division || $r->category)
+                                                    <span class="block text-xs text-slate-500 md:hidden">
+                                                        {{ $r->division ?? '' }}{{ $r->division && $r->category ? ' · ' : '' }}{{ $r->category ?? '' }}
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td class="hidden px-4 py-3 text-slate-400 md:table-cell">{{ $r->division ?? '—' }}</td>
+                                            <td class="hidden px-4 py-3 text-slate-400 md:table-cell">{{ $r->category ?? '—' }}</td>
+                                            <td class="px-2 py-2.5 text-right tabular-nums text-slate-200 sm:px-4 sm:py-3">{{ $r->displayScore() }}</td>
+                                            <td class="px-2 py-2.5 text-right tabular-nums text-slate-400 sm:px-4 sm:py-3">
                                                 @if ($r->score_percentage !== null)
                                                     {{ number_format((float) $r->score_percentage, 2) }}%
                                                 @else
