@@ -36,6 +36,21 @@
             @if ($event->summary)
                 <p class="max-w-3xl text-lg text-slate-300">{{ $event->summary }}</p>
             @endif
+
+            @if ($event->hasMatchBook())
+                <div class="mt-4 flex flex-wrap items-center gap-2">
+                    <a href="{{ $event->matchBookUrl() }}" target="_blank" rel="noopener"
+                       class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H6.75A2.25 2.25 0 0 0 4.5 8.25v9A2.25 2.25 0 0 0 6.75 19.5h9a2.25 2.25 0 0 0 2.25-2.25V10.5M19.5 4.5h-6m6 0v6m0-6L9 15"/></svg>
+                        Open match book
+                    </a>
+                    <a href="{{ $event->matchBookUrl() }}" download
+                       class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-brand-500">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9 4.5 4.5m0 0 4.5-4.5m-4.5 4.5V3"/></svg>
+                        Download PDF
+                    </a>
+                </div>
+            @endif
         </div>
 
         <dl class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -195,135 +210,6 @@
         @endunless
     </x-site.section>
 
-    @if ($squads->isNotEmpty() && $squads->flatten()->count() > 0)
-        <x-site.section padding="default" id="squads">
-            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Shooters</p>
-                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Squads</h2>
-                </div>
-                <p class="text-sm text-slate-500">{{ $squads->flatten()->count() }} entries</p>
-            </div>
-
-            @php
-                $orderedKeys = $squads->keys()
-                    ->sortBy(fn ($k) => $k === null ? PHP_INT_MAX : (int) $k)
-                    ->values();
-            @endphp
-            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                @foreach ($orderedKeys as $squadKey)
-                    @php $entries = $squads[$squadKey]; @endphp
-                    <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                        <div class="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
-                            <h3 class="text-base font-semibold text-white">
-                                {{ $squadKey === null ? 'Unassigned' : 'Squad '.$squadKey }}
-                            </h3>
-                            <span class="text-xs uppercase tracking-wider text-slate-500">
-                                {{ $entries->count() }} {{ \Illuminate\Support\Str::plural('shooter', $entries->count()) }}
-                            </span>
-                        </div>
-                        <ol class="mt-3 space-y-2 text-sm">
-                            @foreach ($entries as $entry)
-                                @php
-                                    $name = $entry->shooterName();
-                                    $division = $entry->division;
-                                    $courseLabel = $event->courseLabel($entry->course);
-                                    $rounds = $event->roundsForCourse($entry->course);
-                                @endphp
-                                <li class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.04]">
-                                    @if ($entry->firing_order)
-                                        <span class="w-5 shrink-0 text-xs tabular-nums text-slate-500">{{ $entry->firing_order }}.</span>
-                                    @endif
-                                    <span class="font-medium text-white">{{ $name }}</span>
-                                    @if ($division)
-                                        <span class="text-xs uppercase tracking-wider text-slate-400">{{ $division }}</span>
-                                    @endif
-                                    @if ($courseLabel)
-                                        <span class="text-xs text-slate-500">·</span>
-                                        <span class="text-xs text-slate-400">{{ $courseLabel }}</span>
-                                    @endif
-                                    @if ($rounds)
-                                        <span class="text-xs text-slate-500">·</span>
-                                        <span class="text-xs tabular-nums text-slate-400">{{ $rounds }} rounds</span>
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ol>
-                    </div>
-                @endforeach
-            </div>
-        </x-site.section>
-    @endif
-
-    @if ($event->hasMatchBook())
-        <x-site.section padding="default" id="match-book">
-            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Stage briefing</p>
-                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Match book</h2>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <a href="{{ $event->matchBookUrl() }}" target="_blank" rel="noopener"
-                       class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H6.75A2.25 2.25 0 0 0 4.5 8.25v9A2.25 2.25 0 0 0 6.75 19.5h9a2.25 2.25 0 0 0 2.25-2.25V10.5M19.5 4.5h-6m6 0v6m0-6L9 15"/></svg>
-                        Open in new tab
-                    </a>
-                    <a href="{{ $event->matchBookUrl() }}" download
-                       class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-brand-500">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9 4.5 4.5m0 0 4.5-4.5m-4.5 4.5V3"/></svg>
-                        Download PDF
-                    </a>
-                </div>
-            </div>
-
-            {{-- Browser PDF viewer. Uses <object> with a <embed> fallback so iOS Safari, --}}
-            {{-- Firefox and Chrome all render natively without an external JS lib. --}}
-            <div class="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/40">
-                <object
-                    data="{{ $event->matchBookUrl() }}#view=FitH"
-                    type="application/pdf"
-                    class="block w-full"
-                    style="height: min(80vh, 900px); min-height: 480px;">
-                    <div class="p-8 text-center text-sm text-slate-300">
-                        <p>Your browser couldn't open the PDF inline.</p>
-                        <p class="mt-2">
-                            <a href="{{ $event->matchBookUrl() }}" target="_blank" rel="noopener" class="font-semibold text-brand-300 hover:text-brand-200">
-                                Open the match book in a new tab
-                            </a>
-                            or use the Download button above.
-                        </p>
-                    </div>
-                </object>
-            </div>
-        </x-site.section>
-    @endif
-
-    @if ($event->galleryPhotos->isNotEmpty())
-        <x-site.section padding="default" id="gallery">
-            <div class="mb-8 flex items-end justify-between gap-4">
-                <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Gallery</h2>
-                <span class="text-sm text-slate-500">{{ $event->galleryPhotos->count() }} photos</span>
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach ($event->galleryPhotos as $photo)
-                    <figure class="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-                        <div class="aspect-[4/3] overflow-hidden">
-                            <img
-                                src="{{ $photo->publicUrl() }}"
-                                alt="{{ $photo->caption ?: $event->title }}"
-                                class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                                loading="lazy"
-                            />
-                        </div>
-                        @if ($photo->caption)
-                            <figcaption class="px-4 py-3 text-sm text-slate-400">{{ $photo->caption }}</figcaption>
-                        @endif
-                    </figure>
-                @endforeach
-            </div>
-        </x-site.section>
-    @endif
-
     <x-site.section padding="default" id="results">
         <div class="mb-8 flex items-end justify-between gap-4">
             <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Results</h2>
@@ -438,4 +324,90 @@
             @endif
         @endif
     </x-site.section>
+
+    @if ($event->galleryPhotos->isNotEmpty())
+        <x-site.section padding="default" id="gallery">
+            <div class="mb-8 flex items-end justify-between gap-4">
+                <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Gallery</h2>
+                <span class="text-sm text-slate-500">{{ $event->galleryPhotos->count() }} photos</span>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach ($event->galleryPhotos as $photo)
+                    <figure class="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                        <div class="aspect-[4/3] overflow-hidden">
+                            <img
+                                src="{{ $photo->publicUrl() }}"
+                                alt="{{ $photo->caption ?: $event->title }}"
+                                class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                                loading="lazy"
+                            />
+                        </div>
+                        @if ($photo->caption)
+                            <figcaption class="px-4 py-3 text-sm text-slate-400">{{ $photo->caption }}</figcaption>
+                        @endif
+                    </figure>
+                @endforeach
+            </div>
+        </x-site.section>
+    @endif
+
+    @if ($squads->isNotEmpty() && $squads->flatten()->count() > 0)
+        <x-site.section padding="default" id="squads">
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Shooters</p>
+                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Squads</h2>
+                </div>
+                <p class="text-sm text-slate-500">{{ $squads->flatten()->count() }} entries</p>
+            </div>
+
+            @php
+                $orderedKeys = $squads->keys()
+                    ->sortBy(fn ($k) => $k === null ? PHP_INT_MAX : (int) $k)
+                    ->values();
+            @endphp
+            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                @foreach ($orderedKeys as $squadKey)
+                    @php $entries = $squads[$squadKey]; @endphp
+                    <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                        <div class="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
+                            <h3 class="text-base font-semibold text-white">
+                                {{ $squadKey === null ? 'Unassigned' : 'Squad '.$squadKey }}
+                            </h3>
+                            <span class="text-xs uppercase tracking-wider text-slate-500">
+                                {{ $entries->count() }} {{ \Illuminate\Support\Str::plural('shooter', $entries->count()) }}
+                            </span>
+                        </div>
+                        <ol class="mt-3 space-y-2 text-sm">
+                            @foreach ($entries as $entry)
+                                @php
+                                    $name = $entry->shooterName();
+                                    $division = $entry->division;
+                                    $courseLabel = $event->courseLabel($entry->course);
+                                    $rounds = $event->roundsForCourse($entry->course);
+                                @endphp
+                                <li class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg px-2 py-1.5 hover:bg-white/[0.04]">
+                                    @if ($entry->firing_order)
+                                        <span class="w-5 shrink-0 text-xs tabular-nums text-slate-500">{{ $entry->firing_order }}.</span>
+                                    @endif
+                                    <span class="font-medium text-white">{{ $name }}</span>
+                                    @if ($division)
+                                        <span class="text-xs uppercase tracking-wider text-slate-400">{{ $division }}</span>
+                                    @endif
+                                    @if ($courseLabel)
+                                        <span class="text-xs text-slate-500">·</span>
+                                        <span class="text-xs text-slate-400">{{ $courseLabel }}</span>
+                                    @endif
+                                    @if ($rounds)
+                                        <span class="text-xs text-slate-500">·</span>
+                                        <span class="text-xs tabular-nums text-slate-400">{{ $rounds }} rounds</span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ol>
+                    </div>
+                @endforeach
+            </div>
+        </x-site.section>
+    @endif
 </x-site.layout>
