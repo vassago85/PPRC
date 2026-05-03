@@ -6,8 +6,8 @@ use App\Filament\Admin\Resources\EmailLogs\Pages\ListEmailLogs;
 use App\Filament\Admin\Resources\EmailLogs\Pages\ViewEmailLog;
 use App\Models\EmailLog;
 use BackedEnum;
-use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -106,7 +106,7 @@ class EmailLogResource extends Resource
                 TextEntry::make('from_email')->label('From')->placeholder('—'),
                 TextEntry::make('from_name')->label('From name')->placeholder('—'),
                 TextEntry::make('subject'),
-            ])->columns(2),
+            ]),
 
             Section::make('Delivery')->schema([
                 TextEntry::make('status')
@@ -120,19 +120,13 @@ class EmailLogResource extends Resource
                 TextEntry::make('sent_at')->label('Sent at')->dateTime('d M Y H:i:s')->placeholder('Not sent'),
                 TextEntry::make('created_at')->label('Queued at')->dateTime('d M Y H:i:s'),
                 TextEntry::make('message_id')->label('Message ID')->copyable()->placeholder('—'),
-                TextEntry::make('mailable_class')
-                    ->label('Mailable class')
-                    ->placeholder('—'),
-                TextEntry::make('error')
-                    ->label('Error')
-                    ->placeholder('No errors')
-                    ->color('danger')
-                    ->columnSpanFull(),
-            ])->columns(2),
+                TextEntry::make('mailable_class')->label('Mailable class')->placeholder('—'),
+                TextEntry::make('error')->label('Error')->placeholder('No errors')->color('danger'),
+            ]),
 
             Section::make('Context')->schema([
                 TextEntry::make('context')
-                    ->label('')
+                    ->label('Payload')
                     ->formatStateUsing(function ($state) {
                         if (empty($state)) {
                             return '—';
@@ -141,7 +135,7 @@ class EmailLogResource extends Resource
 
                         return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '—';
                     })
-                    ->columnSpanFull(),
+                    ->fontFamily('mono'),
             ])->collapsible()->collapsed(),
         ]);
     }
