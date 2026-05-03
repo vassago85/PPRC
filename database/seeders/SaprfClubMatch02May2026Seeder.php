@@ -36,7 +36,10 @@ class SaprfClubMatch02May2026Seeder extends Seeder
             ?? MatchFormat::orderBy('id')->first();
 
         // Clean up any duplicate event created by an earlier (wrong-slug) seed run.
-        Event::where('slug', 'saprf-provincial-pprc-club-match-02-may-2026')->delete();
+        Event::withTrashed()->where('slug', 'saprf-provincial-pprc-club-match-02-may-2026')->forceDelete();
+
+        // Restore soft-deleted event if it exists (updateOrCreate skips trashed rows).
+        Event::withTrashed()->where('slug', self::EVENT_SLUG)->whereNotNull('deleted_at')->restore();
 
         $event = Event::updateOrCreate(
             ['slug' => self::EVENT_SLUG],

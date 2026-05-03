@@ -13,18 +13,9 @@ class MediaDisk
         return self::s3Available() ? 's3' : 'media';
     }
 
-    /**
-     * When S3/R2 is active, return a proxy URL through the app's own domain
-     * instead of the raw R2 pub-*.r2.dev URL, which Brave and ad blockers
-     * refuse to resolve. The MediaProxyController streams the file from R2.
-     */
     public static function url(string $path): string
     {
-        if (self::s3Available()) {
-            return url('/media/'.ltrim($path, '/'));
-        }
-
-        return Storage::disk('media')->url($path);
+        return Storage::disk(self::name())->url($path);
     }
 
     public static function s3Available(): bool
