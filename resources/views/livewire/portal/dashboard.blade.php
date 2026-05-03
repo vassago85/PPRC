@@ -23,7 +23,7 @@
     {{-- Membership card --}}
     <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
         @if ($this->membership)
-            @php($m = $this->membership)
+            @php $m = $this->membership; @endphp
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                     <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Membership</p>
@@ -36,13 +36,15 @@
                     @endif
                 </div>
                 <div class="flex items-center gap-4">
-                    @php($statusColor = match($m->status->color()) {
-                        'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
-                        'warning' => 'bg-amber-500/20 text-amber-400 ring-amber-500/30',
-                        'info'    => 'bg-sky-500/20 text-sky-400 ring-sky-500/30',
-                        'danger'  => 'bg-red-500/20 text-red-400 ring-red-500/30',
-                        default   => 'bg-slate-500/20 text-slate-400 ring-slate-500/30',
-                    })
+                    @php
+                        $statusColor = match($m->status->color()) {
+                            'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
+                            'warning' => 'bg-amber-500/20 text-amber-400 ring-amber-500/30',
+                            'info'    => 'bg-sky-500/20 text-sky-400 ring-sky-500/30',
+                            'danger'  => 'bg-red-500/20 text-red-400 ring-red-500/30',
+                            default   => 'bg-slate-500/20 text-slate-400 ring-slate-500/30',
+                        };
+                    @endphp
                     <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset {{ $statusColor }}">
                         {{ $m->status->label() }}
                     </span>
@@ -66,7 +68,7 @@
 
             {{-- Pending payment: show banking details + upload --}}
             @if ($m->status === App\Enums\MembershipStatus::PendingPayment && $this->pendingPayment)
-                @php($pay = $this->pendingPayment)
+                @php $pay = $this->pendingPayment; @endphp
                 <div class="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
                     <p class="text-sm font-semibold text-amber-300">Payment required</p>
                     <p class="mt-2 text-sm text-slate-300">

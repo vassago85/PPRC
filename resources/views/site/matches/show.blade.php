@@ -212,7 +212,7 @@
             @endphp
             <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 @foreach ($orderedKeys as $squadKey)
-                    @php($entries = $squads[$squadKey])
+                    @php $entries = $squads[$squadKey]; @endphp
                     <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                         <div class="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
                             <h3 class="text-base font-semibold text-white">

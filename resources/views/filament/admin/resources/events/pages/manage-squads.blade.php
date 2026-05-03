@@ -91,7 +91,7 @@
 
         {{-- SQUAD columns --}}
         @foreach ($squadKeys as $squadNumber)
-            @php($entries = $grouped[$squadNumber])
+            @php $entries = $grouped[$squadNumber]; @endphp
             <div class="flex h-full flex-col rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
                 <div class="flex items-baseline justify-between gap-2 border-b border-gray-200 px-4 py-3 dark:border-white/10">
                     <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Squad {{ $squadNumber }}</h3>

@@ -48,7 +48,7 @@
                             <dd class="text-sm font-mono font-medium text-slate-900">{{ $member->membership_number }}</dd>
                         </div>
                     @endif
-                    @php($itemDescription = $endorsement->describeItem())
+                    @php $itemDescription = $endorsement->describeItem(); @endphp
                     @if ($itemDescription !== '')
                         <div class="flex justify-between gap-3">
                             <dt class="text-sm text-slate-500">{{ $endorsement->isComponent() ? 'Component' : 'Firearm' }}</dt>

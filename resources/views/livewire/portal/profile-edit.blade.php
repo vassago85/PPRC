@@ -113,7 +113,7 @@
 
         <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
             <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Profile photo</h2>
-            @php($member = auth()->user()->member)
+            @php $member = auth()->user()->member; @endphp
             <div class="flex items-center gap-6">
                 @if ($photo)
                     <img src="{{ $photo->temporaryUrl() }}" alt="Preview" class="h-16 w-16 rounded-full object-cover ring-2 ring-white/20" />

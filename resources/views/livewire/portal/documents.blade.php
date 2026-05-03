@@ -83,18 +83,20 @@
         @if ($this->endorsements->count())
             <ul class="mt-4 space-y-2">
                 @foreach ($this->endorsements as $e)
-                    @php($itemSummary = $e->describeItem() ?: ($e->firearm_type ?: 'Firearm'))
+                    @php $itemSummary = $e->describeItem() ?: ($e->firearm_type ?: 'Firearm'); @endphp
                     <li class="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3">
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-medium text-white">{{ $itemSummary }} — {{ $e->reason }}</p>
                             <p class="text-xs text-slate-500">Requested {{ $e->created_at->format('d M Y') }}</p>
                         </div>
-                        @php($eColor = match($e->status->color()) {
-                            'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
-                            'warning' => 'bg-amber-500/20 text-amber-400 ring-amber-500/30',
-                            'danger'  => 'bg-red-500/20 text-red-400 ring-red-500/30',
-                            default   => 'bg-slate-500/20 text-slate-400 ring-slate-500/30',
-                        })
+                        @php
+                            $eColor = match($e->status->color()) {
+                                'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
+                                'warning' => 'bg-amber-500/20 text-amber-400 ring-amber-500/30',
+                                'danger'  => 'bg-red-500/20 text-red-400 ring-red-500/30',
+                                default   => 'bg-slate-500/20 text-slate-400 ring-slate-500/30',
+                            };
+                        @endphp
                         <div class="flex items-center gap-3 shrink-0 ml-4">
                             <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset {{ $eColor }}">
                                 {{ $e->status->label() }}

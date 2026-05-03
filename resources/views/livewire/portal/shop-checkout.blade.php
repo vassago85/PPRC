@@ -15,7 +15,7 @@
             <p class="text-sm text-amber-900">You need a member profile linked to your account to order club apparel.</p>
         </div>
     @else
-        @php($o = $this->order)
+        @php $o = $this->order; @endphp
 
         @if (in_array($o->status, [\App\Enums\ShopOrderStatus::Paid, \App\Enums\ShopOrderStatus::Fulfilled], true))
             <div class="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-700">

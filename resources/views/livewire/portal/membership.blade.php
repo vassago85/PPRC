@@ -26,7 +26,7 @@
         {{-- Current membership --}}
         <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
             @if ($this->current)
-                @php($m = $this->current)
+                @php $m = $this->current; @endphp
                 <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Current membership</p>
@@ -38,13 +38,15 @@
                             </p>
                         @endif
                     </div>
-                    @php($statusColor = match($m->status->color()) {
-                        'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
-                        'warning' => 'bg-amber-500/20 text-amber-400 ring-amber-500/30',
-                        'info'    => 'bg-sky-500/20 text-sky-400 ring-sky-500/30',
-                        'danger'  => 'bg-red-500/20 text-red-400 ring-red-500/30',
-                        default   => 'bg-slate-500/20 text-slate-400 ring-slate-500/30',
-                    })
+                    @php
+                        $statusColor = match($m->status->color()) {
+                            'success' => 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/30',
+                            'warning' => 'bg-amber-500/20 text-amber-400 ring-amber-500/30',
+                            'info'    => 'bg-sky-500/20 text-sky-400 ring-sky-500/30',
+                            'danger'  => 'bg-red-500/20 text-red-400 ring-red-500/30',
+                            default   => 'bg-slate-500/20 text-slate-400 ring-slate-500/30',
+                        };
+                    @endphp
                     <span class="inline-flex self-start items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset {{ $statusColor }}">
                         {{ $m->status->label() }}
                     </span>
@@ -87,7 +89,7 @@
 
                 {{-- Pending payment --}}
                 @if ($m->status === App\Enums\MembershipStatus::PendingPayment)
-                    @php($pending = $m->payments->firstWhere('status', App\Enums\PaymentStatus::Pending))
+                    @php $pending = $m->payments->firstWhere('status', App\Enums\PaymentStatus::Pending); @endphp
                     @if ($pending)
                         <div class="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
                             <p class="text-sm font-semibold text-amber-300">Payment required</p>
@@ -168,7 +170,7 @@
                 <p class="mt-1 text-sm text-slate-400">Juniors attached to your membership — free while yours is active.</p>
                 <ul class="mt-4 divide-y divide-white/5 text-sm">
                     @foreach ($this->subMembers as $sub)
-                        @php($sm = $sub->memberships->first())
+                        @php $sm = $sub->memberships->first(); @endphp
                         <li class="py-3 flex items-center justify-between">
                             <div>
                                 <p class="font-medium text-white">{{ $sub->fullName() }}</p>

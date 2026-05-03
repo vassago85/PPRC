@@ -43,7 +43,7 @@
                         @enderror
                         <p class="mt-3 text-sm text-slate-300">
                             Register as <span class="font-medium text-white">{{ $this->member->fullName() }}</span>
-                            @php($fee = $event->effectivePriceCentsFor($this->member))
+                            @php $fee = $event->effectivePriceCentsFor($this->member); @endphp
                             @if ($fee !== null)
                                 <span class="text-slate-500"> · </span>
                                 @if ($viaSaprf)
@@ -73,7 +73,7 @@
                                 @endif
                             </div>
                         @endif
-                        @php($regSelectClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30')
+                        @php $regSelectClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30'; @endphp
                         @if ($event->offersBothCourses())
                             <div class="mt-4 space-y-3 border-t border-white/10 pt-4">
                                 <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Course of fire</p>
@@ -197,7 +197,7 @@
                             <input type="tel" wire:model="guestPhone" class="mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30" />
                             @error('guestPhone') <p class="mt-1 text-xs text-red-300">{{ $message }}</p> @enderror
                         </div>
-                        @php($regSelectClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30')
+                        @php $regSelectClass = 'mt-1.5 w-full rounded-xl border border-white/10 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30'; @endphp
                         @if ($event->offersBothCourses())
                             <div class="space-y-3 border-t border-white/10 pt-4">
                                 <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Course of fire</p>
@@ -269,7 +269,7 @@
                             </label>
                         @endif
 
-                        @php($guestFee = $event->effectivePriceCentsFor(null, $this->canFlagJunior() && $isJunior))
+                        @php $guestFee = $event->effectivePriceCentsFor(null, $this->canFlagJunior() && $isJunior); @endphp
                         @if ($guestFee !== null)
                             <p class="text-sm text-slate-400">
                                 Typical guest entry:
