@@ -38,27 +38,30 @@ class SaprfClubMatch02May2026Seeder extends Seeder
         // Clean up any duplicate event created by an earlier (wrong-slug) seed run.
         Event::withTrashed()->where('slug', 'saprf-provincial-pprc-club-match-02-may-2026')->forceDelete();
 
-        // Restore soft-deleted event if it exists (updateOrCreate skips trashed rows).
-        Event::withTrashed()->where('slug', self::EVENT_SLUG)->whereNotNull('deleted_at')->restore();
+        $attributes = [
+            'match_format_id' => $format?->id,
+            'title' => 'SAPRF Gauteng Provincial and PPRC Club Match 02 May 2026',
+            'summary' => 'Combined SAPRF Gauteng Provincial (60 rounds) and PPRC Club Match (42 rounds), shot on 2 May 2026.',
+            'start_date' => CarbonImmutable::create(2026, 5, 2),
+            'end_date' => CarbonImmutable::create(2026, 5, 2),
+            'location_name' => 'Marloo',
+            'is_saprf_match' => true,
+            'round_count' => 60,
+            'club_round_count' => 42,
+            'status' => EventStatus::Completed,
+            'registrations_open' => false,
+            'published_at' => CarbonImmutable::create(2026, 4, 15),
+            'results_published_at' => CarbonImmutable::create(2026, 5, 3, 12, 0, 0),
+        ];
 
-        $event = Event::updateOrCreate(
-            ['slug' => self::EVENT_SLUG],
-            [
-                'match_format_id' => $format?->id,
-                'title' => 'SAPRF Gauteng Provincial and PPRC Club Match 02 May 2026',
-                'summary' => 'Combined SAPRF Gauteng Provincial (60 rounds) and PPRC Club Match (42 rounds), shot on 2 May 2026.',
-                'start_date' => CarbonImmutable::create(2026, 5, 2),
-                'end_date' => CarbonImmutable::create(2026, 5, 2),
-                'location_name' => 'Marloo',
-                'is_saprf_match' => true,
-                'round_count' => 60,
-                'club_round_count' => 42,
-                'status' => EventStatus::Completed,
-                'registrations_open' => false,
-                'published_at' => CarbonImmutable::create(2026, 4, 15),
-                'results_published_at' => CarbonImmutable::create(2026, 5, 3, 12, 0, 0),
-            ]
-        );
+        $event = Event::withTrashed()->where('slug', self::EVENT_SLUG)->first();
+
+        if ($event) {
+            $event->restore();
+            $event->update($attributes);
+        } else {
+            $event = Event::create(['slug' => self::EVENT_SLUG] + $attributes);
+        }
 
         DB::transaction(function () use ($event) {
             EventResult::where('event_id', $event->id)->delete();
