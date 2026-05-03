@@ -26,6 +26,10 @@ use App\Livewire\Portal\ProfileEdit;
 use App\Livewire\Portal\ShopCheckout;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/media/{path}', \App\Http\Controllers\MediaProxyController::class)
+    ->where('path', '.*')
+    ->name('media.proxy');
+
 Route::get('/', HomeController::class)->name('home');
 
 Route::get('/about', AboutController::class)->name('about');

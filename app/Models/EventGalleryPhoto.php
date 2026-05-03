@@ -32,6 +32,6 @@ class EventGalleryPhoto extends Model
 
     public function publicUrl(): string
     {
-        return Storage::disk(\App\Support\MediaDisk::name())->url($this->path);
+        return \App\Support\MediaDisk::url($this->path);
     }
 }

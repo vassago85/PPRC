@@ -233,7 +233,7 @@ class Event extends Model
             return null;
         }
 
-        return Storage::disk(\App\Support\MediaDisk::name())->url($this->banner_path);
+        return \App\Support\MediaDisk::url($this->banner_path);
     }
 
     public function hasMatchBook(): bool
@@ -295,7 +295,7 @@ class Event extends Model
             return null;
         }
 
-        return Storage::disk(\App\Support\MediaDisk::name())->url($this->match_book_path);
+        return \App\Support\MediaDisk::url($this->match_book_path);
     }
 
     /**
