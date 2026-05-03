@@ -3,14 +3,9 @@
 namespace App\Filament\Admin\Resources\EmailLogs\Pages;
 
 use App\Filament\Admin\Resources\EmailLogs\EmailLogResource;
-use Filament\Resources\Pages\ListRecords;
+use Filament\Resources\Pages\ViewRecord;
 
-class ListEmailLogs extends ListRecords
+class ViewEmailLog extends ViewRecord
 {
     protected static string $resource = EmailLogResource::class;
-
-    public function getHeading(): string
-    {
-        return 'Email log (last 30 days)';
-    }
 }

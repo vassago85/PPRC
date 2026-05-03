@@ -3,11 +3,16 @@
 namespace App\Filament\Admin\Resources\EmailLogs;
 
 use App\Filament\Admin\Resources\EmailLogs\Pages\ListEmailLogs;
+use App\Filament\Admin\Resources\EmailLogs\Pages\ViewEmailLog;
 use App\Models\EmailLog;
 use BackedEnum;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
@@ -45,24 +50,101 @@ class EmailLogResource extends Resource
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->where(
-                'sent_at',
+                'created_at',
                 '>=',
-                now()->subDays(7),
+                now()->subDays(30),
             ))
-            ->defaultSort('sent_at', 'desc')
+            ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('sent_at')->dateTime()->sortable(),
-                TextColumn::make('to_email')->label('To')->searchable(),
-                TextColumn::make('subject')->limit(40)->wrap(),
-                TextColumn::make('mailable_class')->label('Mailable')->limit(36)->toggleable(),
-                TextColumn::make('status')->badge(),
+                TextColumn::make('created_at')
+                    ->label('When')
+                    ->dateTime('d M Y H:i')
+                    ->sortable(),
+                TextColumn::make('to_email')
+                    ->label('To')
+                    ->searchable()
+                    ->copyable()
+                    ->copyMessage('Email copied'),
+                TextColumn::make('subject')
+                    ->limit(50)
+                    ->wrap()
+                    ->searchable(),
+                TextColumn::make('mailable_class')
+                    ->label('Type')
+                    ->formatStateUsing(fn (?string $state) => $state ? class_basename($state) : '—')
+                    ->toggleable(),
+                TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'sent' => 'success',
+                        'failed' => 'danger',
+                        'pending' => 'warning',
+                        default => 'gray',
+                    }),
+                TextColumn::make('error')
+                    ->limit(40)
+                    ->placeholder('—')
+                    ->color('danger')
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                SelectFilter::make('status')
+                    ->options([
+                        'sent' => 'Sent',
+                        'failed' => 'Failed',
+                        'pending' => 'Pending',
+                    ]),
             ]);
+    }
+
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist->schema([
+            Section::make('Envelope')->schema([
+                TextEntry::make('to_email')->label('To')->copyable(),
+                TextEntry::make('to_name')->label('Recipient name')->placeholder('—'),
+                TextEntry::make('from_email')->label('From')->placeholder('—'),
+                TextEntry::make('from_name')->label('From name')->placeholder('—'),
+                TextEntry::make('subject'),
+            ])->columns(2),
+
+            Section::make('Delivery')->schema([
+                TextEntry::make('status')
+                    ->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'sent' => 'success',
+                        'failed' => 'danger',
+                        'pending' => 'warning',
+                        default => 'gray',
+                    }),
+                TextEntry::make('sent_at')->label('Sent at')->dateTime('d M Y H:i:s')->placeholder('Not sent'),
+                TextEntry::make('created_at')->label('Queued at')->dateTime('d M Y H:i:s'),
+                TextEntry::make('message_id')->label('Message ID')->copyable()->placeholder('—'),
+                TextEntry::make('mailable_class')
+                    ->label('Mailable class')
+                    ->placeholder('—'),
+                TextEntry::make('error')
+                    ->label('Error')
+                    ->placeholder('No errors')
+                    ->color('danger')
+                    ->columnSpanFull(),
+            ])->columns(2),
+
+            Section::make('Context')->schema([
+                TextEntry::make('context')
+                    ->label('')
+                    ->formatStateUsing(fn ($state) => $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '—')
+                    ->fontFamily('mono')
+                    ->columnSpanFull(),
+            ])->collapsible()->collapsed(),
+        ]);
     }
 
     public static function getPages(): array
     {
         return [
             'index' => ListEmailLogs::route('/'),
+            'view' => ViewEmailLog::route('/{record}'),
         ];
     }
 }
