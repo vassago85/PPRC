@@ -43,7 +43,9 @@ class ResultsRelationManager extends RelationManager
                         .($record->membership_number ? " ({$record->membership_number})" : ''))
                     ->preload(),
                 TextInput::make('division')->maxLength(80),
-                TextInput::make('class')->maxLength(80),
+                TextInput::make('category')
+                    ->maxLength(80)
+                    ->helperText('e.g. Ladies, Seniors, Juniors. Leave blank for "Open" shooters.'),
                 TextInput::make('rank')->numeric(),
                 TextInput::make('score_hits')->numeric()->label('Hits'),
                 TextInput::make('score_possible')->numeric()->label('Possible'),
@@ -64,7 +66,7 @@ class ResultsRelationManager extends RelationManager
                 TextColumn::make('rank')->sortable(),
                 TextColumn::make('shooter_name')->searchable()->label('Shooter'),
                 TextColumn::make('division')->badge()->toggleable()->searchable(),
-                TextColumn::make('class')->badge()->toggleable(),
+                TextColumn::make('category')->badge()->color('info')->toggleable(),
                 TextColumn::make('score_display')
                     ->label('Score')
                     ->state(fn (EventResult $r) => $r->displayScore()),
@@ -76,7 +78,15 @@ class ResultsRelationManager extends RelationManager
                     ->options(fn () => EventResult::query()
                         ->whereNotNull('division')
                         ->distinct()
+                        ->orderBy('division')
                         ->pluck('division', 'division')
+                        ->all()),
+                SelectFilter::make('category')
+                    ->options(fn () => EventResult::query()
+                        ->whereNotNull('category')
+                        ->distinct()
+                        ->orderBy('category')
+                        ->pluck('category', 'category')
                         ->all()),
             ])
             ->headerActions([
@@ -86,7 +96,7 @@ class ResultsRelationManager extends RelationManager
                     ->color('primary')
                     ->visible(fn () => auth()->user()?->can('results.manage'))
                     ->modalHeading('Upload results CSV')
-                    ->modalDescription('Columns: rank, shooter_name, division, class, member_id, member_email, membership_number, hits, possible, points, percentage, time_ms, dnf, dq, notes. Extra columns are ignored.')
+                    ->modalDescription('Columns: rank, shooter_name, division, category, member_id, member_email, membership_number, hits, possible, points, percentage, time_ms, dnf, dq, notes. The legacy "class" column is still accepted as an alias for category. Extra columns are ignored.')
                     ->schema([
                         FileUpload::make('file')
                             ->label('CSV file')

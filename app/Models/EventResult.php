@@ -13,7 +13,7 @@ class EventResult extends Model
         'member_id',
         'shooter_name',
         'division',
-        'class',
+        'category',
         'rank',
         'score_hits',
         'score_possible',

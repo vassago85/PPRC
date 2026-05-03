@@ -342,38 +342,100 @@
                 <p class="text-slate-300">No results were recorded for this match.</p>
             </x-site.card>
         @else
-            <div class="overflow-hidden rounded-2xl border border-white/10">
-                <table class="min-w-full divide-y divide-white/10 text-sm">
-                    <thead class="bg-white/[0.03] text-left text-xs uppercase tracking-[0.16em] text-slate-400">
-                        <tr>
-                            <th class="px-4 py-3 font-semibold">#</th>
-                            <th class="px-4 py-3 font-semibold">Shooter</th>
-                            <th class="px-4 py-3 font-semibold">Division</th>
-                            <th class="px-4 py-3 font-semibold">Class</th>
-                            <th class="px-4 py-3 text-right font-semibold">Score</th>
-                            <th class="px-4 py-3 text-right font-semibold">%</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-white/5 bg-slate-950/40">
-                        @foreach ($results as $r)
-                            <tr class="hover:bg-white/[0.02]">
-                                <td class="px-4 py-3 font-semibold text-white">{{ $r->rank ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-200">{{ $r->shooter_name }}</td>
-                                <td class="px-4 py-3 text-slate-400">{{ $r->division ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-400">{{ $r->class ?? '—' }}</td>
-                                <td class="px-4 py-3 text-right tabular-nums text-slate-200">{{ $r->displayScore() }}</td>
-                                <td class="px-4 py-3 text-right tabular-nums text-slate-400">
-                                    @if ($r->score_percentage !== null)
-                                        {{ number_format((float) $r->score_percentage, 2) }}%
-                                    @else
-                                        —
-                                    @endif
-                                </td>
+            @php
+                $divisions = $results->pluck('division')->filter()->unique()->sort()->values();
+                $categories = $results->pluck('category')->filter()->unique()->sort()->values();
+
+                $selectedDivision = trim((string) request('division', ''));
+                $selectedCategory = trim((string) request('category', ''));
+
+                $filtered = $results
+                    ->when($selectedDivision !== '', fn ($c) => $c->where('division', $selectedDivision))
+                    ->when($selectedCategory !== '', fn ($c) => $c->where('category', $selectedCategory))
+                    ->values();
+
+                $filterBaseUrl = route('matches.show', ['event' => $event->slug]).'#results';
+            @endphp
+
+            @if ($divisions->isNotEmpty() || $categories->isNotEmpty())
+                <form method="get" action="{{ route('matches.show', ['event' => $event->slug]) }}#results"
+                      class="mb-5 flex flex-wrap items-end gap-3">
+                    @if ($divisions->isNotEmpty())
+                        <label class="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                            Division
+                            <select name="division" onchange="this.form.submit()"
+                                    class="min-w-[10rem] rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
+                                <option value="">All</option>
+                                @foreach ($divisions as $d)
+                                    <option value="{{ $d }}" @selected($selectedDivision === $d)>{{ $d }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    @endif
+                    @if ($categories->isNotEmpty())
+                        <label class="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                            Category
+                            <select name="category" onchange="this.form.submit()"
+                                    class="min-w-[10rem] rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
+                                <option value="">All</option>
+                                @foreach ($categories as $c)
+                                    <option value="{{ $c }}" @selected($selectedCategory === $c)>{{ $c }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                    @endif
+
+                    @if ($selectedDivision !== '' || $selectedCategory !== '')
+                        <a href="{{ $filterBaseUrl }}"
+                           class="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:border-white/25 hover:bg-white/5">
+                            Clear
+                        </a>
+                    @endif
+
+                    <span class="ml-auto self-end text-xs text-slate-500">
+                        {{ $filtered->count() }} of {{ $results->count() }} shooters
+                    </span>
+                </form>
+            @endif
+
+            @if ($filtered->isEmpty())
+                <x-site.card padding="lg" class="text-center border-dashed">
+                    <p class="text-slate-300">No results match the current filter.</p>
+                </x-site.card>
+            @else
+                <div class="overflow-hidden rounded-2xl border border-white/10">
+                    <table class="min-w-full divide-y divide-white/10 text-sm">
+                        <thead class="bg-white/[0.03] text-left text-xs uppercase tracking-[0.16em] text-slate-400">
+                            <tr>
+                                <th class="px-4 py-3 font-semibold">#</th>
+                                <th class="px-4 py-3 font-semibold">Shooter</th>
+                                <th class="px-4 py-3 font-semibold">Division</th>
+                                <th class="px-4 py-3 font-semibold">Category</th>
+                                <th class="px-4 py-3 text-right font-semibold">Score</th>
+                                <th class="px-4 py-3 text-right font-semibold">%</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 bg-slate-950/40">
+                            @foreach ($filtered as $r)
+                                <tr class="hover:bg-white/[0.02]">
+                                    <td class="px-4 py-3 font-semibold text-white">{{ $r->rank ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-slate-200">{{ $r->shooter_name }}</td>
+                                    <td class="px-4 py-3 text-slate-400">{{ $r->division ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-slate-400">{{ $r->category ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums text-slate-200">{{ $r->displayScore() }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums text-slate-400">
+                                        @if ($r->score_percentage !== null)
+                                            {{ number_format((float) $r->score_percentage, 2) }}%
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         @endif
     </x-site.section>
 </x-site.layout>

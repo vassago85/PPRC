@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             MatchFormatsSeeder::class,
             ClubBadgesSeeder::class,
             SiteContentSeeder::class,
+            SaprfClubMatch02May2026Seeder::class,
         ]);
 
         $isProduction = app()->environment('production');

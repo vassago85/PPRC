@@ -106,12 +106,12 @@ class ImportPractiscoreResults extends Command
 
         if ($this->option('dry-run')) {
             $this->table(
-                ['Rank', 'Shooter', 'Division', 'Class', 'Pct', 'Points', 'Hits', 'Possible'],
+                ['Rank', 'Shooter', 'Division', 'Category', 'Pct', 'Points', 'Hits', 'Possible'],
                 array_map(static fn ($r) => [
                     $r['rank'] ?? '—',
                     $r['shooter_name'],
                     $r['division'] ?? '—',
-                    $r['class'] ?? '—',
+                    $r['category'] ?? '—',
                     $r['score_percentage'] !== null ? number_format($r['score_percentage'], 2).'%' : '—',
                     $r['score_points'] ?? '—',
                     $r['score_hits'] ?? '—',
@@ -630,16 +630,22 @@ class ImportPractiscoreResults extends Command
         $dq = (bool) $cell('dq') && in_array(strtolower($cell('dq')), ['1', 'y', 'yes', 'true', 'dq'], true);
         $dnf = (bool) $cell('dnf') && in_array(strtolower($cell('dnf')), ['1', 'y', 'yes', 'true', 'dnf'], true);
 
-        // SAPRF-style exports record the discipline (CSSTO/NSBTO/etc) under
-        // "Class" and gender bracket under "Category". Push the category into
-        // notes so it survives — useful for filtering Junior/Ladies later.
-        $category = $cell('category');
+        // PractiScore mixes shooter categories (Ladies/Seniors/Juniors) into
+        // the same "Div" column as the rifle division (Open/Factory/etc).
+        // Split them so the public results page can filter both axes
+        // independently. The "Class" column from PractiScore is the
+        // discipline code (SAPRFP60R, PPRCCM42R) which we already track on
+        // the Event itself, so we discard it here.
+        [$division, $category] = $this->splitDivisionAndCategory(
+            $cell('division'),
+            $cell('category')
+        );
         $points = self::nullableFloat($cell('points'));
 
         return [
             'shooter_name' => $name,
-            'division' => $cell('division'),
-            'class' => $cell('class'),
+            'division' => $division,
+            'category' => $category,
             'rank' => $rank,
             'score_hits' => self::nullableInt($hits),
             'score_possible' => self::nullableInt($possible),
@@ -648,8 +654,33 @@ class ImportPractiscoreResults extends Command
             'score_time_ms' => $timeMs,
             'dnf' => $dnf,
             'dq' => $dq,
-            'notes' => $category,
+            'notes' => null,
             '_mem_number' => $cell('mem_number'),
+        ];
+    }
+
+    /**
+     * PractiScore SAPRF/PPRC exports stuff shooter category (LADIES, SENIORS,
+     * JUNIORS) into the Division column right next to real divisions
+     * (OPEN, FACTORY, LIMITEDTACTICAL...). Splitting them lets the public
+     * results page filter by both axes independently.
+     *
+     * @return array{0: ?string, 1: ?string} [division, category]
+     */
+    private function splitDivisionAndCategory(?string $rawDivision, ?string $rawCategory): array
+    {
+        $categories = ['LADIES', 'SENIORS', 'JUNIORS', 'MILITARY', 'LAWMAN'];
+
+        $division = $rawDivision !== null ? trim($rawDivision) : null;
+        $category = $rawCategory !== null ? trim($rawCategory) : null;
+
+        if ($division !== null && in_array(strtoupper($division), $categories, true) && $category === null) {
+            return [null, ucfirst(strtolower($division))];
+        }
+
+        return [
+            $division !== '' ? $division : null,
+            $category !== null && $category !== '' ? $category : null,
         ];
     }
 

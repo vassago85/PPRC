@@ -11,8 +11,12 @@ use Illuminate\Support\Facades\DB;
  * Imports event results from a CSV file.
  *
  * Expected headers (case-insensitive, extra cols ignored):
- *   rank, shooter_name, division, class, member_id, member_email,
+ *   rank, shooter_name, division, category, member_id, member_email,
  *   hits, possible, points, percentage, time_ms, dnf, dq, notes
+ *
+ * The legacy "class" header is still accepted as an alias for category so
+ * older PractiScore exports keep importing without the operator renaming
+ * the column by hand.
  *
  * Any of the member_* columns can be used to resolve a PPRC member and link
  * the result back to their profile. If no match is found the shooter_name
@@ -85,7 +89,7 @@ class EventResultsCsvImporter
                 $attrs = [
                     'shooter_name' => $shooterName,
                     'division' => $data['division'] ?? null ?: null,
-                    'class' => $data['class'] ?? null ?: null,
+                    'category' => ($data['category'] ?? $data['class'] ?? null) ?: null,
                     'rank' => self::nullableInt($data['rank'] ?? null),
                     'score_hits' => self::nullableInt($data['hits'] ?? null),
                     'score_possible' => self::nullableInt($data['possible'] ?? null),
