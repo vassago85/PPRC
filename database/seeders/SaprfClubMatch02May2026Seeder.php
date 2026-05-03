@@ -69,6 +69,11 @@ class SaprfClubMatch02May2026Seeder extends Seeder
             foreach ($this->rows() as $row) {
                 [$division, $category] = $this->splitDivisionAndCategory($row['div']);
 
+                // Explicit 'cat' field overrides division-derived category (Ladies, Seniors, Juniors).
+                if (isset($row['cat'])) {
+                    $category = $row['cat'];
+                }
+
                 EventResult::create([
                     'event_id' => $event->id,
                     'member_id' => $this->resolveMemberId($row['mem'], $row['name']),
@@ -92,7 +97,9 @@ class SaprfClubMatch02May2026Seeder extends Seeder
      * Division values carry a "Club - " prefix for PPRC Club Match shooters;
      * splitDivisionAndCategory() strips it and sets category = 'Club'.
      *
-     * @return list<array{rank:int,name:string,mem:?string,div:string,time:float,pts:int,pct:float}>
+     * The optional 'cat' field overrides category for Ladies/Seniors/Juniors.
+     *
+     * @return list<array{rank:int,name:string,mem:?string,div:string,time:float,pts:int,pct:float,cat?:string}>
      */
     private function rows(): array
     {
@@ -101,7 +108,7 @@ class SaprfClubMatch02May2026Seeder extends Seeder
             ['rank' => 2,  'name' => 'Cook, Donovan',               'mem' => null,         'div' => 'Open',                  'time' => 99.00,  'pts' => 52, 'pct' => 100.00],
             ['rank' => 3,  'name' => 'Nel, Johan',                  'mem' => '0046',       'div' => 'Open',                  'time' => 105.00, 'pts' => 50, 'pct' => 96.15],
             ['rank' => 4,  'name' => 'Steyn, Marcel',               'mem' => null,         'div' => 'Open',                  'time' => 96.50,  'pts' => 48, 'pct' => 92.31],
-            ['rank' => 5,  'name' => 'Ferreira, Kim-Leigh',         'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 48, 'pct' => 92.31],
+            ['rank' => 5,  'name' => 'Ferreira, Kim-Leigh',         'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 48, 'pct' => 92.31, 'cat' => 'Ladies'],
             ['rank' => 6,  'name' => 'Ferreira, Russell',           'mem' => null,         'div' => 'Factory',               'time' => 105.00, 'pts' => 44, 'pct' => 84.62],
             ['rank' => 7,  'name' => 'Nel, Hendrik',                'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 42, 'pct' => 80.77],
             ['rank' => 8,  'name' => 'van der Merwe, Schalk',       'mem' => '088',        'div' => 'Open',                  'time' => 103.80, 'pts' => 40, 'pct' => 76.92],
@@ -111,23 +118,23 @@ class SaprfClubMatch02May2026Seeder extends Seeder
             ['rank' => 12, 'name' => 'Cilliers, Franco',            'mem' => '0156',       'div' => 'Open',                  'time' => 105.00, 'pts' => 35, 'pct' => 67.31],
             ['rank' => 13, 'name' => 'Mey, Clive',                  'mem' => null,         'div' => 'Factory',               'time' => 105.00, 'pts' => 35, 'pct' => 67.31],
             ['rank' => 14, 'name' => 'Weideman, Jandre',            'mem' => '0137',       'div' => 'Limited/Tactical',      'time' => 105.00, 'pts' => 35, 'pct' => 67.31],
-            ['rank' => 15, 'name' => 'Graham, Trevor',              'mem' => '063',        'div' => 'Open',                  'time' => 105.00, 'pts' => 32, 'pct' => 61.54],
+            ['rank' => 15, 'name' => 'Graham, Trevor',              'mem' => '063',        'div' => 'Open',                  'time' => 105.00, 'pts' => 32, 'pct' => 61.54, 'cat' => 'Seniors'],
             ['rank' => 16, 'name' => 'Van Wyk, Francois',           'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 32, 'pct' => 61.54],
             ['rank' => 17, 'name' => 'van der Merwe, Stephan',      'mem' => 'PPRC-0147',  'div' => 'Open',                  'time' => 105.00, 'pts' => 31, 'pct' => 59.62],
-            ['rank' => 18, 'name' => 'Lategan, Andries',            'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 30, 'pct' => 57.69],
+            ['rank' => 18, 'name' => 'Lategan, Andries',            'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 30, 'pct' => 57.69, 'cat' => 'Seniors'],
             ['rank' => 19, 'name' => 'Graham, Sean',                'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 30, 'pct' => 57.69],
             ['rank' => 20, 'name' => 'Klopper, Henri',              'mem' => 'PPRC-0008',  'div' => 'Open',                  'time' => 105.00, 'pts' => 30, 'pct' => 57.69],
-            ['rank' => 21, 'name' => 'Mey, Aliza',                  'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 27, 'pct' => 51.92],
+            ['rank' => 21, 'name' => 'Mey, Aliza',                  'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 27, 'pct' => 51.92, 'cat' => 'Ladies'],
             ['rank' => 22, 'name' => 'Ayob, Mohamed',               'mem' => null,         'div' => 'Limited/Tactical',      'time' => 105.00, 'pts' => 26, 'pct' => 50.00],
             ['rank' => 23, 'name' => 'Van Tonder, Jaco',            'mem' => '113',        'div' => 'Club - Open',           'time' => 95.86,  'pts' => 25, 'pct' => 48.08],
             ['rank' => 24, 'name' => 'Swarts, Sean',                'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 24, 'pct' => 46.15],
-            ['rank' => 25, 'name' => 'Du Preez, Danie',             'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 23, 'pct' => 44.23],
+            ['rank' => 25, 'name' => 'Du Preez, Danie',             'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 23, 'pct' => 44.23, 'cat' => 'Seniors'],
             ['rank' => 26, 'name' => 'Le Roux, Justin',             'mem' => null,         'div' => 'Club - Open',           'time' => 98.33,  'pts' => 22, 'pct' => 42.31],
             ['rank' => 27, 'name' => 'du Plessis, Ruan',            'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 20, 'pct' => 38.46],
             ['rank' => 28, 'name' => 'Kruger, Danie',               'mem' => 'PPRC-0150',  'div' => 'Club - Limited/Tactical','time' => 105.00, 'pts' => 18, 'pct' => 34.62],
             ['rank' => 29, 'name' => 'Coetzer, Anton',              'mem' => null,         'div' => 'Club - Open',           'time' => 103.00, 'pts' => 17, 'pct' => 32.69],
             ['rank' => 30, 'name' => 'Badenhorst, Jandre',          'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 16, 'pct' => 30.77],
-            ['rank' => 31, 'name' => 'de Witt, Liné',               'mem' => '389',        'div' => 'Open',                  'time' => 105.00, 'pts' => 16, 'pct' => 30.77],
+            ['rank' => 31, 'name' => 'de Witt, Liné',               'mem' => '389',        'div' => 'Open',                  'time' => 105.00, 'pts' => 16, 'pct' => 30.77, 'cat' => 'Ladies'],
             ['rank' => 32, 'name' => 'Charsley, Paul',              'mem' => '1701',       'div' => 'Open',                  'time' => 105.00, 'pts' => 16, 'pct' => 30.77],
             ['rank' => 33, 'name' => 'Labuschagne, Perey',          'mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 15, 'pct' => 28.85],
             ['rank' => 34, 'name' => 'van der Westhuizen, Andre PJ','mem' => null,         'div' => 'Open',                  'time' => 105.00, 'pts' => 15, 'pct' => 28.85],
