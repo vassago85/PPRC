@@ -10,7 +10,7 @@
 >
     @if ($bannerUrl)
         <div class="relative overflow-hidden">
-            <div class="aspect-[21/9] w-full sm:aspect-[21/7]">
+            <div class="aspect-[21/9] w-full sm:aspect-[3/1]">
                 <img src="{{ $bannerUrl }}" alt="{{ $event->title }}" class="h-full w-full object-cover" />
             </div>
             <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/10"></div>
@@ -172,7 +172,7 @@
             </div>
         @endif
 
-        @if ($event->is_saprf_match)
+        @if ($event->is_saprf_match && ! $event->isFinished())
             <div class="mt-8 overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-5 sm:p-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div class="flex items-start gap-4">
@@ -182,11 +182,11 @@
                         <div>
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">SAPRF-sanctioned match</p>
                             <p class="mt-1 text-sm text-slate-200">
-                                This match counts towards SAPRF rankings. SAPRF members can enter and pay through the SAPRF portal — entry is still free of charge to PPRC for SAPRF entries.
+                                This match counts towards SAPRF rankings. SAPRF members can enter and pay through the SAPRF portal.
                             </p>
                         </div>
                     </div>
-                    @if ($event->saprf_url && ! $event->isFinished())
+                    @if ($event->saprf_url)
                         <a href="{{ $event->saprf_url }}" target="_blank" rel="noopener"
                            class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-md transition hover:bg-amber-400">
                             Register on SAPRF
@@ -317,7 +317,7 @@
                         <tbody class="divide-y divide-white/5 bg-slate-950/40">
                             @foreach ($filtered as $r)
                                 <tr class="hover:bg-white/[0.02]">
-                                    <td class="px-4 py-3 font-semibold text-white">{{ $r->rank ?? '—' }}</td>
+                                    <td class="px-4 py-3 font-semibold text-white">{{ $hasActiveFilter ? $loop->iteration : ($r->rank ?? '—') }}</td>
                                     <td class="px-4 py-3 text-slate-200">{{ $r->shooter_name }}</td>
                                     <td class="px-4 py-3 text-slate-400">{{ $r->division ?? '—' }}</td>
                                     <td class="px-4 py-3 text-slate-400">{{ $r->category ?? '—' }}</td>

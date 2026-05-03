@@ -3,18 +3,17 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Admin\Pages\Dashboard;
-use App\Filament\Admin\Widgets\ActionRequiredWidget;
-use App\Filament\Admin\Widgets\MatchDirectorStatsWidget;
-use App\Filament\Admin\Widgets\MembershipSecretaryStatsWidget;
-use App\Filament\Admin\Widgets\PrimaryKpiWidget;
-use App\Filament\Admin\Widgets\RecentMembershipPaymentsWidget;
-use App\Filament\Admin\Widgets\SecretaryStatsWidget;
-use App\Filament\Admin\Widgets\TreasurerStatsWidget;
+use App\Filament\Admin\Widgets\MatchesOverviewWidget;
+use App\Filament\Admin\Widgets\MembershipOverviewWidget;
+use App\Filament\Admin\Widgets\NeedsAttentionWidget;
+use App\Filament\Admin\Widgets\PaymentsOverviewWidget;
+use App\Filament\Admin\Widgets\RecentActivityWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
+use Filament\Navigation\NavigationGroup;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -48,23 +47,26 @@ class AdminPanelProvider extends PanelProvider
             // Custom CSS layer for premium SaaS chrome (typography, shadows,
             // dark active nav item, table polish, etc.).
             ->viteTheme('resources/css/filament/admin/theme.css')
+            ->navigationGroups([
+                NavigationGroup::make('Communications'),
+                NavigationGroup::make('Matches'),
+                NavigationGroup::make('Members'),
+                NavigationGroup::make('Shop'),
+                NavigationGroup::make('Website'),
+                NavigationGroup::make('System'),
+            ])
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\Filament\Admin\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\Filament\Admin\Pages')
             ->pages([
                 Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\Filament\Admin\Widgets')
-            // Widget order on the dashboard (lower sort = earlier). Each
-            // widget also declares its own ::$sort, but listing them here
-            // gives a single canonical order to read at a glance.
             ->widgets([
-                PrimaryKpiWidget::class,
-                ActionRequiredWidget::class,
-                TreasurerStatsWidget::class,
-                MembershipSecretaryStatsWidget::class,
-                MatchDirectorStatsWidget::class,
-                SecretaryStatsWidget::class,
-                RecentMembershipPaymentsWidget::class,
+                NeedsAttentionWidget::class,
+                MatchesOverviewWidget::class,
+                MembershipOverviewWidget::class,
+                PaymentsOverviewWidget::class,
+                RecentActivityWidget::class,
             ])
             ->userMenuItems([
                 MenuItem::make()

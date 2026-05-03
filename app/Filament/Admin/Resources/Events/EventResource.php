@@ -9,6 +9,7 @@ use App\Filament\Admin\Resources\Events\Pages\ManageSquads;
 use App\Filament\Admin\Resources\Events\RelationManagers\GalleryPhotosRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\RegistrationsRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\ResultsRelationManager;
+use App\Enums\EventStatus;
 use App\Filament\Admin\Resources\Events\Schemas\EventForm;
 use App\Filament\Admin\Resources\Events\Tables\EventsTable;
 use App\Models\Event;
@@ -45,6 +46,29 @@ class EventResource extends Resource
     public static function shouldRegisterNavigation(): bool
     {
         return static::canViewAny();
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Event::query()
+            ->where('status', EventStatus::Draft->value)
+            ->count()
+            + Event::query()
+                ->where('status', EventStatus::Completed->value)
+                ->whereNull('results_published_at')
+                ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Matches needing action';
     }
 
     public static function getGloballySearchableAttributes(): array
