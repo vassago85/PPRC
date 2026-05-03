@@ -133,8 +133,14 @@ class EmailLogResource extends Resource
             Section::make('Context')->schema([
                 TextEntry::make('context')
                     ->label('')
-                    ->formatStateUsing(fn ($state) => $state ? json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '—')
-                    ->fontFamily('mono')
+                    ->formatStateUsing(function ($state) {
+                        if (empty($state)) {
+                            return '—';
+                        }
+                        $data = $state instanceof \ArrayAccess ? (array) $state : $state;
+
+                        return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '—';
+                    })
                     ->columnSpanFull(),
             ])->collapsible()->collapsed(),
         ]);
