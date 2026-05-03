@@ -29,12 +29,15 @@ use Illuminate\Support\Facades\DB;
  */
 class SaprfClubMatch02May2026Seeder extends Seeder
 {
-    private const EVENT_SLUG = 'saprf-provincial-pprc-club-match-02-may-2026';
+    private const EVENT_SLUG = 'pprc-club-and-saprf-provincial';
 
     public function run(): void
     {
         $format = MatchFormat::where('slug', 'prs-centerfire')->first()
             ?? MatchFormat::orderBy('id')->first();
+
+        // Clean up any duplicate event created by an earlier (wrong-slug) seed run.
+        Event::where('slug', 'saprf-provincial-pprc-club-match-02-may-2026')->delete();
 
         $event = Event::updateOrCreate(
             ['slug' => self::EVENT_SLUG],
