@@ -44,7 +44,7 @@ class SaprfClubMatch02May2026Seeder extends Seeder
                 'summary' => 'Combined SAPRF Provincial (60 rounds) and PPRC Club Match (42 rounds), shot on 2 May 2026.',
                 'start_date' => CarbonImmutable::create(2026, 5, 2),
                 'end_date' => CarbonImmutable::create(2026, 5, 2),
-                'location_name' => "Leopard's Valley",
+                'location_name' => 'Marloo',
                 'is_saprf_match' => true,
                 'round_count' => 60,
                 'club_round_count' => 42,
