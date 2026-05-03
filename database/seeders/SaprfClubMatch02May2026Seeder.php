@@ -24,8 +24,11 @@ use Illuminate\Support\Facades\DB;
  * - PractiScore "Div" column mixes division (Open/Factory/...) and category
  *   (Ladies/Seniors). We split them into the dedicated columns so the
  *   public results filter can work on both axes independently.
- * - The "Class" column from PractiScore (SAPRFP60R / PPRCCM42R) is the
- *   course code and lives on the Event itself, not on each result row.
+ * - The "Class" column from PractiScore distinguishes the two courses:
+ *     SAPRFP60R = SAPRF Provincial (full, 60 rounds)
+ *     PPRCCM42R = PPRC Club Match  (club, 42 rounds)
+ *   We carry it as `course` on each row and force category = 'Club' for
+ *   the club-course shooters so the public results filter can isolate them.
  */
 class SaprfClubMatch02May2026Seeder extends Seeder
 {
@@ -64,6 +67,13 @@ class SaprfClubMatch02May2026Seeder extends Seeder
             foreach ($this->rows() as $row) {
                 [$division, $category] = $this->splitDivisionAndCategory($row['div']);
 
+                // Club-course shooters all collapse into a single "Club"
+                // category for filtering. The Div column then only carries
+                // the division (Open / Factory / Limited Tactical / ...).
+                if (($row['course'] ?? 'full') === 'club') {
+                    $category = 'Club';
+                }
+
                 EventResult::create([
                     'event_id' => $event->id,
                     'member_id' => $this->resolveMemberId($row['mem'], $row['name']),
@@ -84,58 +94,62 @@ class SaprfClubMatch02May2026Seeder extends Seeder
     /**
      * Source data, exactly as exported from DeadCenter, ranked 1..n.
      *
-     * @return list<array{rank:int,name:string,mem:?string,div:string,time:float,pts:float,pct:float}>
+     * `course` mirrors the PractiScore "Class" column:
+     *   'full' = SAPRFP60R (60-round SAPRF Provincial)
+     *   'club' = PPRCCM42R (42-round PPRC Club Match)
+     *
+     * @return list<array{rank:int,name:string,mem:?string,div:string,course:string,time:float,pts:float,pct:float}>
      */
     private function rows(): array
     {
         return [
-            ['rank' => 1,  'name' => 'Goosen, Leon',                'mem' => '3',          'div' => 'OPEN',                  'time' => 91.02,  'pts' => 52, 'pct' => 100.00],
-            ['rank' => 2,  'name' => 'Cook, Donovan',               'mem' => null,         'div' => 'OPEN',                  'time' => 99.00,  'pts' => 52, 'pct' => 100.00],
-            ['rank' => 3,  'name' => 'Nel, Johan',                  'mem' => '0046',       'div' => 'OPEN',                  'time' => 1.05,   'pts' => 50, 'pct' => 96.15],
-            ['rank' => 4,  'name' => 'Ferreira, Kim-Leigh',         'mem' => null,         'div' => 'LADIES',                'time' => 105.00, 'pts' => 49, 'pct' => 94.23],
-            ['rank' => 5,  'name' => 'Steyn, Marcel',               'mem' => null,         'div' => 'OPEN',                  'time' => 96.50,  'pts' => 48, 'pct' => 92.31],
-            ['rank' => 6,  'name' => 'Ferreira, Russell',           'mem' => null,         'div' => 'FACTORY',               'time' => 102.61, 'pts' => 44, 'pct' => 84.62],
-            ['rank' => 7,  'name' => 'Nel, Hendrik',                'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 42, 'pct' => 80.77],
-            ['rank' => 8,  'name' => 'van der Merwe, Schalk',       'mem' => '088',        'div' => 'OPEN',                  'time' => 1.03,   'pts' => 40, 'pct' => 76.92],
-            ['rank' => 9,  'name' => 'Leeson, Chris',               'mem' => null,         'div' => 'FACTORY',               'time' => 1.05,   'pts' => 40, 'pct' => 76.92],
-            ['rank' => 10, 'name' => 'Pretorius, Chris',            'mem' => '0173',       'div' => 'OPEN',                  'time' => 1.03,   'pts' => 38, 'pct' => 73.08],
-            ['rank' => 11, 'name' => 'Pio, Dirk',                   'mem' => '1',          'div' => 'OPEN',                  'time' => 102.70, 'pts' => 38, 'pct' => 73.08],
-            ['rank' => 12, 'name' => 'Weideman, Jandre',            'mem' => '0137',       'div' => 'LIMITEDTACTICAL223308', 'time' => 1.05,   'pts' => 36, 'pct' => 69.23],
-            ['rank' => 13, 'name' => 'Mey, Clive',                  'mem' => null,         'div' => 'FACTORY',               'time' => 1.05,   'pts' => 35, 'pct' => 67.31],
-            ['rank' => 14, 'name' => 'Cilliers, Franco',            'mem' => '0156',       'div' => 'OPEN',                  'time' => 105.00, 'pts' => 35, 'pct' => 67.31],
-            ['rank' => 15, 'name' => 'wyk, Francois Van',           'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 32, 'pct' => 61.54],
-            ['rank' => 16, 'name' => 'Graham, Sean',                'mem' => null,         'div' => 'OPEN',                  'time' => 1.05,   'pts' => 31, 'pct' => 59.62],
-            ['rank' => 17, 'name' => 'Graham, Trevor',              'mem' => '063',        'div' => 'SENIORS',               'time' => 1.05,   'pts' => 30, 'pct' => 57.69],
-            ['rank' => 18, 'name' => 'Lategan, Andries',            'mem' => null,         'div' => 'SENIORS',               'time' => 105.00, 'pts' => 30, 'pct' => 57.69],
-            ['rank' => 19, 'name' => 'Klopper, Henri',              'mem' => 'PPRC-0008',  'div' => 'OPEN',                  'time' => 105.00, 'pts' => 29, 'pct' => 55.77],
-            ['rank' => 20, 'name' => 'van der Merwe, Stephan',      'mem' => 'PPRC-0147',  'div' => 'OPEN',                  'time' => 105.00, 'pts' => 29, 'pct' => 55.77],
-            ['rank' => 21, 'name' => 'Mey, Aliza',                  'mem' => null,         'div' => 'LADIES',                'time' => 1.05,   'pts' => 27, 'pct' => 51.92],
-            ['rank' => 22, 'name' => 'Van Tonder, Jaco',            'mem' => '113',        'div' => 'OPEN',                  'time' => 95.86,  'pts' => 26, 'pct' => 50.00],
-            ['rank' => 23, 'name' => 'Ayob, Mohamed',               'mem' => null,         'div' => 'LIMITEDTACTICAL223308', 'time' => 1.05,   'pts' => 26, 'pct' => 50.00],
-            ['rank' => 24, 'name' => 'Badenhorst, Jandre',          'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 24, 'pct' => 46.15],
-            ['rank' => 25, 'name' => 'Swarts, Sean',                'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 24, 'pct' => 46.15],
-            ['rank' => 26, 'name' => 'Du Preez, Danie',             'mem' => null,         'div' => 'SENIORS',               'time' => 105.00, 'pts' => 23, 'pct' => 44.23],
-            ['rank' => 27, 'name' => 'Le roux, Justin',             'mem' => null,         'div' => 'OPEN',                  'time' => 98.33,  'pts' => 22, 'pct' => 42.31],
-            ['rank' => 28, 'name' => 'du Plessis, Ruan',            'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 20, 'pct' => 38.46],
-            ['rank' => 29, 'name' => 'Kruger, Danie',               'mem' => 'PPRC-0150',  'div' => 'OPEN',                  'time' => 105.00, 'pts' => 18, 'pct' => 34.62],
-            ['rank' => 30, 'name' => 'Coetzer, Anton',              'mem' => null,         'div' => 'OPEN',                  'time' => 103.00, 'pts' => 17, 'pct' => 32.69],
-            ['rank' => 31, 'name' => 'de Witt, Liné',               'mem' => '389',        'div' => 'LADIES',                'time' => 1.05,   'pts' => 16, 'pct' => 30.77],
-            ['rank' => 32, 'name' => 'Niemand, Pieter',             'mem' => 'PPRC-0090',  'div' => 'LIMITEDTACTICAL223308', 'time' => 1.05,   'pts' => 16, 'pct' => 30.77],
-            ['rank' => 33, 'name' => 'Charsley, Paul',              'mem' => '1701',       'div' => 'OPEN',                  'time' => 105.00, 'pts' => 16, 'pct' => 30.77],
-            ['rank' => 34, 'name' => 'Labuschagne, perey',          'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 15, 'pct' => 28.85],
-            ['rank' => 35, 'name' => 'Janse van Rensburg, Steven',  'mem' => 'PPRC-0134',  'div' => 'SENIORS',               'time' => 105.00, 'pts' => 14, 'pct' => 26.92],
-            ['rank' => 36, 'name' => 'van der Westhuizen, Andre PJ','mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 14, 'pct' => 26.92],
-            ['rank' => 37, 'name' => 'Jatho, Rob',                  'mem' => 'PPRC-0141',  'div' => 'OPEN',                  'time' => 105.00, 'pts' => 13, 'pct' => 25.00],
-            ['rank' => 38, 'name' => 'Glynn, Neville',              'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 12, 'pct' => 23.08],
-            ['rank' => 39, 'name' => 'Andrews, Michael',            'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' => 10, 'pct' => 19.23],
-            ['rank' => 40, 'name' => 'Janse van Rensburg, Adrian',  'mem' => 'PPRC-0135',  'div' => 'SENIORS',               'time' => 105.00, 'pts' => 10, 'pct' => 19.23],
-            ['rank' => 41, 'name' => 'Wessels, Tiaan',              'mem' => 'PPRC-0116',  'div' => 'OPEN',                  'time' => 105.00, 'pts' =>  8, 'pct' => 15.38],
-            ['rank' => 42, 'name' => 'Klopper, Tiaan',              'mem' => null,         'div' => 'LIMITEDTACTICAL223308', 'time' => 105.00, 'pts' =>  8, 'pct' => 15.38],
-            ['rank' => 43, 'name' => 'de Kock, Francois',           'mem' => 'PPRC-0154',  'div' => 'OPEN',                  'time' => 105.00, 'pts' =>  8, 'pct' => 15.38],
-            ['rank' => 44, 'name' => 'Arbee, Ismail',               'mem' => 'PPRC-0151',  'div' => 'OPEN',                  'time' => 105.00, 'pts' =>  5, 'pct' =>  9.62],
-            ['rank' => 45, 'name' => 'van Staden, Leonard',         'mem' => null,         'div' => 'OPEN',                  'time' => 105.00, 'pts' =>  4, 'pct' =>  7.69],
-            ['rank' => 46, 'name' => 'Gurovich, Juro',              'mem' => null,         'div' => 'LIMITEDTACTICAL223308', 'time' => 105.00, 'pts' =>  4, 'pct' =>  7.69],
-            ['rank' => 47, 'name' => 'Smit, Gerhard',               'mem' => 'PPRC-0168',  'div' => 'OPEN',                  'time' => 105.00, 'pts' =>  0, 'pct' =>  0.00],
+            ['rank' => 1,  'name' => 'Goosen, Leon',                'mem' => '3',          'div' => 'OPEN',                  'course' => 'full', 'time' => 91.02,  'pts' => 52, 'pct' => 100.00],
+            ['rank' => 2,  'name' => 'Cook, Donovan',               'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 99.00,  'pts' => 52, 'pct' => 100.00],
+            ['rank' => 3,  'name' => 'Nel, Johan',                  'mem' => '0046',       'div' => 'OPEN',                  'course' => 'full', 'time' => 1.05,   'pts' => 50, 'pct' => 96.15],
+            ['rank' => 4,  'name' => 'Ferreira, Kim-Leigh',         'mem' => null,         'div' => 'LADIES',                'course' => 'full', 'time' => 105.00, 'pts' => 49, 'pct' => 94.23],
+            ['rank' => 5,  'name' => 'Steyn, Marcel',               'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 96.50,  'pts' => 48, 'pct' => 92.31],
+            ['rank' => 6,  'name' => 'Ferreira, Russell',           'mem' => null,         'div' => 'FACTORY',               'course' => 'full', 'time' => 102.61, 'pts' => 44, 'pct' => 84.62],
+            ['rank' => 7,  'name' => 'Nel, Hendrik',                'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 42, 'pct' => 80.77],
+            ['rank' => 8,  'name' => 'van der Merwe, Schalk',       'mem' => '088',        'div' => 'OPEN',                  'course' => 'full', 'time' => 1.03,   'pts' => 40, 'pct' => 76.92],
+            ['rank' => 9,  'name' => 'Leeson, Chris',               'mem' => null,         'div' => 'FACTORY',               'course' => 'full', 'time' => 1.05,   'pts' => 40, 'pct' => 76.92],
+            ['rank' => 10, 'name' => 'Pretorius, Chris',            'mem' => '0173',       'div' => 'OPEN',                  'course' => 'full', 'time' => 1.03,   'pts' => 38, 'pct' => 73.08],
+            ['rank' => 11, 'name' => 'Pio, Dirk',                   'mem' => '1',          'div' => 'OPEN',                  'course' => 'full', 'time' => 102.70, 'pts' => 38, 'pct' => 73.08],
+            ['rank' => 12, 'name' => 'Weideman, Jandre',            'mem' => '0137',       'div' => 'LIMITEDTACTICAL223308', 'course' => 'full', 'time' => 1.05,   'pts' => 36, 'pct' => 69.23],
+            ['rank' => 13, 'name' => 'Mey, Clive',                  'mem' => null,         'div' => 'FACTORY',               'course' => 'full', 'time' => 1.05,   'pts' => 35, 'pct' => 67.31],
+            ['rank' => 14, 'name' => 'Cilliers, Franco',            'mem' => '0156',       'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 35, 'pct' => 67.31],
+            ['rank' => 15, 'name' => 'wyk, Francois Van',           'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 32, 'pct' => 61.54],
+            ['rank' => 16, 'name' => 'Graham, Sean',                'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 1.05,   'pts' => 31, 'pct' => 59.62],
+            ['rank' => 17, 'name' => 'Graham, Trevor',              'mem' => '063',        'div' => 'SENIORS',               'course' => 'full', 'time' => 1.05,   'pts' => 30, 'pct' => 57.69],
+            ['rank' => 18, 'name' => 'Lategan, Andries',            'mem' => null,         'div' => 'SENIORS',               'course' => 'full', 'time' => 105.00, 'pts' => 30, 'pct' => 57.69],
+            ['rank' => 19, 'name' => 'Klopper, Henri',              'mem' => 'PPRC-0008',  'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 29, 'pct' => 55.77],
+            ['rank' => 20, 'name' => 'van der Merwe, Stephan',      'mem' => 'PPRC-0147',  'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 29, 'pct' => 55.77],
+            ['rank' => 21, 'name' => 'Mey, Aliza',                  'mem' => null,         'div' => 'LADIES',                'course' => 'full', 'time' => 1.05,   'pts' => 27, 'pct' => 51.92],
+            ['rank' => 22, 'name' => 'Van Tonder, Jaco',            'mem' => '113',        'div' => 'OPEN',                  'course' => 'club', 'time' => 95.86,  'pts' => 26, 'pct' => 50.00],
+            ['rank' => 23, 'name' => 'Ayob, Mohamed',               'mem' => null,         'div' => 'LIMITEDTACTICAL223308', 'course' => 'full', 'time' => 1.05,   'pts' => 26, 'pct' => 50.00],
+            ['rank' => 24, 'name' => 'Badenhorst, Jandre',          'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 24, 'pct' => 46.15],
+            ['rank' => 25, 'name' => 'Swarts, Sean',                'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 24, 'pct' => 46.15],
+            ['rank' => 26, 'name' => 'Du Preez, Danie',             'mem' => null,         'div' => 'SENIORS',               'course' => 'full', 'time' => 105.00, 'pts' => 23, 'pct' => 44.23],
+            ['rank' => 27, 'name' => 'Le roux, Justin',             'mem' => null,         'div' => 'OPEN',                  'course' => 'club', 'time' => 98.33,  'pts' => 22, 'pct' => 42.31],
+            ['rank' => 28, 'name' => 'du Plessis, Ruan',            'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 20, 'pct' => 38.46],
+            ['rank' => 29, 'name' => 'Kruger, Danie',               'mem' => 'PPRC-0150',  'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' => 18, 'pct' => 34.62],
+            ['rank' => 30, 'name' => 'Coetzer, Anton',              'mem' => null,         'div' => 'OPEN',                  'course' => 'club', 'time' => 103.00, 'pts' => 17, 'pct' => 32.69],
+            ['rank' => 31, 'name' => 'de Witt, Liné',               'mem' => '389',        'div' => 'LADIES',                'course' => 'full', 'time' => 1.05,   'pts' => 16, 'pct' => 30.77],
+            ['rank' => 32, 'name' => 'Niemand, Pieter',             'mem' => 'PPRC-0090',  'div' => 'LIMITEDTACTICAL223308', 'course' => 'full', 'time' => 1.05,   'pts' => 16, 'pct' => 30.77],
+            ['rank' => 33, 'name' => 'Charsley, Paul',              'mem' => '1701',       'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 16, 'pct' => 30.77],
+            ['rank' => 34, 'name' => 'Labuschagne, perey',          'mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 15, 'pct' => 28.85],
+            ['rank' => 35, 'name' => 'Janse van Rensburg, Steven',  'mem' => 'PPRC-0134',  'div' => 'SENIORS',               'course' => 'club', 'time' => 105.00, 'pts' => 14, 'pct' => 26.92],
+            ['rank' => 36, 'name' => 'van der Westhuizen, Andre PJ','mem' => null,         'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' => 14, 'pct' => 26.92],
+            ['rank' => 37, 'name' => 'Jatho, Rob',                  'mem' => 'PPRC-0141',  'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' => 13, 'pct' => 25.00],
+            ['rank' => 38, 'name' => 'Glynn, Neville',              'mem' => null,         'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' => 12, 'pct' => 23.08],
+            ['rank' => 39, 'name' => 'Andrews, Michael',            'mem' => null,         'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' => 10, 'pct' => 19.23],
+            ['rank' => 40, 'name' => 'Janse van Rensburg, Adrian',  'mem' => 'PPRC-0135',  'div' => 'SENIORS',               'course' => 'club', 'time' => 105.00, 'pts' => 10, 'pct' => 19.23],
+            ['rank' => 41, 'name' => 'Wessels, Tiaan',              'mem' => 'PPRC-0116',  'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' =>  8, 'pct' => 15.38],
+            ['rank' => 42, 'name' => 'Klopper, Tiaan',              'mem' => null,         'div' => 'LIMITEDTACTICAL223308', 'course' => 'club', 'time' => 105.00, 'pts' =>  8, 'pct' => 15.38],
+            ['rank' => 43, 'name' => 'de Kock, Francois',           'mem' => 'PPRC-0154',  'div' => 'OPEN',                  'course' => 'full', 'time' => 105.00, 'pts' =>  8, 'pct' => 15.38],
+            ['rank' => 44, 'name' => 'Arbee, Ismail',               'mem' => 'PPRC-0151',  'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' =>  5, 'pct' =>  9.62],
+            ['rank' => 45, 'name' => 'van Staden, Leonard',         'mem' => null,         'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' =>  4, 'pct' =>  7.69],
+            ['rank' => 46, 'name' => 'Gurovich, Juro',              'mem' => null,         'div' => 'LIMITEDTACTICAL223308', 'course' => 'club', 'time' => 105.00, 'pts' =>  4, 'pct' =>  7.69],
+            ['rank' => 47, 'name' => 'Smit, Gerhard',               'mem' => 'PPRC-0168',  'div' => 'OPEN',                  'course' => 'club', 'time' => 105.00, 'pts' =>  0, 'pct' =>  0.00],
         ];
     }
 
