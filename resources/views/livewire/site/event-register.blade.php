@@ -93,7 +93,7 @@
                                 @if ($event->collectsDivisionAtRegistration())
                                     <div>
                                         <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Division</label>
-                                        <select wire:model="division" @required($event->collectsDivisionAtRegistration()) class="{{ $regSelectClass }}">
+                                        <select wire:model="division" {{ $event->collectsDivisionAtRegistration() ? 'required' : '' }} class="{{ $regSelectClass }}">
                                             <option value="">Select…</option>
                                             @foreach ($event->registrationDivisionChoices() as $d)
                                                 <option value="{{ $d }}">{{ $d }}</option>
@@ -105,7 +105,7 @@
                                 @if ($event->collectsCategoryAtRegistration())
                                     <div>
                                         <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Category</label>
-                                        <select wire:model="category" @required($event->collectsCategoryAtRegistration()) class="{{ $regSelectClass }}">
+                                        <select wire:model="category" {{ $event->collectsCategoryAtRegistration() ? 'required' : '' }} class="{{ $regSelectClass }}">
                                             <option value="">Select…</option>
                                             @foreach ($event->registrationCategoryChoices() as $c)
                                                 <option value="{{ $c }}">{{ $c }}</option>
@@ -120,7 +120,7 @@
                             type="button"
                             wire:click="registerMember"
                             wire:loading.attr="disabled"
-                            @disabled(! $event->isRegistrationOpen())
+                            {{ $event->isRegistrationOpen() ? '' : 'disabled' }}
                             class="btn-brand mt-5 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             <span wire:loading.remove wire:target="registerMember">Register me</span>
@@ -217,7 +217,7 @@
                                 @if ($event->collectsDivisionAtRegistration())
                                     <div>
                                         <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Division</label>
-                                        <select wire:model="division" @required($event->collectsDivisionAtRegistration()) class="{{ $regSelectClass }}">
+                                        <select wire:model="division" {{ $event->collectsDivisionAtRegistration() ? 'required' : '' }} class="{{ $regSelectClass }}">
                                             <option value="">Select…</option>
                                             @foreach ($event->registrationDivisionChoices() as $d)
                                                 <option value="{{ $d }}">{{ $d }}</option>
@@ -229,7 +229,7 @@
                                 @if ($event->collectsCategoryAtRegistration())
                                     <div>
                                         <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Category</label>
-                                        <select wire:model="category" @required($event->collectsCategoryAtRegistration()) class="{{ $regSelectClass }}">
+                                        <select wire:model="category" {{ $event->collectsCategoryAtRegistration() ? 'required' : '' }} class="{{ $regSelectClass }}">
                                             <option value="">Select…</option>
                                             @foreach ($event->registrationCategoryChoices() as $c)
                                                 <option value="{{ $c }}">{{ $c }}</option>
@@ -290,7 +290,7 @@
                             type="button"
                             wire:click="sendGuestPin"
                             wire:loading.attr="disabled"
-                            @disabled(! $event->isRegistrationOpen())
+                            {{ $event->isRegistrationOpen() ? '' : 'disabled' }}
                             class="w-full rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                         >
                             <span wire:loading.remove wire:target="sendGuestPin">Email me a code &amp; continue</span>

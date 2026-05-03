@@ -367,7 +367,7 @@
                                     class="min-w-[10rem] rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
                                 <option value="">All</option>
                                 @foreach ($divisions as $d)
-                                    <option value="{{ $d }}" @selected($selectedDivision === $d)>{{ $d }}</option>
+                                    <option value="{{ $d }}" {{ $selectedDivision === $d ? 'selected' : '' }}>{{ $d }}</option>
                                 @endforeach
                             </select>
                         </label>
@@ -379,7 +379,7 @@
                                     class="min-w-[10rem] rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
                                 <option value="">All</option>
                                 @foreach ($categories as $c)
-                                    <option value="{{ $c }}" @selected($selectedCategory === $c)>{{ $c }}</option>
+                                    <option value="{{ $c }}" {{ $selectedCategory === $c ? 'selected' : '' }}>{{ $c }}</option>
                                 @endforeach
                             </select>
                         </label>

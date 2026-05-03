@@ -49,6 +49,11 @@ if [ "$ROLE" = "app" ]; then
     echo "[entrypoint] Warming caches..."
     php artisan config:cache   || true
     php artisan route:cache    || true
+    # storage/ is a persistent docker volume, so stale compiled blades
+    # from a previous image survive container recreates. Always clear
+    # before re-warming, otherwise a buggy old compile keeps haunting
+    # us (was the cause of "unexpected token class" 500s on /matches/...).
+    php artisan view:clear     || true
     php artisan view:cache     || true
     php artisan event:cache    || true
     php artisan storage:link   || true
