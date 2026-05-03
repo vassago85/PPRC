@@ -234,13 +234,18 @@
 
                 $selectedDivision = trim((string) request('division', ''));
                 $selectedCategory = trim((string) request('category', ''));
+                // "Open only" hides everyone with a sub-category (Ladies, Seniors,
+                // Juniors, Club, ...) so the user can isolate the "Open men" group.
+                $openOnly = request()->boolean('open_only');
 
                 $filtered = $results
                     ->when($selectedDivision !== '', fn ($c) => $c->where('division', $selectedDivision))
                     ->when($selectedCategory !== '', fn ($c) => $c->where('category', $selectedCategory))
+                    ->when($openOnly, fn ($c) => $c->whereNull('category'))
                     ->values();
 
                 $filterBaseUrl = route('matches.show', ['event' => $event->slug]).'#results';
+                $hasActiveFilter = $selectedDivision !== '' || $selectedCategory !== '' || $openOnly;
             @endphp
 
             @if ($divisions->isNotEmpty() || $categories->isNotEmpty())
@@ -261,8 +266,8 @@
                     @if ($categories->isNotEmpty())
                         <label class="flex flex-col gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
                             Category
-                            <select name="category" onchange="this.form.submit()"
-                                    class="min-w-[10rem] rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30">
+                            <select name="category" {{ $openOnly ? 'disabled' : '' }} onchange="this.form.submit()"
+                                    class="min-w-[10rem] rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-brand-400/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-40 disabled:cursor-not-allowed">
                                 <option value="">All</option>
                                 @foreach ($categories as $c)
                                     <option value="{{ $c }}" {{ $selectedCategory === $c ? 'selected' : '' }}>{{ $c }}</option>
@@ -271,7 +276,15 @@
                         </label>
                     @endif
 
-                    @if ($selectedDivision !== '' || $selectedCategory !== '')
+                    @if ($categories->isNotEmpty())
+                        <label class="flex cursor-pointer items-center gap-2 self-center rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 transition hover:border-white/20 hover:bg-slate-900/60">
+                            <input type="checkbox" name="open_only" value="1" {{ $openOnly ? 'checked' : '' }} onchange="this.form.submit()"
+                                   class="h-4 w-4 rounded border-white/20 bg-slate-950 text-brand-500 focus:ring-2 focus:ring-brand-500/30" />
+                            <span>Open only <span class="text-xs text-slate-500">(hide {{ $categories->implode(', ') }})</span></span>
+                        </label>
+                    @endif
+
+                    @if ($hasActiveFilter)
                         <a href="{{ $filterBaseUrl }}"
                            class="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:border-white/25 hover:bg-white/5">
                             Clear
