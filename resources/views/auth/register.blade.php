@@ -39,6 +39,17 @@
             autocomplete="new-password"
         />
 
+        {{-- Honeypot: hidden from humans, bots fill it --}}
+        <div class="absolute -left-[9999px] opacity-0" aria-hidden="true" tabindex="-1">
+            <input type="text" name="website" value="" autocomplete="off" tabindex="-1" />
+        </div>
+
+        {{-- Cloudflare Turnstile --}}
+        @if (config('services.turnstile.site_key'))
+            <div class="cf-turnstile" data-sitekey="{{ config('services.turnstile.site_key') }}" data-theme="dark"></div>
+            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        @endif
+
         <x-site.button type="submit" size="lg" fullWidth>Create account</x-site.button>
     </form>
 
