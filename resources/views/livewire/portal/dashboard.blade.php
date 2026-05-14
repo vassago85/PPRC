@@ -66,26 +66,10 @@
                 </div>
             @endif
 
-            {{-- Pending payment: show banking details + upload --}}
+            {{-- Pending payment: show full banking details + upload --}}
             @if ($this->renewalState === 'pending_payment' && $this->pendingPayment)
-                @php $pay = $this->pendingPayment; @endphp
-                <div class="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
-                    <p class="text-sm font-semibold text-amber-300">Renewal pending payment</p>
-                    <p class="mt-2 text-sm text-slate-300">
-                        Transfer <span class="font-semibold text-white">R {{ number_format($pay->amount_cents / 100, 2) }}</span>
-                        using reference <span class="font-mono font-semibold text-white">{{ $pay->reference }}</span>,
-                        then upload your proof of payment.
-                    </p>
-                    <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                        <input type="file" wire:model="proofUpload"
-                            class="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-white/15" />
-                        <button type="button" wire:click="uploadProof({{ $pay->id }})" wire:loading.attr="disabled"
-                            class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50">
-                            <span wire:loading.remove wire:target="uploadProof({{ $pay->id }})">Upload proof</span>
-                            <span wire:loading wire:target="uploadProof({{ $pay->id }})" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
-                        </button>
-                    </div>
-                    @error('proofUpload') <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
+                <div class="mt-6">
+                    <x-portal.banking-details :payment="$this->pendingPayment" />
                 </div>
 
             {{-- Awaiting approval: proof uploaded, committee reviewing --}}

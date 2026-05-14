@@ -105,7 +105,8 @@ class Membership extends Component
 
         $this->renewIntoTypeId = null;
         $this->via = null;
-        session()->flash('flash', 'Membership requested. Please pay to activate.');
+        unset($this->current);
+        session()->flash('flash', 'Membership requested — your banking details and reference are below.');
     }
 
     public function startEftPayment(int $membershipId): void

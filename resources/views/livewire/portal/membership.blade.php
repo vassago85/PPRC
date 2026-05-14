@@ -89,25 +89,13 @@
 
                 {{-- Pending payment --}}
                 @if ($m->status === App\Enums\MembershipStatus::PendingPayment)
-                    @php $pending = $m->payments->firstWhere('status', App\Enums\PaymentStatus::Pending); @endphp
+                    @php
+                        $pending = $m->payments->firstWhere('status', App\Enums\PaymentStatus::Pending)
+                            ?? $m->payments->firstWhere('status', App\Enums\PaymentStatus::Submitted);
+                    @endphp
                     @if ($pending)
-                        <div class="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
-                            <p class="text-sm font-semibold text-amber-300">Payment required</p>
-                            <p class="mt-2 text-sm text-slate-300">
-                                Transfer <span class="font-semibold text-white">R {{ number_format($pending->amount_cents / 100, 2) }}</span>
-                                using reference <span class="font-mono font-semibold text-white">{{ $pending->reference }}</span>,
-                                then upload your proof of payment below.
-                            </p>
-                            <div class="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                                <input type="file" wire:model="proofUpload"
-                                    class="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-white/15" />
-                                <button type="button" wire:click="uploadProof({{ $pending->id }})" wire:loading.attr="disabled"
-                                    class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50">
-                                    <span wire:loading.remove wire:target="uploadProof({{ $pending->id }})">Upload proof</span>
-                                    <span wire:loading wire:target="uploadProof({{ $pending->id }})" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
-                                </button>
-                            </div>
-                            @error('proofUpload') <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
+                        <div class="mt-6">
+                            <x-portal.banking-details :payment="$pending" />
                         </div>
                     @else
                         <div class="mt-6">
@@ -118,6 +106,16 @@
                             </button>
                         </div>
                     @endif
+                @endif
+
+                {{-- Pending approval --}}
+                @if ($m->status === App\Enums\MembershipStatus::PendingApproval)
+                    <div class="mt-6 rounded-xl border border-sky-500/20 bg-sky-500/5 p-5">
+                        <p class="text-sm font-semibold text-sky-300">Awaiting approval</p>
+                        <p class="mt-2 text-sm text-slate-300">
+                            Your proof of payment has been submitted. The committee will verify and activate your membership shortly.
+                        </p>
+                    </div>
                 @endif
             @else
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Current membership</p>
