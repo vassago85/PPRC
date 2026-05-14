@@ -5,6 +5,7 @@ namespace App\Services\Membership;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
+use App\Enums\RenewalSource;
 use App\Models\Member;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
@@ -29,7 +30,7 @@ class MembershipIssuer
      *
      * Returns the new Membership. Does not create payments.
      */
-    public function issue(Member $member, MembershipType $type, ?Carbon $start = null): Membership
+    public function issue(Member $member, MembershipType $type, ?Carbon $start = null, ?RenewalSource $source = null): Membership
     {
         $start ??= Carbon::now();
 
@@ -44,13 +45,14 @@ class MembershipIssuer
             ? ($priceCents > 0 ? MembershipStatus::PendingPayment : MembershipStatus::PendingApproval)
             : ($priceCents > 0 ? MembershipStatus::PendingPayment : MembershipStatus::Active);
 
-        return DB::transaction(function () use ($member, $type, $start, $periodEnd, $priceCents, $status) {
+        return DB::transaction(function () use ($member, $type, $start, $periodEnd, $priceCents, $status, $source) {
             $membership = Membership::create([
                 'member_id' => $member->id,
                 'membership_type_id' => $type->id,
                 'period_start' => $start,
                 'period_end' => $periodEnd,
                 'status' => $status,
+                'renewal_source' => $source,
                 'price_cents_snapshot' => $priceCents,
                 'membership_type_slug_snapshot' => $type->slug,
                 'membership_type_name_snapshot' => $type->name,

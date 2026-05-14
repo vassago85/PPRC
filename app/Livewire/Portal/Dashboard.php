@@ -5,6 +5,7 @@ namespace App\Livewire\Portal;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
+use App\Enums\RenewalSource;
 use App\Models\Event;
 use App\Models\EventResult;
 use App\Models\Member;
@@ -18,6 +19,7 @@ use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -30,6 +32,9 @@ class Dashboard extends Component
     public ?int $renewIntoTypeId = null;
 
     public $proofUpload = null;
+
+    #[Url(as: 'via', keep: false)]
+    public ?string $via = null;
 
     public function mount(): void
     {
@@ -79,6 +84,33 @@ class Dashboard extends Component
         return false;
     }
 
+    /**
+     * Granular renewal state for the portal UI:
+     *   - 'expiring_soon': active but within 30 days of period_end, no pending renewal
+     *   - 'pending_payment': renewal started, awaiting EFT
+     *   - 'pending_approval': proof uploaded, admin must confirm
+     *   - 'expired': membership lapsed, renew to continue
+     *   - 'active': membership is fine, no action needed
+     *   - 'none': no membership at all
+     */
+    #[Computed]
+    public function renewalState(): string
+    {
+        $m = $this->membership;
+
+        if (! $m) {
+            return 'none';
+        }
+
+        return match (true) {
+            $m->status === MembershipStatus::PendingApproval => 'pending_approval',
+            $m->status === MembershipStatus::PendingPayment => 'pending_payment',
+            in_array($m->status, [MembershipStatus::Expired, MembershipStatus::Cancelled]) => 'expired',
+            $m->status === MembershipStatus::Active && $m->period_end && $m->period_end->diffInDays(now(), absolute: false) > -30 => 'expiring_soon',
+            default => 'active',
+        };
+    }
+
     #[Computed]
     public function types(): Collection
     {
@@ -123,10 +155,12 @@ class Dashboard extends Component
         }
 
         $type = MembershipType::findOrFail($this->renewIntoTypeId);
-        $renewal->renew($member, $type);
+        $source = $this->via === 'reminder' ? RenewalSource::Reminder : RenewalSource::MemberInitiated;
+        $renewal->renew($member, $type, source: $source);
 
         $this->renewIntoTypeId = null;
-        unset($this->membership, $this->pendingPayment, $this->needsRenewal);
+        $this->via = null;
+        unset($this->membership, $this->pendingPayment, $this->needsRenewal, $this->renewalState);
         session()->flash('flash', 'Membership requested — see your payment details below.');
     }
 

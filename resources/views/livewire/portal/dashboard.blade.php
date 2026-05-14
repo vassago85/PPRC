@@ -67,10 +67,10 @@
             @endif
 
             {{-- Pending payment: show banking details + upload --}}
-            @if ($m->status === App\Enums\MembershipStatus::PendingPayment && $this->pendingPayment)
+            @if ($this->renewalState === 'pending_payment' && $this->pendingPayment)
                 @php $pay = $this->pendingPayment; @endphp
                 <div class="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
-                    <p class="text-sm font-semibold text-amber-300">Payment required</p>
+                    <p class="text-sm font-semibold text-amber-300">Renewal pending payment</p>
                     <p class="mt-2 text-sm text-slate-300">
                         Transfer <span class="font-semibold text-white">R {{ number_format($pay->amount_cents / 100, 2) }}</span>
                         using reference <span class="font-mono font-semibold text-white">{{ $pay->reference }}</span>,
@@ -87,16 +87,24 @@
                     </div>
                     @error('proofUpload') <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
                 </div>
-            @endif
 
-            {{-- Renewal CTA --}}
-            @if ($this->needsRenewal && $m->status !== App\Enums\MembershipStatus::PendingPayment && $m->status !== App\Enums\MembershipStatus::PendingApproval)
+            {{-- Awaiting approval: proof uploaded, committee reviewing --}}
+            @elseif ($this->renewalState === 'pending_approval')
+                <div class="mt-6 rounded-xl border border-sky-500/20 bg-sky-500/5 p-5">
+                    <p class="text-sm font-semibold text-sky-300">Awaiting approval</p>
+                    <p class="mt-2 text-sm text-slate-300">
+                        Your proof of payment has been submitted. The committee will verify and activate your membership shortly.
+                    </p>
+                </div>
+
+            {{-- Renewal CTA: expired or expiring soon --}}
+            @elseif ($this->renewalState === 'expired' || $this->renewalState === 'expiring_soon')
                 <div class="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-5">
                     <p class="text-sm font-semibold">
-                        @if ($m->status === App\Enums\MembershipStatus::Expired)
-                            Your membership has expired.
+                        @if ($this->renewalState === 'expired')
+                            Your membership has expired — renew to continue.
                         @else
-                            Your membership expires soon.
+                            Your membership expires soon — renew now to avoid a lapse.
                         @endif
                     </p>
                     <div class="mt-3 flex flex-col sm:flex-row sm:items-end gap-3">

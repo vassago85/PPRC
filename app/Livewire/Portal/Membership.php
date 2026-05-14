@@ -5,6 +5,7 @@ namespace App\Livewire\Portal;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
+use App\Enums\RenewalSource;
 use App\Models\Member;
 use App\Models\Membership as MembershipModel;
 use App\Models\MembershipPayment;
@@ -17,6 +18,7 @@ use Illuminate\Support\Carbon;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -29,6 +31,9 @@ class Membership extends Component
     public ?int $renewIntoTypeId = null;
 
     public $proofUpload = null;
+
+    #[Url(as: 'via', keep: false)]
+    public ?string $via = null;
 
     public function mount(): void
     {
@@ -95,9 +100,11 @@ class Membership extends Component
         }
 
         $type = MembershipType::findOrFail($this->renewIntoTypeId);
-        $renewal->renew($member, $type);
+        $source = $this->via === 'reminder' ? RenewalSource::Reminder : RenewalSource::MemberInitiated;
+        $renewal->renew($member, $type, source: $source);
 
         $this->renewIntoTypeId = null;
+        $this->via = null;
         session()->flash('flash', 'Membership requested. Please pay to activate.');
     }
 

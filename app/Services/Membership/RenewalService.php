@@ -3,6 +3,7 @@
 namespace App\Services\Membership;
 
 use App\Enums\MembershipStatus;
+use App\Enums\RenewalSource;
 use App\Events\RenewalCreated;
 use App\Models\Member;
 use App\Models\Membership;
@@ -26,7 +27,7 @@ class RenewalService
      * after the previous period_end so the member doesn't lose paid time.
      * Otherwise the new period starts from $asOf.
      */
-    public function renew(Member $member, MembershipType $type, ?Carbon $asOf = null): Membership
+    public function renew(Member $member, MembershipType $type, ?Carbon $asOf = null, ?RenewalSource $source = null): Membership
     {
         $asOf ??= Carbon::now();
         $windowDays = (int) config('membership.renewal_window_days', 60);
@@ -41,8 +42,8 @@ class RenewalService
 
         $start = $this->resolveStartDate($previous, $asOf, $windowDays);
 
-        return DB::transaction(function () use ($member, $type, $start) {
-            $membership = $this->issuer->issue($member, $type, $start);
+        return DB::transaction(function () use ($member, $type, $start, $source) {
+            $membership = $this->issuer->issue($member, $type, $start, $source);
 
             if ($type->allows_sub_members && $membership->status === MembershipStatus::Active) {
                 $this->issuer->autoRenewLinkedFreeSubMembers(

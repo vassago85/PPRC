@@ -7,6 +7,7 @@ use App\Enums\EventStatus;
 use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
 use App\Enums\PaymentStatus;
+use App\Enums\RenewalSource;
 use App\Filament\Admin\Resources\EndorsementRequests\EndorsementRequestResource;
 use App\Filament\Admin\Resources\Events\EventResource;
 use App\Filament\Admin\Resources\Members\MemberResource;
@@ -27,7 +28,7 @@ class AdminDashboardService
             [
                 'label' => 'Payments awaiting review',
                 'value' => MembershipPayment::where('status', PaymentStatus::Submitted)->count(),
-                'description' => 'Submitted payments needing confirmation',
+                'description' => 'Submitted proofs needing confirmation',
                 'url' => MembershipPaymentResource::getUrl('index', ['activeTab' => 'awaiting']),
                 'icon' => 'heroicon-o-banknotes',
                 'color' => 'warning',
@@ -35,11 +36,26 @@ class AdminDashboardService
             [
                 'label' => 'Memberships awaiting approval',
                 'value' => Membership::where('status', MembershipStatus::PendingApproval)->count(),
-                'description' => 'Membership applications to review',
+                'description' => $this->renewalSourceBreakdown(MembershipStatus::PendingApproval),
                 'url' => MembershipResource::getUrl('index', [
                     'tableFilters' => ['status' => ['value' => MembershipStatus::PendingApproval->value]],
                 ]),
                 'icon' => 'heroicon-o-identification',
+                'color' => 'warning',
+            ],
+            [
+                'label' => 'Pending renewal payments',
+                'value' => Membership::where('status', MembershipStatus::PendingPayment)
+                    ->whereHas('member', fn ($q) => $q->whereIn('status', [
+                        MemberStatus::Active->value,
+                        MemberStatus::Expired->value,
+                    ]))
+                    ->count(),
+                'description' => 'Members started renewal but haven\'t paid yet',
+                'url' => MembershipResource::getUrl('index', [
+                    'tableFilters' => ['status' => ['value' => MembershipStatus::PendingPayment->value]],
+                ]),
+                'icon' => 'heroicon-o-clock',
                 'color' => 'warning',
             ],
             [
@@ -61,23 +77,27 @@ class AdminDashboardService
                 'color' => 'warning',
             ],
             [
-                'label' => 'Expiring in 30 days',
-                'value' => Membership::where('status', MembershipStatus::Active)
-                    ->whereBetween('period_end', [now()->toDateString(), now()->addDays(30)->toDateString()])
-                    ->count(),
-                'description' => 'Active memberships expiring soon',
-                'url' => MembershipResource::getUrl('index'),
-                'icon' => 'heroicon-o-clock',
+                'label' => 'Renewals due (no action yet)',
+                'value' => $this->renewalsDueNoAction(),
+                'description' => 'Expiring within 30 days, member hasn\'t started renewal',
+                'url' => MemberResource::getUrl('index', [
+                    'tableFilters' => ['status' => ['value' => MemberStatus::Active->value]],
+                ]),
+                'icon' => 'heroicon-o-exclamation-triangle',
                 'color' => 'info',
             ],
             [
                 'label' => 'Recently lapsed',
-                'value' => Membership::where('status', MembershipStatus::Expired)
-                    ->where('period_end', '>=', now()->subDays(60)->toDateString())
+                'value' => Member::where('status', MemberStatus::Expired)
+                    ->where('expiry_date', '>=', now()->subDays(60)->toDateString())
+                    ->whereDoesntHave('memberships', fn ($q) => $q->whereIn('status', [
+                        MembershipStatus::PendingPayment->value,
+                        MembershipStatus::PendingApproval->value,
+                    ]))
                     ->count(),
-                'description' => 'Expired in the last 60 days',
-                'url' => MembershipResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MembershipStatus::Expired->value]],
+                'description' => 'Expired in last 60 days with no pending renewal',
+                'url' => MemberResource::getUrl('index', [
+                    'tableFilters' => ['status' => ['value' => MemberStatus::Expired->value]],
                 ]),
                 'icon' => 'heroicon-o-arrow-trending-down',
                 'color' => 'danger',
@@ -103,6 +123,62 @@ class AdminDashboardService
                 'color' => 'warning',
             ],
         ];
+    }
+
+    /**
+     * Members expiring within 30 days who have NOT yet started a renewal
+     * (no pending_payment/pending_approval membership row exists).
+     */
+    protected function renewalsDueNoAction(): int
+    {
+        return Member::where('status', MemberStatus::Active)
+            ->whereNotNull('expiry_date')
+            ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays(30)->toDateString()])
+            ->whereDoesntHave('memberships', fn ($q) => $q->whereIn('status', [
+                MembershipStatus::PendingPayment->value,
+                MembershipStatus::PendingApproval->value,
+            ]))
+            ->count();
+    }
+
+    /**
+     * Build a human-readable breakdown of renewal sources for a given set of
+     * membership statuses, e.g. "2 via reminder, 1 self-initiated".
+     */
+    protected function renewalSourceBreakdown(MembershipStatus|array $statuses): string
+    {
+        $statuses = is_array($statuses) ? $statuses : [$statuses];
+        $statusValues = array_map(fn ($s) => $s->value, $statuses);
+
+        $counts = Membership::whereIn('status', $statusValues)
+            ->selectRaw('renewal_source, count(*) as total')
+            ->groupBy('renewal_source')
+            ->pluck('total', 'renewal_source');
+
+        if ($counts->isEmpty()) {
+            return 'None pending';
+        }
+
+        $parts = [];
+        $reminder = $counts->get(RenewalSource::Reminder->value, 0);
+        $self = $counts->get(RenewalSource::MemberInitiated->value, 0);
+        $admin = $counts->get(RenewalSource::Admin->value, 0);
+        $unknown = $counts->get(null, 0) + $counts->get('', 0);
+
+        if ($reminder > 0) {
+            $parts[] = "{$reminder} via reminder";
+        }
+        if ($self > 0) {
+            $parts[] = "{$self} self-initiated";
+        }
+        if ($admin > 0) {
+            $parts[] = "{$admin} by admin";
+        }
+        if ($unknown > 0) {
+            $parts[] = "{$unknown} untagged";
+        }
+
+        return implode(', ', $parts) ?: 'None pending';
     }
 
     public function matchesOverview(): array
@@ -140,6 +216,11 @@ class AdminDashboardService
 
     public function membershipOverview(): array
     {
+        $renewalInProgress = Membership::whereIn('status', [
+            MembershipStatus::PendingPayment->value,
+            MembershipStatus::PendingApproval->value,
+        ])->count();
+
         return [
             [
                 'label' => 'Active members',
@@ -162,26 +243,34 @@ class AdminDashboardService
                 'color' => 'warning',
             ],
             [
-                'label' => 'Lapsed',
-                'value' => Membership::where('status', MembershipStatus::Expired)
-                    ->where('period_end', '>=', now()->subDays(60))
-                    ->count(),
-                'description' => 'Expired in the last 60 days',
+                'label' => 'Renewal in progress',
+                'value' => $renewalInProgress,
+                'description' => $this->renewalSourceBreakdown([MembershipStatus::PendingPayment, MembershipStatus::PendingApproval]),
                 'url' => MembershipResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MembershipStatus::Expired->value]],
+                    'tableFilters' => ['status' => ['value' => MembershipStatus::PendingPayment->value]],
                 ]),
-                'icon' => 'heroicon-o-arrow-trending-down',
-                'color' => 'danger',
+                'icon' => 'heroicon-o-arrow-path',
+                'color' => 'warning',
             ],
             [
                 'label' => 'Renewals due',
-                'value' => Membership::where('status', MembershipStatus::Active)
-                    ->whereBetween('period_end', [now(), now()->addDays(30)])
-                    ->count(),
-                'description' => 'Expiring within 30 days',
-                'url' => MembershipResource::getUrl('index'),
+                'value' => $this->renewalsDueNoAction(),
+                'description' => 'Expiring within 30 days, no action yet',
+                'url' => MemberResource::getUrl('index', [
+                    'tableFilters' => ['status' => ['value' => MemberStatus::Active->value]],
+                ]),
                 'icon' => 'heroicon-o-clock',
-                'color' => 'warning',
+                'color' => 'info',
+            ],
+            [
+                'label' => 'Lapsed',
+                'value' => Member::where('status', MemberStatus::Expired)->count(),
+                'description' => 'Expired members',
+                'url' => MemberResource::getUrl('index', [
+                    'tableFilters' => ['status' => ['value' => MemberStatus::Expired->value]],
+                ]),
+                'icon' => 'heroicon-o-arrow-trending-down',
+                'color' => 'danger',
             ],
             [
                 'label' => 'New this month',

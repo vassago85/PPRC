@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Memberships\Pages;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
+use App\Enums\RenewalSource;
 use App\Filament\Admin\Resources\Memberships\MembershipResource;
 use App\Models\MembershipPayment;
 use App\Services\Membership\PaymentReferenceGenerator;
@@ -14,6 +15,13 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateMembership extends CreateRecord
 {
     protected static string $resource = MembershipResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['renewal_source'] = RenewalSource::Admin->value;
+
+        return $data;
+    }
 
     /**
      * When an admin manually creates a membership in `pending_payment`,

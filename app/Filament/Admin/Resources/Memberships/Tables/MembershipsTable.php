@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Memberships\Tables;
 
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentStatus;
+use App\Enums\RenewalSource;
 use App\Services\Membership\MemberService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -34,6 +35,14 @@ class MembershipsTable
                     ->badge()
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
                     ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
+
+                TextColumn::make('renewal_source')
+                    ->label('Source')
+                    ->badge()
+                    ->formatStateUsing(fn (?RenewalSource $state) => $state?->label())
+                    ->color(fn (?RenewalSource $state) => $state?->color() ?? 'gray')
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 TextColumn::make('payment_reference')
                     ->label('Payment ref')
@@ -75,6 +84,10 @@ class MembershipsTable
             ->filters([
                 SelectFilter::make('status')
                     ->options(collect(MembershipStatus::cases())
+                        ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all()),
+                SelectFilter::make('renewal_source')
+                    ->label('Source')
+                    ->options(collect(RenewalSource::cases())
                         ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all()),
             ])
             ->recordActions([

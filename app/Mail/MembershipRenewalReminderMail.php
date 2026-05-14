@@ -49,7 +49,7 @@ class MembershipRenewalReminderMail extends Mailable
                 'variant'     => $this->variant,
                 'days'        => $this->days,
                 'expiryDate'  => $this->member->expiry_date,
-                'renewUrl'    => url('/portal/membership'),
+                'renewUrl'    => url('/portal/membership?via=reminder'),
                 'cancelUrl'   => $this->cancelUrl(),
             ],
         );

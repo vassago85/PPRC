@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\MembershipStatus;
+use App\Enums\RenewalSource;
 use App\Services\Membership\MembershipNumberAssignment;
 use Database\Factories\MembershipFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,6 +24,7 @@ class Membership extends Model
         'period_start',
         'period_end',
         'status',
+        'renewal_source',
         'price_cents_snapshot',
         'membership_type_slug_snapshot',
         'membership_type_name_snapshot',
@@ -38,6 +40,7 @@ class Membership extends Model
         'period_end' => 'date',
         'approved_at' => 'datetime',
         'status' => MembershipStatus::class,
+        'renewal_source' => RenewalSource::class,
         'price_cents_snapshot' => 'integer',
         'certificate_issued_at' => 'datetime',
     ];

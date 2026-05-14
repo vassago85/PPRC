@@ -112,6 +112,14 @@ class Member extends Model
         return $this->memberships()
             ->with('payments')
             ->whereIn('status', ['active', 'pending_payment', 'pending_approval'])
+            ->where(function ($q) {
+                // Exclude "active" memberships whose period has already ended (stale rows
+                // not yet caught by the daily check-expiry command). Pending rows are
+                // always shown regardless of period_end.
+                $q->where('status', '!=', 'active')
+                    ->orWhereNull('period_end')
+                    ->orWhere('period_end', '>=', now()->toDateString());
+            })
             ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'pending_approval' THEN 1 WHEN 'pending_payment' THEN 2 ELSE 3 END")
             ->orderByRaw('period_end IS NOT NULL, period_end DESC')
             ->first();

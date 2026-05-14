@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
 use App\Models\Member;
+use App\Models\Membership;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -18,6 +20,9 @@ use Illuminate\Support\Carbon;
  *   - Past expiry_date → expired.
  *   - >6 months past expiry_date → inactive.
  *   - Future expiry_date + was expired/inactive → reactivate to active.
+ *
+ * Additionally expires Membership rows whose period_end has passed while
+ * still marked as "active", keeping Membership and Member status in sync.
  */
 class CheckMemberExpiryStatus extends Command
 {
@@ -32,6 +37,8 @@ class CheckMemberExpiryStatus extends Command
         $sixMonthsAgo = $today->copy()->subMonths(6);
 
         $stats = ['expired' => 0, 'inactive' => 0, 'reactivated' => 0, 'skipped' => 0];
+
+        $expiredMemberships = $this->expireStaleMembershipRows($today, $dryRun);
 
         $members = Member::query()
             ->whereNotNull('expiry_date')
@@ -71,13 +78,40 @@ class CheckMemberExpiryStatus extends Command
         $this->newLine();
         $prefix = $dryRun ? '[DRY RUN] ' : '';
         $this->table(['action', 'count'], [
-            ["{$prefix}Expired", $stats['expired']],
-            ["{$prefix}Inactive (6mo+)", $stats['inactive']],
-            ["{$prefix}Reactivated", $stats['reactivated']],
+            ["{$prefix}Membership rows expired", $expiredMemberships],
+            ["{$prefix}Members expired", $stats['expired']],
+            ["{$prefix}Members inactive (6mo+)", $stats['inactive']],
+            ["{$prefix}Members reactivated", $stats['reactivated']],
             ['Skipped / unchanged', $stats['skipped']],
         ]);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Expire any Membership rows still marked "active" whose period_end is past.
+     * This keeps Membership status in sync with reality so dashboard metrics
+     * and currentMembership() queries always reflect accurate state.
+     */
+    protected function expireStaleMembershipRows(Carbon $today, bool $dryRun): int
+    {
+        $query = Membership::query()
+            ->where('status', MembershipStatus::Active->value)
+            ->whereNotNull('period_end')
+            ->where('period_end', '<', $today->toDateString());
+
+        $count = $query->count();
+
+        if ($count > 0 && ! $dryRun) {
+            $query->update(['status' => MembershipStatus::Expired->value]);
+        }
+
+        if ($count > 0) {
+            $label = $dryRun ? '[DRY RUN] ' : '';
+            $this->info("{$label}Expired {$count} stale membership row(s).");
+        }
+
+        return $count;
     }
 
     protected function resolveStatus(
@@ -87,7 +121,6 @@ class CheckMemberExpiryStatus extends Command
         Carbon $sixMonthsAgo,
     ): ?MemberStatus {
         if ($expiry->isFuture() || $expiry->isSameDay($today)) {
-            // Expiry in the future: reactivate if previously expired/inactive
             if (in_array($current, [MemberStatus::Expired, MemberStatus::Inactive], true)) {
                 return MemberStatus::Active;
             }
@@ -95,7 +128,6 @@ class CheckMemberExpiryStatus extends Command
             return null;
         }
 
-        // Past expiry
         if ($expiry->lt($sixMonthsAgo)) {
             return $current === MemberStatus::Inactive ? null : MemberStatus::Inactive;
         }
