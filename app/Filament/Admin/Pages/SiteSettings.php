@@ -124,6 +124,12 @@ class SiteSettings extends Page
                 'webhook_secret' => (string) SiteSetting::get('payments.paystack.webhook_secret', ''),
                 'currency' => (string) SiteSetting::get('payments.paystack.currency', 'ZAR'),
             ],
+
+            // Turnstile (anti-bot)
+            'turnstile' => [
+                'site_key' => (string) SiteSetting::get('security.turnstile.site_key', ''),
+                'secret_key' => (string) SiteSetting::get('security.turnstile.secret_key', ''),
+            ],
         ]);
     }
 
@@ -407,6 +413,28 @@ class SiteSettings extends Page
                                             ->columnSpanFull(),
                                     ]),
                             ]),
+
+                        Tab::make('Security')
+                            ->icon(Heroicon::OutlinedShieldCheck)
+                            ->visible($canManageIntegrations)
+                            ->schema([
+                                Section::make('Cloudflare Turnstile')
+                                    ->description('Anti-bot protection on the registration form. Get keys from Cloudflare dashboard → Turnstile → Add Widget. Choose "Managed" mode for invisible captcha.')
+                                    ->columns(1)
+                                    ->schema([
+                                        TextInput::make('turnstile.site_key')
+                                            ->label('Site key')
+                                            ->placeholder('0x4AAAAAAA...')
+                                            ->maxLength(120)
+                                            ->helperText('The public site key shown in the Cloudflare Turnstile widget config.'),
+                                        TextInput::make('turnstile.secret_key')
+                                            ->label('Secret key')
+                                            ->password()
+                                            ->revealable()
+                                            ->dehydrated(fn ($state) => filled($state))
+                                            ->helperText('Server-side secret for verifying responses. Leave blank to keep the current value.'),
+                                    ]),
+                            ]),
                     ])
                     ->columnSpanFull(),
             ])
@@ -606,6 +634,10 @@ class SiteSettings extends Page
             ['paystack.currency',       'payments.paystack.currency',       'payments', 'Paystack currency',       false, false],
             ['paystack.secret_key',     'payments.paystack.secret_key',     'payments', 'Paystack secret key',     true,  true],
             ['paystack.webhook_secret', 'payments.paystack.webhook_secret', 'payments', 'Paystack webhook secret', true,  true],
+
+            // --- Security (Turnstile) ----------------------------------------
+            ['turnstile.site_key',   'security.turnstile.site_key',   'security', 'Turnstile site key',   false, false],
+            ['turnstile.secret_key', 'security.turnstile.secret_key', 'security', 'Turnstile secret key', true,  true],
         ];
 
         foreach ($map as [$path, $key, $group, $label, $isSecret, $skipWhenEmpty]) {

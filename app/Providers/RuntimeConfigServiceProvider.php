@@ -37,6 +37,7 @@ class RuntimeConfigServiceProvider extends ServiceProvider
             $this->applyStorageConfig();
             $this->applyPaystackConfig();
             $this->applyContactConfig();
+            $this->applyTurnstileConfig();
         } catch (Throwable) {
             // Never allow a bad / missing setting to crash the framework boot.
         }
@@ -195,6 +196,19 @@ class RuntimeConfigServiceProvider extends ServiceProvider
 
         if (filled($email)) {
             config(['club.contact.email' => $email]);
+        }
+    }
+
+    protected function applyTurnstileConfig(): void
+    {
+        $siteKey = SiteSetting::get('security.turnstile.site_key');
+        $secretKey = SiteSetting::get('security.turnstile.secret_key');
+
+        if (filled($siteKey)) {
+            config(['services.turnstile.site_key' => $siteKey]);
+        }
+        if (filled($secretKey)) {
+            config(['services.turnstile.secret_key' => $secretKey]);
         }
     }
 }
