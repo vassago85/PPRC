@@ -82,6 +82,15 @@ class EmailVerificationPinController
         Cache::forget('email-verification-pin-fails:'.$user->id);
         Cache::forget($lockKey);
 
+        // Fresh registrations have a Member but no membership yet — send them
+        // straight to the membership selection screen so they don't sit in
+        // "Pending approval" with no application on file.
+        $user->refresh()->loadMissing('member');
+        if ($user->member && ! $user->member->currentMembership()) {
+            return redirect()->route('portal.membership')
+                ->with('flash', 'Email verified — choose a membership to complete your registration.');
+        }
+
         return redirect()->intended(config('fortify.home', '/portal'))
             ->with('status', 'email-verified');
     }
