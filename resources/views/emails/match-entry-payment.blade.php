@@ -49,7 +49,7 @@
                             </p>
                             <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
                                 <strong>Already paid?</strong> Reply to this email with your proof of payment, or send it to
-                                <a href="mailto:matches@pretoriaprc.co.za" style="color:#1d8ac0;text-decoration:none;font-weight:600;">matches@pretoriaprc.co.za</a>.
+                                <a href="mailto:info@pretoriaprc.co.za" style="color:#1d8ac0;text-decoration:none;font-weight:600;">info@pretoriaprc.co.za</a>.
                             </p>
                         </td>
                     </tr>
@@ -153,8 +153,8 @@
                     <tr>
                         <td style="padding:0 36px 28px;">
                             <p style="margin:0;font-size:13px;color:#64748b;line-height:1.55;">
-                                Questions? Contact the match director at
-                                <a href="mailto:matches@pretoriaprc.co.za" style="color:#1d8ac0;text-decoration:none;font-weight:600;">matches@pretoriaprc.co.za</a>
+                                Questions? Contact us at
+                                <a href="mailto:info@pretoriaprc.co.za" style="color:#1d8ac0;text-decoration:none;font-weight:600;">info@pretoriaprc.co.za</a>
                             </p>
                         </td>
                     </tr>

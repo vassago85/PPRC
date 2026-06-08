@@ -389,15 +389,16 @@ class AdminDashboardService
             ]);
         }
 
-        $registrations = EventRegistration::with('event')
+        $registrations = EventRegistration::with(['event', 'member'])
             ->latest()
             ->take(5)
             ->get();
         foreach ($registrations as $registration) {
             $title = $registration->event?->title ?? 'Unknown event';
+            $name = $registration->shooterName() ?: 'Someone';
             $activities->push([
                 'icon' => 'heroicon-o-clipboard-document-list',
-                'description' => "Registration for {$title}",
+                'description' => "{$name} registered for {$title}",
                 'timestamp' => $registration->created_at,
                 'url' => EventResource::getUrl('edit', ['record' => $registration->event_id]),
             ]);

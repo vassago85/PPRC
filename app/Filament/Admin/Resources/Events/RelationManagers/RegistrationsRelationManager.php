@@ -27,6 +27,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class RegistrationsRelationManager extends RelationManager
@@ -190,7 +191,14 @@ class RegistrationsRelationManager extends RelationManager
                         'Awaiting' => 'warning',
                         default => 'gray',
                     })
-                    ->description(fn (EventRegistration $r) => $r->paid_at?->format('d M Y')),
+                    ->description(fn (EventRegistration $r) => $r->paid_at?->format('d M Y')
+                        ?? ($r->hasUnverifiedProof() ? 'Proof uploaded' : null)),
+                IconColumn::make('payment_proof_path')
+                    ->label('Proof')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-paper-clip')
+                    ->falseIcon('heroicon-o-minus')
+                    ->state(fn (EventRegistration $r) => filled($r->payment_proof_path)),
                 TextColumn::make('division')->label('Div.')->toggleable(),
                 TextColumn::make('category')->label('Cat.')->toggleable(),
                 TextColumn::make('course')
@@ -258,6 +266,13 @@ class RegistrationsRelationManager extends RelationManager
                                 ->send();
                         }
                     }),
+                Action::make('view_proof')
+                    ->label('View proof')
+                    ->icon('heroicon-o-paper-clip')
+                    ->color('info')
+                    ->visible(fn (EventRegistration $r) => filled($r->payment_proof_path)
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->url(fn (EventRegistration $r) => self::proofUrl($r), shouldOpenInNewTab: true),
                 Action::make('mark_paid')
                     ->label('Mark paid')
                     ->icon('heroicon-o-banknotes')
@@ -384,5 +399,22 @@ class RegistrationsRelationManager extends RelationManager
         }
 
         return $data;
+    }
+
+    protected static function proofUrl(EventRegistration $r): ?string
+    {
+        if (! $r->payment_proof_path) {
+            return null;
+        }
+
+        $disk = Storage::disk(\App\Support\MediaDisk::name());
+
+        try {
+            return method_exists($disk, 'temporaryUrl')
+                ? $disk->temporaryUrl($r->payment_proof_path, now()->addMinutes(15))
+                : $disk->url($r->payment_proof_path);
+        } catch (\Throwable) {
+            return $disk->url($r->payment_proof_path);
+        }
     }
 }

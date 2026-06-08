@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Models\SaprfShooter;
+use App\Services\Events\MatchEntryPaymentRequestService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
@@ -176,7 +177,7 @@ class EventRegister extends Component
         $isJuniorEntry = ! $isSaprfEntry && $this->canFlagJunior() && $this->isJunior;
 
         try {
-            EventRegistration::create([
+            $registration = EventRegistration::create([
                 'event_id' => $this->event->id,
                 'member_id' => null,
                 'guest_name' => $this->guestName,
@@ -202,10 +203,14 @@ class EventRegister extends Component
 
         Cache::forget($this->verifiedCacheKey($email));
 
+        $emailed = $this->dispatchPaymentDetails($registration);
+
         $this->guestStep = 'done';
-        $this->toast = $isSaprfEntry
-            ? 'You are registered as a SAPRF entry. Pay via the SAPRF portal — see you at the range.'
-            : 'You are registered. We will see you at the range.';
+        $this->toast = match (true) {
+            $isSaprfEntry => 'You are registered as a SAPRF entry. Pay via the SAPRF portal — see you at the range.',
+            $emailed => 'You are registered. Check your email for your entry fee, banking details and payment reference.',
+            default => 'You are registered. We will see you at the range.',
+        };
     }
 
     public function registerMember(): void
@@ -236,7 +241,7 @@ class EventRegister extends Component
 
         $isSaprfEntry = $this->event->is_saprf_match && $this->viaSaprf;
 
-        EventRegistration::create([
+        $registration = EventRegistration::create([
             'event_id' => $this->event->id,
             'member_id' => $member->id,
             'guest_name' => null,
@@ -254,9 +259,33 @@ class EventRegister extends Component
             'registered_at' => now(),
         ]);
 
-        $this->toast = $isSaprfEntry
-            ? 'You are registered as a SAPRF entry. Pay via the SAPRF portal.'
-            : 'You are registered for this match.';
+        $emailed = $this->dispatchPaymentDetails($registration);
+
+        $this->toast = match (true) {
+            $isSaprfEntry => 'You are registered as a SAPRF entry. Pay via the SAPRF portal.',
+            $emailed => 'You are registered. We have emailed your banking details and payment reference — you can also pay and upload proof under My Registrations.',
+            default => 'You are registered for this match.',
+        };
+    }
+
+    /**
+     * Email the entry their banking details + reference the moment they
+     * register. Silently skips entries that owe nothing (SAPRF / free / ExCo)
+     * or that have no email, and never lets a mail hiccup break registration.
+     */
+    private function dispatchPaymentDetails(EventRegistration $registration): bool
+    {
+        if (! $registration->owesPayment()) {
+            return false;
+        }
+
+        try {
+            app(MatchEntryPaymentRequestService::class)->send($registration);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function pinCacheKey(string $emailLower): string

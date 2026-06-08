@@ -175,6 +175,7 @@
                                 @php
                                     $name = $entry->shooterName();
                                     $division = $entry->division;
+                                    $category = $entry->category;
                                     $courseLabel = $event->courseLabel($entry->course);
                                     $rounds = $event->roundsForCourse($entry->course);
                                 @endphp
@@ -185,6 +186,10 @@
                                     <span class="font-medium text-white">{{ $name }}</span>
                                     @if ($division)
                                         <span class="text-xs uppercase tracking-wider text-slate-400">{{ $division }}</span>
+                                    @endif
+                                    @if ($category)
+                                        <span class="text-xs text-slate-500">·</span>
+                                        <span class="text-xs uppercase tracking-wider text-slate-400">{{ $category }}</span>
                                     @endif
                                     @if ($courseLabel)
                                         <span class="text-xs text-slate-500">·</span>

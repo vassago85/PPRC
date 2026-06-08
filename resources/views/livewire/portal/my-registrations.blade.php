@@ -25,6 +25,91 @@
         </div>
     @endif
 
+    @if ($this->payable->isNotEmpty())
+        @php
+            $bankName = \App\Models\SiteSetting::get('payments.bank.bank', '');
+            $accountName = \App\Models\SiteSetting::get('payments.bank.account_name', '');
+            $accountNumber = \App\Models\SiteSetting::get('payments.bank.account_number', '');
+            $branchCode = \App\Models\SiteSetting::get('payments.bank.branch_code', '');
+            $accountType = \App\Models\SiteSetting::get('payments.bank.account_type', 'cheque');
+        @endphp
+        <section class="space-y-3">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-amber-400">Payment due</h2>
+
+            @foreach ($this->payable as $reg)
+                <div class="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5 space-y-4">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                            <p class="font-semibold text-white">{{ $reg->event->title }}</p>
+                            <p class="text-xs text-slate-400">{{ $reg->event->start_date->format('d M Y') }}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-slate-400">Entry fee</p>
+                            <p class="text-xl font-bold text-white">R {{ number_format((int) ($reg->effectiveFeeCents() ?? 0) / 100, 2) }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+                            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Payment reference</p>
+                            <p class="mt-1 font-mono text-lg font-bold tracking-wider text-white">{{ $reg->paymentReference() }}</p>
+                            <p class="mt-1 text-xs text-slate-400">Use this exact reference when paying</p>
+                        </div>
+                        @if ($bankName || $accountNumber)
+                            <div class="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+                                <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                                    @if ($accountName)
+                                        <dt class="text-slate-500">Account</dt>
+                                        <dd class="text-white">{{ $accountName }}</dd>
+                                    @endif
+                                    @if ($bankName)
+                                        <dt class="text-slate-500">Bank</dt>
+                                        <dd class="text-white">{{ $bankName }}</dd>
+                                    @endif
+                                    @if ($accountNumber)
+                                        <dt class="text-slate-500">Acc. number</dt>
+                                        <dd class="font-mono text-white">{{ $accountNumber }}</dd>
+                                    @endif
+                                    @if ($branchCode)
+                                        <dt class="text-slate-500">Branch</dt>
+                                        <dd class="font-mono text-white">{{ $branchCode }}</dd>
+                                    @endif
+                                    @if ($accountType)
+                                        <dt class="text-slate-500">Type</dt>
+                                        <dd class="capitalize text-white">{{ $accountType }}</dd>
+                                    @endif
+                                </dl>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="border-t border-white/10 pt-4">
+                        @if ($reg->payment_proof_path)
+                            <div class="flex flex-wrap items-center gap-2 text-sm text-emerald-300">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                <span>Proof uploaded{{ $reg->proof_submitted_at ? ' on '.$reg->proof_submitted_at->format('d M Y') : '' }} — awaiting confirmation.</span>
+                            </div>
+                            <p class="mt-2 text-xs text-slate-500">Paid a different way or need to replace it? Upload again below.</p>
+                        @else
+                            <p class="text-sm font-medium text-slate-300">Once paid, upload your proof of payment:</p>
+                        @endif
+
+                        <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <input type="file" wire:model="proofUploads.{{ $reg->id }}"
+                                class="text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-white/15" />
+                            <button type="button" wire:click="uploadProof({{ $reg->id }})" wire:loading.attr="disabled" wire:target="uploadProof({{ $reg->id }}),proofUploads.{{ $reg->id }}"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:opacity-50">
+                                <span wire:loading.remove wire:target="uploadProof({{ $reg->id }}),proofUploads.{{ $reg->id }}">Upload proof</span>
+                                <span wire:loading wire:target="uploadProof({{ $reg->id }}),proofUploads.{{ $reg->id }}" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
+                            </button>
+                        </div>
+                        @error('proofUploads.'.$reg->id) <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+            @endforeach
+        </section>
+    @endif
+
     @foreach (['Upcoming' => $this->upcoming, 'Past' => $this->past] as $label => $items)
         <section class="space-y-3">
             <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">{{ $label }}</h2>

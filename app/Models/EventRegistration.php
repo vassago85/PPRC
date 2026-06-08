@@ -30,6 +30,8 @@ class EventRegistration extends Model
         'checked_in_at',
         'paid_at',
         'marked_paid_by_user_id',
+        'payment_proof_path',
+        'proof_submitted_at',
     ];
 
     protected $casts = [
@@ -39,6 +41,7 @@ class EventRegistration extends Model
         'registered_at' => 'datetime',
         'checked_in_at' => 'datetime',
         'paid_at' => 'datetime',
+        'proof_submitted_at' => 'datetime',
         'status' => EventRegistrationStatus::class,
         'squad_number' => 'integer',
         'firing_order' => 'integer',
@@ -128,6 +131,15 @@ class EventRegistration extends Model
     public function isPaid(): bool
     {
         return $this->paid_at !== null || ! $this->awaitingPayment();
+    }
+
+    /**
+     * Member has uploaded proof of payment that a committee member still needs
+     * to verify (proof on file but not yet confirmed paid).
+     */
+    public function hasUnverifiedProof(): bool
+    {
+        return $this->payment_proof_path !== null && $this->paid_at === null;
     }
 
     public function shooterName(): string
