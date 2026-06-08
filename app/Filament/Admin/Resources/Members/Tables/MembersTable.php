@@ -40,7 +40,7 @@ class MembersTable
                     ->sortable(['last_name', 'first_name'])
                     ->searchable(['first_name', 'last_name', 'known_as']),
                 TextColumn::make('user.email')->searchable()->copyable(),
-                TextColumn::make('phone_number')->toggleable(),
+                TextColumn::make('phone_number')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (?MemberStatus $state) => $state?->label())
@@ -71,7 +71,7 @@ class MembersTable
                     ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('saprf_membership_number')->label('SAPRF #')->toggleable()->placeholder('—'),
+                TextColumn::make('saprf_membership_number')->label('SAPRF #')->toggleable(isToggledHiddenByDefault: true)->placeholder('—'),
             ])
             ->filters([
                 SelectFilter::make('status')

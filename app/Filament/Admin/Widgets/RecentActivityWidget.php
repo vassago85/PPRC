@@ -7,9 +7,12 @@ use Filament\Widgets\Widget;
 
 class RecentActivityWidget extends Widget
 {
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 1;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = [
+        'default' => 'full',
+        'lg' => 1,
+    ];
 
     protected string $view = 'filament.admin.widgets.recent-activity';
 

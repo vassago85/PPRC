@@ -23,8 +23,8 @@ class ExcoMembersTable
                 TextColumn::make('full_name')->searchable()->sortable(),
                 TextColumn::make('position')->badge(),
                 IconColumn::make('is_current')->boolean()->label('Current'),
-                TextColumn::make('term_started_on')->date('d M Y')->toggleable(),
-                TextColumn::make('term_ends_on')->date('d M Y')->toggleable(),
+                TextColumn::make('term_started_on')->date('d M Y')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('term_ends_on')->date('d M Y')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('sort_order')->label('Order')->sortable(),
             ])
             ->filters([

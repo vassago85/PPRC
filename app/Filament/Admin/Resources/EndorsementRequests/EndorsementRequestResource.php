@@ -68,8 +68,8 @@ class EndorsementRequestResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (?EndorsementStatus $state) => $state?->label())
                     ->color(fn (?EndorsementStatus $state) => $state?->color() ?? 'gray'),
-                TextColumn::make('created_at')->dateTime('d M Y H:i')->label('Requested'),
-                TextColumn::make('reviewed_at')->dateTime('d M Y')->label('Reviewed')->toggleable(),
+                TextColumn::make('created_at')->dateTime('d M Y H:i')->label('Requested')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('reviewed_at')->dateTime('d M Y')->label('Reviewed')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')

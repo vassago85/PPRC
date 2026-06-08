@@ -7,9 +7,12 @@ use Filament\Widgets\Widget;
 
 class MatchesOverviewWidget extends Widget
 {
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 2;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = [
+        'default' => 'full',
+        'lg' => 2,
+    ];
 
     protected string $view = 'filament.admin.widgets.matches-overview';
 

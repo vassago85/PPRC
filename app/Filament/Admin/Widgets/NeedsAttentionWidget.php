@@ -9,7 +9,10 @@ class NeedsAttentionWidget extends Widget
 {
     protected static ?int $sort = 0;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = [
+        'default' => 'full',
+        'lg' => 2,
+    ];
 
     protected string $view = 'filament.admin.widgets.needs-attention';
 
@@ -23,9 +26,30 @@ class NeedsAttentionWidget extends Widget
             || $user?->can('memberships.approve'));
     }
 
+    public function canViewRevenue(): bool
+    {
+        return (bool) auth()->user()?->can('payments.view');
+    }
+
     public function getItems(): array
     {
         return app(AdminDashboardService::class)->needsAttention();
+    }
+
+    /**
+     * Revenue MTD/YTD from the payments overview — the only stats not
+     * already represented as alert cards in the inbox.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getRevenueStats(): array
+    {
+        $items = app(AdminDashboardService::class)->paymentsOverview();
+
+        return array_values(array_filter(
+            $items,
+            fn (array $item) => in_array($item['label'], ['Revenue MTD', 'Revenue YTD'], true),
+        ));
     }
 
     public function hasActiveItems(): bool

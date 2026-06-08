@@ -89,7 +89,7 @@ class MembershipPaymentsTable
                     ->badge()
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
                     ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('submitted_at')
                     ->dateTime('d M Y H:i')

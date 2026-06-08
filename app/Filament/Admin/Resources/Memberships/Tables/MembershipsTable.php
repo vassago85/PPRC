@@ -42,7 +42,7 @@ class MembershipsTable
                     ->formatStateUsing(fn (?RenewalSource $state) => $state?->label())
                     ->color(fn (?RenewalSource $state) => $state?->color() ?? 'gray')
                     ->placeholder('—')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('payment_reference')
                     ->label('Payment ref')
@@ -51,6 +51,7 @@ class MembershipsTable
                     ->copyMessage('Reference copied')
                     ->fontFamily('mono')
                     ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->searchable(query: function ($query, string $search) {
                         $query->whereHas('payments', fn ($q) => $q->where('reference', 'like', "%{$search}%"));
                     }),
@@ -60,8 +61,10 @@ class MembershipsTable
                     ->state(fn ($record) => $record->payments->first()?->status)
                     ->badge()
                     ->formatStateUsing(fn (?PaymentStatus $state) => $state?->label() ?? '—')
-                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray'),
+                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('price_cents_snapshot')->label('Price paid')
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->formatStateUsing(function ($state, $record) {
                         $current = $record->membershipType?->price_cents;
                         if ($state === null) {

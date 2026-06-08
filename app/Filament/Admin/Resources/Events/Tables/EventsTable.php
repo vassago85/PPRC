@@ -44,10 +44,10 @@ class EventsTable
                     ->sortable(),
                 TextColumn::make('match_director_name')
                     ->label('MD')
-                    ->toggleable()
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->searchable()
                     ->formatStateUsing(fn (?string $state, Event $record): string => $record->matchDirectorDisplay() ?: '—'),
-                TextColumn::make('published_at')->dateTime('d M Y H:i')->toggleable()->label('Published'),
+                TextColumn::make('published_at')->dateTime('d M Y H:i')->toggleable(isToggledHiddenByDefault: true)->label('Published'),
                 TextColumn::make('results_published_at')
                     ->dateTime('d M Y H:i')
                     ->toggleable()

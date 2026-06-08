@@ -15,6 +15,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -23,7 +25,12 @@ class EventForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Match details')
+            Tabs::make('Event')
+                ->columnSpanFull()
+                ->tabs([
+                    Tab::make('Details')
+                        ->schema([
+                            Section::make('Match details')
                 ->columns(2)
                 ->schema([
                     TextInput::make('title')
@@ -88,7 +95,7 @@ class EventForm
                         ->columnSpanFull(),
                 ]),
 
-            Section::make('When')
+                            Section::make('When')
                 ->columns(3)
                 ->schema([
                     DatePicker::make('start_date')->required()->native(false),
@@ -96,7 +103,7 @@ class EventForm
                     DatePicker::make('end_date')->native(false),
                 ]),
 
-            Section::make('Where')
+                            Section::make('Where')
                 ->columns(2)
                 ->schema([
                     TextInput::make('location_name')->label('Venue name')->maxLength(150),
@@ -105,7 +112,24 @@ class EventForm
                     TextInput::make('location_lng')->label('Longitude')->numeric(),
                 ]),
 
-            Section::make('Entry')
+                            Section::make('Ownership & publishing')
+                                ->columns(2)
+                                ->schema([
+                                    TextInput::make('match_director_name')
+                                        ->label('Match director')
+                                        ->maxLength(150)
+                                        ->helperText('Any name shown on listings and the public match page. Does not need to be a user in this system.')
+                                        ->columnSpanFull(),
+                                    DateTimePicker::make('published_at')
+                                        ->seconds(false)
+                                        ->helperText('Optional. If you leave this empty and set status to Published or Completed, a publish time is recorded automatically when you save.'),
+                                    DateTimePicker::make('results_published_at')->seconds(false),
+                                ]),
+                        ]),
+
+                    Tab::make('Registration')
+                        ->schema([
+                            Section::make('Entry')
                 ->columns(3)
                 ->schema([
                     TextInput::make('member_price_cents')
@@ -171,7 +195,7 @@ class EventForm
                         ->seconds(false),
                 ]),
 
-            Section::make('SAPRF sanctioning')
+                            Section::make('SAPRF sanctioning')
                 ->description('Mark a match as SAPRF-sanctioned to publish the SAPRF registration link on the public match page and let non-PPRC SAPRF members enter without paying us (they pay through SAPRF).')
                 ->columns(2)
                 ->schema([
@@ -188,7 +212,7 @@ class EventForm
                         ->helperText('Link shown on the public match page so SAPRF members can register through their portal.'),
                 ]),
 
-            Section::make('Registration: division & category')
+                            Section::make('Registration: division & category')
                 ->description('Defaults follow SAPRF equipment divisions (Classic, Factory, Limited, Open) and standard categories (General, Ladies, Junior, Senior, Mil/LEO, Not applicable). Leave the tag lists empty to use those defaults, or add your own tags to replace the list entirely (e.g. only “Club Open”).')
                 ->schema([
                     Toggle::make('registration_require_division')
@@ -215,19 +239,13 @@ class EventForm
                         ->dehydrateStateUsing(fn ($state) => empty($state) ? null : array_values((array) $state))
                         ->columnSpanFull(),
                 ]),
+                        ]),
 
-            Section::make('Ownership & publishing')
-                ->columns(2)
-                ->schema([
-                    TextInput::make('match_director_name')
-                        ->label('Match director')
-                        ->maxLength(150)
-                        ->helperText('Any name shown on listings and the public match page. Does not need to be a user in this system.')
-                        ->columnSpanFull(),
-                    DateTimePicker::make('published_at')
-                        ->seconds(false)
-                        ->helperText('Optional. If you leave this empty and set status to Published or Completed, a publish time is recorded automatically when you save.'),
-                    DateTimePicker::make('results_published_at')->seconds(false),
+                    Tab::make('Media')
+                        ->schema([
+                            Section::make('Gallery')
+                                ->description('Gallery photos are managed after saving this match, via the Gallery tab on the event record.'),
+                        ]),
                 ]),
         ]);
     }

@@ -4,9 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Admin\Pages\Dashboard;
 use App\Filament\Admin\Widgets\MatchesOverviewWidget;
-use App\Filament\Admin\Widgets\MembershipOverviewWidget;
 use App\Filament\Admin\Widgets\NeedsAttentionWidget;
-use App\Filament\Admin\Widgets\PaymentsOverviewWidget;
 use App\Filament\Admin\Widgets\RecentActivityWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -64,8 +62,6 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 NeedsAttentionWidget::class,
                 MatchesOverviewWidget::class,
-                MembershipOverviewWidget::class,
-                PaymentsOverviewWidget::class,
                 RecentActivityWidget::class,
             ])
             ->userMenuItems([

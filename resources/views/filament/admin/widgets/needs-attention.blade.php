@@ -3,12 +3,12 @@
         <x-slot name="heading">
             <div class="flex items-center gap-2">
                 <x-heroicon-o-bell-alert class="h-5 w-5 text-warning-500" />
-                Needs attention
+                Action inbox
             </div>
         </x-slot>
 
         @if ($this->hasActiveItems())
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 @foreach ($this->getItems() as $item)
                     @if ($item['value'] > 0)
                         <a href="{{ $item['url'] }}"
@@ -45,6 +45,34 @@
                     <p class="font-medium text-gray-950 dark:text-white">Nothing needs attention</p>
                     <p class="text-sm text-gray-500">All queues are clear.</p>
                 </div>
+            </div>
+        @endif
+
+        @if ($this->canViewRevenue() && count($revenue = $this->getRevenueStats()))
+            <div @class([
+                'grid gap-3 sm:grid-cols-2',
+                'mt-5 border-t border-gray-200 pt-5 dark:border-white/10' => $this->hasActiveItems(),
+                'mt-0' => ! $this->hasActiveItems(),
+            ])>
+                @foreach ($revenue as $item)
+                    <a href="{{ $item['url'] }}"
+                       class="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-sm dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500/30">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-success-50 text-success-600 dark:bg-success-500/10 dark:text-success-400">
+                            <x-filament::icon :icon="$item['icon']" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-2xl font-bold tabular-nums text-gray-950 dark:text-white">
+                                {{ $item['formatted'] ?? number_format($item['value']) }}
+                            </p>
+                            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                {{ $item['label'] }}
+                            </p>
+                            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-500">
+                                {{ $item['description'] }}
+                            </p>
+                        </div>
+                    </a>
+                @endforeach
             </div>
         @endif
     </x-filament::section>

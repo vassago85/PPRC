@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\ShopOrders;
 use App\Filament\Admin\Resources\ShopOrders\Pages\EditShopOrder;
 use App\Filament\Admin\Resources\ShopOrders\Pages\ListShopOrders;
 use App\Filament\Admin\Resources\ShopOrders\Schemas\ShopOrderForm;
+use App\Filament\Admin\Resources\ShopOrders\Schemas\ShopOrderInfolist;
 use App\Filament\Admin\Resources\ShopOrders\Tables\ShopOrdersTable;
 use App\Models\ShopOrder;
 use BackedEnum;
@@ -41,6 +42,11 @@ class ShopOrderResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return ShopOrderForm::configure($schema);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return ShopOrderInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table
