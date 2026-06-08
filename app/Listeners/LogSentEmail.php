@@ -4,7 +4,9 @@ namespace App\Listeners;
 
 use App\Models\EmailLog;
 use App\Models\User;
+use App\Support\EmailBodyExtractor;
 use Illuminate\Mail\Events\MessageSent;
+use Symfony\Component\Mime\Email;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -48,6 +50,10 @@ class LogSentEmail
                 $mailableClass = get_class($mailableClass);
             }
 
+            $bodyHtml = $message instanceof Email
+                ? EmailBodyExtractor::fromMessage($message)
+                : null;
+
             EmailLog::create([
                 'user_id' => $this->resolveUserId($primaryTo['email']),
                 'to_email' => $primaryTo['email'],
@@ -55,6 +61,7 @@ class LogSentEmail
                 'from_email' => $primaryFrom['email'] ?? null,
                 'from_name' => $primaryFrom['name'] ?? null,
                 'subject' => $message->getSubject(),
+                'body_html' => $bodyHtml,
                 'mailable_class' => is_string($mailableClass) ? $mailableClass : null,
                 'status' => EmailLog::STATUS_SENT,
                 'context' => [

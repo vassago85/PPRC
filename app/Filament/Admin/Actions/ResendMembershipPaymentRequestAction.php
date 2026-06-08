@@ -3,8 +3,10 @@
 namespace App\Filament\Admin\Actions;
 
 use App\Enums\MembershipStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Member;
 use App\Models\Membership;
+use App\Models\MembershipPayment;
 use App\Services\Membership\MembershipPaymentRequestService;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -25,6 +27,25 @@ class ResendMembershipPaymentRequestAction
             ->action(fn (Membership $record) => self::send($record));
     }
 
+    public static function forPayment(): Action
+    {
+        return Action::make('resend_payment_request')
+            ->label('Resend payment request')
+            ->icon('heroicon-o-envelope')
+            ->color('warning')
+            ->requiresConfirmation()
+            ->modalHeading('Resend payment request')
+            ->modalDescription(fn (MembershipPayment $record) => self::modalDescription($record->membership))
+            ->visible(fn (MembershipPayment $record) => self::canSendForPayment($record))
+            ->action(function (MembershipPayment $record): void {
+                if (! $record->membership) {
+                    return;
+                }
+
+                self::send($record->membership);
+            });
+    }
+
     public static function forMember(): Action
     {
         return Action::make('resend_payment_request')
@@ -43,6 +64,12 @@ class ResendMembershipPaymentRequestAction
 
                 self::send($membership);
             });
+    }
+
+    public static function canSendForPayment(MembershipPayment $payment): bool
+    {
+        return $payment->status === PaymentStatus::Pending
+            && self::canSendForMembership($payment->membership);
     }
 
     public static function canSendForMembership(?Membership $membership): bool

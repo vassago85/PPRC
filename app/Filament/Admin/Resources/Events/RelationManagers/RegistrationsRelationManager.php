@@ -21,6 +21,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class RegistrationsRelationManager extends RelationManager
 {
@@ -128,7 +129,9 @@ class RegistrationsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->defaultSort('squad_number')
+            ->defaultSort(fn (Builder $query): Builder => $query
+                ->orderBy('squad_number')
+                ->orderBy('firing_order'))
             ->columns([
                 TextColumn::make('squad_number')->label('Squad')->sortable(),
                 TextColumn::make('firing_order')->label('Order')->sortable(),
@@ -179,11 +182,11 @@ class RegistrationsRelationManager extends RelationManager
                     })
                     ->badge()
                     ->color(fn (?string $state) => $state === 'club' ? 'info' : 'primary')
-                    ->toggleable(),
-                IconColumn::make('is_saprf_entry')->boolean()->label('SAPRF')->toggleable(),
-                IconColumn::make('is_junior')->boolean()->label('Junior')->toggleable(),
-                IconColumn::make('attended')->boolean()->label('Attended'),
-                TextColumn::make('checked_in_at')->dateTime('d M H:i')->label('Checked in')->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('is_saprf_entry')->boolean()->label('SAPRF')->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('is_junior')->boolean()->label('Junior')->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('attended')->boolean()->label('Attended')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('checked_in_at')->dateTime('d M H:i')->label('Checked in')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')

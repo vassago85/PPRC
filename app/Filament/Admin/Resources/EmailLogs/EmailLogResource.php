@@ -7,6 +7,7 @@ use App\Filament\Admin\Resources\EmailLogs\Pages\ViewEmailLog;
 use App\Models\EmailLog;
 use BackedEnum;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -107,6 +108,17 @@ class EmailLogResource extends Resource
                 TextEntry::make('from_name')->label('From name')->placeholder('—'),
                 TextEntry::make('subject'),
             ]),
+
+            Section::make('Message')
+                ->schema([
+                    ViewEntry::make('body_preview')
+                        ->hiddenLabel()
+                        ->columnSpanFull()
+                        ->view('filament.admin.email-logs.body-preview')
+                        ->viewData(fn (EmailLog $record): array => [
+                            'bodyHtml' => $record->body_html,
+                        ]),
+                ]),
 
             Section::make('Delivery')->schema([
                 TextEntry::make('status')

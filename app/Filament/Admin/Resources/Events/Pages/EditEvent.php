@@ -8,6 +8,8 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 
 class EditEvent extends EditRecord
 {
@@ -25,5 +27,25 @@ class EditEvent extends EditRecord
             ForceDeleteAction::make(),
             RestoreAction::make(),
         ];
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        if ($this->hasCombinedRelationManagerTabsWithContent()) {
+            return $schema
+                ->components([
+                    $this->getRelationManagersContentComponent(),
+                ]);
+        }
+
+        return $schema
+            ->components([
+                $this->getFormContentComponent(),
+                Section::make('Match data')
+                    ->schema([
+                        $this->getRelationManagersContentComponent(),
+                    ])
+                    ->columnSpanFull(),
+            ]);
     }
 }

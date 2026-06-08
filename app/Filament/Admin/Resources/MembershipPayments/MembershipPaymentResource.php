@@ -111,6 +111,6 @@ class MembershipPaymentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['membership.member', 'membership.membershipType', 'confirmedBy']);
+            ->with(['membership.member.user', 'membership.membershipType', 'confirmedBy']);
     }
 }

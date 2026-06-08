@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\MembershipPayments\Tables;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
+use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Models\MembershipPayment;
 use App\Services\Membership\MemberService;
 use Filament\Actions\Action;
@@ -145,6 +146,7 @@ class MembershipPaymentsTable
                         ->where('confirmed_at', '>=', now()->startOfMonth())),
             ])
             ->recordActions([
+                ResendMembershipPaymentRequestAction::forPayment(),
                 Action::make('viewProof')
                     ->label('Proof')
                     ->icon('heroicon-o-document-magnifying-glass')

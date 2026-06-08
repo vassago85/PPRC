@@ -36,7 +36,10 @@ class EventsTable
                     ->badge()
                     ->formatStateUsing(fn (?EventStatus $state) => $state?->label())
                     ->color(fn (?EventStatus $state) => $state?->color() ?? 'gray'),
-                IconColumn::make('registrations_open')->boolean()->label('Reg open'),
+                IconColumn::make('registrations_open')
+                    ->boolean()
+                    ->label('Reg open')
+                    ->tooltip(fn (bool $state): string => $state ? 'Registrations open' : 'Registrations closed'),
                 TextColumn::make('registrations_count')
                     ->counts('registrations')
                     ->label('Entries')
@@ -51,7 +54,7 @@ class EventsTable
                 TextColumn::make('results_published_at')
                     ->dateTime('d M Y H:i')
                     ->toggleable()
-                    ->label('Results'),
+                    ->label('Results published'),
             ])
             ->filters([
                 SelectFilter::make('status')
