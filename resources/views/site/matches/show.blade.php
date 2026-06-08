@@ -9,8 +9,7 @@
          results table becomes the primary content and the match info collapses
          into a disclosure further down. --}}
     <x-site.section :padding="$resultsPublished ? 'lg-hero' : 'match-main'">
-        <div class="grid gap-8 lg:grid-cols-12 lg:gap-10 lg:items-start">
-            <div class="lg:col-span-8">
+        <div>
                 <div class="flex flex-col gap-3">
                     <div class="flex flex-wrap items-center gap-3">
                         @if ($event->matchFormat)
@@ -53,7 +52,7 @@
                 </div>
 
                 @if ($bannerUrl)
-                    <div class="mx-auto mt-8 max-w-xs lg:hidden">
+                    <div class="mx-auto mt-8 max-w-sm">
                         <x-site.match-banner :src="$bannerUrl" :alt="$event->title" size="sidebar" />
                     </div>
                 @endif
@@ -69,15 +68,6 @@
                         </div>
                     @endunless
                 @endunless
-            </div>
-
-            @if ($bannerUrl)
-                <aside class="hidden lg:col-span-4 lg:block">
-                    <div class="sticky top-24">
-                        <x-site.match-banner :src="$bannerUrl" :alt="$event->title" size="sidebar" />
-                    </div>
-                </aside>
-            @endif
         </div>
     </x-site.section>
 
