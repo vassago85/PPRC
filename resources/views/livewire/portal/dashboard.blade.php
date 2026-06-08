@@ -217,11 +217,16 @@
             </div>
             <span class="text-xs font-medium text-slate-400 group-hover:text-white">Documents</span>
         </a>
-        <a href="{{ route('portal.profile.edit') }}" class="group flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center transition hover:border-white/20 hover:bg-white/[0.06]">
+        @php
+            $hasMemberProfile = (bool) auth()->user()->member;
+            $profileUrl = $hasMemberProfile ? route('portal.profile.edit') : route('portal.account.profile');
+            $profileLabel = $hasMemberProfile ? 'Profile' : 'Account';
+        @endphp
+        <a href="{{ $profileUrl }}" class="group flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-center transition hover:border-white/20 hover:bg-white/[0.06]">
             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-slate-400 transition group-hover:text-white">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
             </div>
-            <span class="text-xs font-medium text-slate-400 group-hover:text-white">Profile</span>
+            <span class="text-xs font-medium text-slate-400 group-hover:text-white">{{ $profileLabel }}</span>
         </a>
     </div>
 </div>

@@ -31,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->profile(isSimple: false)
             ->brandName('PPRC Admin')
             ->colors([
                 'primary' => Color::Slate,
@@ -65,9 +66,13 @@ class AdminPanelProvider extends PanelProvider
                 RecentActivityWidget::class,
             ])
             ->userMenuItems([
+                'profile' => MenuItem::make()
+                    ->label('Account & password')
+                    ->icon('heroicon-o-user-circle')
+                    ->url(fn (): string => route('portal.account.password')),
                 MenuItem::make()
                     ->label('Member portal')
-                    ->icon('heroicon-o-user-circle')
+                    ->icon('heroicon-o-home')
                     ->url(fn (): string => url('/portal')),
             ])
             ->middleware([

@@ -55,7 +55,12 @@ class ProfileEdit extends Component
     public function mount(): void
     {
         $member = auth()->user()?->member;
-        abort_unless($member, 403);
+
+        if (! $member) {
+            $this->redirectRoute('portal.account.profile');
+
+            return;
+        }
 
         $this->first_name = (string) $member->first_name;
         $this->last_name = (string) $member->last_name;

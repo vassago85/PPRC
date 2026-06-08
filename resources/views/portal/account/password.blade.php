@@ -5,6 +5,10 @@
             <p class="mt-1 text-sm text-slate-400">Use a strong password you don't reuse elsewhere.</p>
         </div>
 
+        <p class="text-sm">
+            <a href="{{ route('portal.account.profile') }}" class="text-slate-400 transition hover:text-white">Back to account</a>
+        </p>
+
         <form method="post" action="{{ route('user-password.update') }}" class="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-5">
             @csrf
             @method('put')
