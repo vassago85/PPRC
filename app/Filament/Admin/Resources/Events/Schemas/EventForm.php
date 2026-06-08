@@ -235,7 +235,7 @@ class EventForm
                                         ->disk(\App\Support\MediaDisk::name())
                                         ->directory('events/banners')
                                         ->maxSize(5120)
-                                        ->helperText('Shown on the public match page. Landscape works best (≥ 1600×900).')
+                                        ->helperText('Portrait poster works best (4:5, e.g. 1080×1350). The full image is shown — nothing is cropped.')
                                         ->columnSpanFull(),
                                     FileUpload::make('match_book_path')
                                         ->label('Match book (PDF)')

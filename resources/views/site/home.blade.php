@@ -198,11 +198,72 @@
             </div>
 
             @if ($upcomingMatches->isNotEmpty())
-                <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    @foreach ($upcomingMatches->take(3) as $match)
-                        <x-site.match-card :match="$match" />
-                    @endforeach
-                </div>
+                @php
+                    $featuredMatch = $upcomingMatches->first();
+                    $otherMatches = $upcomingMatches->skip(1);
+                @endphp
+
+                {{-- Next match — portrait poster beside key details --}}
+                <a href="{{ $featuredMatch['url'] ?? url('/matches') }}"
+                   class="group mb-8 grid overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition duration-200 hover:border-brand-400/40 hover:bg-white/[0.05] lg:grid-cols-5 lg:gap-0">
+                    @if (! empty($featuredMatch['banner_url']))
+                        <div class="border-b border-white/10 bg-slate-900/90 p-3 sm:p-4 lg:col-span-2 lg:border-b-0 lg:border-r lg:border-white/10">
+                            <x-site.match-banner
+                                :src="$featuredMatch['banner_url']"
+                                :alt="$featuredMatch['title'] ?? 'Next match'"
+                                size="featured"
+                                class="border-0 bg-transparent shadow-none"
+                            />
+                        </div>
+                    @endif
+                    <div @class([
+                        'flex flex-col justify-center gap-4 p-6 sm:p-8',
+                        'lg:col-span-3' => ! empty($featuredMatch['banner_url']),
+                        'lg:col-span-5' => empty($featuredMatch['banner_url']),
+                    ])>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-300">Next up</p>
+                            @if (! empty($featuredMatch['starts_at']))
+                                <p class="mt-2 text-sm text-slate-400">
+                                    {{ optional($featuredMatch['starts_at'])->format('l, d F Y') }}
+                                </p>
+                            @endif
+                            <h3 class="mt-2 text-2xl font-semibold tracking-tight text-white transition group-hover:text-brand-200 sm:text-3xl">
+                                {{ $featuredMatch['title'] }}
+                            </h3>
+                        </div>
+                        @if (! empty($featuredMatch['format']) || ! empty($featuredMatch['location']))
+                            <dl class="grid gap-3 text-sm sm:grid-cols-2">
+                                @if (! empty($featuredMatch['format']))
+                                    <div>
+                                        <dt class="text-xs uppercase tracking-wider text-slate-500">Format</dt>
+                                        <dd class="mt-1 font-medium text-slate-200">{{ $featuredMatch['format'] }}</dd>
+                                    </div>
+                                @endif
+                                @if (! empty($featuredMatch['location']))
+                                    <div>
+                                        <dt class="text-xs uppercase tracking-wider text-slate-500">Venue</dt>
+                                        <dd class="mt-1 font-medium text-slate-200">{{ $featuredMatch['location'] }}</dd>
+                                    </div>
+                                @endif
+                            </dl>
+                        @endif
+                        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-300 transition group-hover:text-brand-200">
+                            View match details
+                            <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </span>
+                    </div>
+                </a>
+
+                @if ($otherMatches->isNotEmpty())
+                    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($otherMatches as $match)
+                            <x-site.match-card :match="$match" />
+                        @endforeach
+                    </div>
+                @endif
             @else
                 {{-- Honest empty state — live site also currently has no listed events. --}}
                 <div class="home-card-hover rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-5 py-10 text-center motion-safe:hover:border-white/20 sm:px-6 sm:py-14">

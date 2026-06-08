@@ -18,10 +18,7 @@
         'hover:border-brand-400/40 hover:bg-white/[0.05] hover:-translate-y-0.5',
    ]) }}>
     @if ($banner && ! $compact)
-        <div class="relative aspect-[16/9] overflow-hidden">
-            <img src="{{ $banner }}" alt="" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
-            <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/60 via-slate-950/0 to-slate-950/0"></div>
-        </div>
+        <x-site.match-banner :src="$banner" :alt="$title" size="card" />
     @endif
     <div @class([
         'flex items-start gap-4',
