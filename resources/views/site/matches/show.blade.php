@@ -145,28 +145,35 @@
 
     @if ($squads->isNotEmpty() && $squads->flatten()->count() > 0)
         @php
-            $isSquadded = $squads->keys()->contains(fn ($k) => $k !== null);
+            // Only a real, positive squad number counts as "squadded" — entries
+            // with a null / 0 / blank squad number are simply registered shooters.
+            $isSquadded = $squads->keys()->contains(fn ($k) => filled($k) && (int) $k > 0);
             $orderedKeys = $squads->keys()
-                ->sortBy(fn ($k) => $k === null ? PHP_INT_MAX : (int) $k)
+                ->sortBy(fn ($k) => filled($k) && (int) $k > 0 ? (int) $k : PHP_INT_MAX)
                 ->values();
         @endphp
         <x-site.section padding="default" id="squads">
             <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Shooters</p>
-                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{{ $isSquadded ? 'Squads' : 'Entries' }}</h2>
+                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{{ $isSquadded ? 'Squads' : 'Registered shooters' }}</h2>
                 </div>
-                <p class="text-sm text-slate-500">{{ $squads->flatten()->count() }} entries</p>
+                <p class="text-sm text-slate-500">{{ $squads->flatten()->count() }} {{ \Illuminate\Support\Str::plural('shooter', $squads->flatten()->count()) }}</p>
             </div>
 
             <div @class(['grid gap-5', 'md:grid-cols-2 xl:grid-cols-3' => $isSquadded])>
                 @foreach ($orderedKeys as $squadKey)
-                    @php $entries = $squads[$squadKey]; @endphp
+                    @php
+                        $entries = $squads[$squadKey];
+                        $isRealSquad = filled($squadKey) && (int) $squadKey > 0;
+                    @endphp
                     <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                        <div class="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
-                            <h3 class="text-base font-semibold text-white">
-                                {{ $squadKey === null ? ($isSquadded ? 'Unassigned' : 'Entries') : 'Squad '.$squadKey }}
-                            </h3>
+                        <div @class(['flex items-baseline gap-3 border-b border-white/10 pb-3', 'justify-between' => $isSquadded, 'justify-end' => ! $isSquadded])>
+                            @if ($isSquadded)
+                                <h3 class="text-base font-semibold text-white">
+                                    {{ $isRealSquad ? 'Squad '.$squadKey : 'Unassigned' }}
+                                </h3>
+                            @endif
                             <span class="text-xs uppercase tracking-wider text-slate-500">
                                 {{ $entries->count() }} {{ \Illuminate\Support\Str::plural('shooter', $entries->count()) }}
                             </span>
