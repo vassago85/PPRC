@@ -135,8 +135,19 @@
                     @endif
                 @else
                     <p class="mt-3 text-sm text-slate-400">
-                        <a href="{{ url('/login') }}" class="font-medium text-brand-300 hover:text-brand-200">Sign in</a>
-                        with a verified account for member pricing and one-tap entry.
+                        Already a member? Sign in for member pricing and one-tap entry.
+                    </p>
+                    <a
+                        href="{{ url('/login') }}"
+                        class="btn-brand mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 sm:w-auto"
+                    >
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                        </svg>
+                        Sign in to register
+                    </a>
+                    <p class="mt-3 text-xs text-slate-500">
+                        Not a member yet? <a href="{{ url('/membership') }}" class="font-medium text-brand-300 hover:text-brand-200">Join the club</a>, or enter as a guest →
                     </p>
                 @endauth
             </div>

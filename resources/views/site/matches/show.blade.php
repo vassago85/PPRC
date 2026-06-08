@@ -144,27 +144,28 @@
     @endif
 
     @if ($squads->isNotEmpty() && $squads->flatten()->count() > 0)
+        @php
+            $isSquadded = $squads->keys()->contains(fn ($k) => $k !== null);
+            $orderedKeys = $squads->keys()
+                ->sortBy(fn ($k) => $k === null ? PHP_INT_MAX : (int) $k)
+                ->values();
+        @endphp
         <x-site.section padding="default" id="squads">
             <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Shooters</p>
-                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Squads</h2>
+                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{{ $isSquadded ? 'Squads' : 'Entries' }}</h2>
                 </div>
                 <p class="text-sm text-slate-500">{{ $squads->flatten()->count() }} entries</p>
             </div>
 
-            @php
-                $orderedKeys = $squads->keys()
-                    ->sortBy(fn ($k) => $k === null ? PHP_INT_MAX : (int) $k)
-                    ->values();
-            @endphp
-            <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div @class(['grid gap-5', 'md:grid-cols-2 xl:grid-cols-3' => $isSquadded])>
                 @foreach ($orderedKeys as $squadKey)
                     @php $entries = $squads[$squadKey]; @endphp
                     <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                         <div class="flex items-baseline justify-between gap-3 border-b border-white/10 pb-3">
                             <h3 class="text-base font-semibold text-white">
-                                {{ $squadKey === null ? 'Unassigned' : 'Squad '.$squadKey }}
+                                {{ $squadKey === null ? ($isSquadded ? 'Unassigned' : 'Entries') : 'Squad '.$squadKey }}
                             </h3>
                             <span class="text-xs uppercase tracking-wider text-slate-500">
                                 {{ $entries->count() }} {{ \Illuminate\Support\Str::plural('shooter', $entries->count()) }}
