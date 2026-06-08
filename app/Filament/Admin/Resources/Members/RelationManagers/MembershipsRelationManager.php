@@ -5,9 +5,11 @@ namespace App\Filament\Admin\Resources\Members\RelationManagers;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
+use App\Enums\RenewalSource;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
 use App\Models\MembershipType;
+use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Services\Membership\MemberService;
 use App\Services\Membership\MembershipTypeService;
 use App\Services\Membership\PaymentReferenceGenerator;
@@ -104,23 +106,34 @@ class MembershipsRelationManager extends RelationManager
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
                     ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
 
+                TextColumn::make('renewal_source')
+                    ->label('Source')
+                    ->badge()
+                    ->formatStateUsing(fn (?RenewalSource $state) => $state?->label())
+                    ->color(fn (?RenewalSource $state) => $state?->color() ?? 'gray')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('payment_reference')
                     ->label('Payment ref')
                     ->state(fn (Membership $record) => $record->payments->first()?->reference)
                     ->copyable()
                     ->copyMessage('Reference copied')
                     ->fontFamily('mono')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('payment_status')
                     ->label('Payment')
                     ->state(fn (Membership $record) => $record->payments->first()?->status)
                     ->badge()
                     ->formatStateUsing(fn (?PaymentStatus $state) => $state?->label() ?? '—')
-                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray'),
+                    ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('price_cents_snapshot')
                     ->label('Price paid')
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->formatStateUsing(function ($state, $record) {
                         $current = $record->membershipType?->price_cents;
                         if ($state === null) {
@@ -136,8 +149,12 @@ class MembershipsRelationManager extends RelationManager
                         }
                         return $paid;
                     })
-                    ->html(),
-                TextColumn::make('approved_at')->dateTime('d M Y H:i')->toggleable(),
+                    ->html()
+                    ->alignEnd(),
+                TextColumn::make('approved_at')
+                    ->label('Approved on')
+                    ->dateTime('d M Y')
+                    ->tooltip('Date this membership was approved'),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -174,6 +191,7 @@ class MembershipsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
+                ResendMembershipPaymentRequestAction::forMembership(),
                 Action::make('approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')

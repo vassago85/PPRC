@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Memberships\Tables;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\RenewalSource;
+use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Services\Membership\MemberService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -82,7 +83,10 @@ class MembershipsTable
                     })
                     ->html()
                     ->alignEnd(),
-                TextColumn::make('approved_at')->dateTime('d M Y')->toggleable()->label('Approved'),
+                TextColumn::make('approved_at')
+                    ->label('Approved on')
+                    ->dateTime('d M Y')
+                    ->tooltip('Date this membership was approved'),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -94,6 +98,7 @@ class MembershipsTable
                         ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all()),
             ])
             ->recordActions([
+                ResendMembershipPaymentRequestAction::forMembership(),
                 Action::make('approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')

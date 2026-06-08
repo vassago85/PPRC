@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Members\Tables;
 
 use App\Enums\MemberStatus;
 use App\Enums\PaymentStatus;
+use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\Member;
@@ -16,7 +17,6 @@ use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Mail;
@@ -28,6 +28,14 @@ class MembersTable
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            ->searchable([
+                'membership_number',
+                'first_name',
+                'last_name',
+                'known_as',
+                'user.email',
+            ])
+            ->searchPlaceholder('Search name, email, or member #')
             ->columns([
                 ImageColumn::make('profile_photo_path')
                     ->label('')
@@ -39,8 +47,8 @@ class MembersTable
                     ->formatStateUsing(fn ($record) => $record->fullName())
                     ->sortable(['last_name', 'first_name'])
                     ->searchable(['first_name', 'last_name', 'known_as']),
-                TextColumn::make('user.email')->searchable()->copyable(),
-                TextColumn::make('phone_number')->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('user.email')->label('Email')->copyable(),
+                TextColumn::make('phone_number')->label('Phone')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (?MemberStatus $state) => $state?->label())
@@ -73,13 +81,8 @@ class MembersTable
 
                 TextColumn::make('saprf_membership_number')->label('SAPRF #')->toggleable(isToggledHiddenByDefault: true)->placeholder('—'),
             ])
-            ->filters([
-                SelectFilter::make('status')
-                    ->options(collect(MemberStatus::cases())
-                        ->mapWithKeys(fn ($c) => [$c->value => $c->label()])
-                        ->all()),
-            ])
             ->recordActions([
+                ResendMembershipPaymentRequestAction::forMember(),
                 Action::make('send_welcome')
                     ->icon('heroicon-o-envelope')
                     ->color('info')

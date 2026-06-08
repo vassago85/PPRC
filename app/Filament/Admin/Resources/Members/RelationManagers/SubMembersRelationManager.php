@@ -43,15 +43,30 @@ class SubMembersRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('first_name')
             ->columns([
-                TextColumn::make('first_name')->searchable(),
-                TextColumn::make('last_name')->searchable(),
-                TextColumn::make('date_of_birth')->date('d M Y')->label('DOB'),
-                TextColumn::make('current_membership_type')
-                    ->label('Current type')
-                    ->state(fn ($record) => $record->currentMembership()?->membership_type_name_snapshot ?? '—'),
+                TextColumn::make('first_name')
+                    ->label('Name')
+                    ->formatStateUsing(fn ($record) => $record->fullName())
+                    ->searchable(['first_name', 'last_name', 'known_as']),
                 TextColumn::make('status')
                     ->badge()
-                    ->formatStateUsing(fn (MemberStatus $state) => $state->label()),
+                    ->formatStateUsing(fn (?MemberStatus $state) => $state?->label())
+                    ->color(fn (?MemberStatus $state) => $state?->color() ?? 'gray'),
+                TextColumn::make('expiry_date')
+                    ->label('Expiry')
+                    ->date('d M Y')
+                    ->color(fn ($record) => $record->expiry_date?->isPast() ? 'danger' : null),
+                TextColumn::make('current_membership_type')
+                    ->label('Type')
+                    ->state(fn ($record) => $record->currentMembership()?->membership_type_name_snapshot ?? '—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('join_date')
+                    ->label('Join date')
+                    ->date('d M Y')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('saprf_membership_number')
+                    ->label('SAPRF #')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->headerActions([
                 CreateAction::make()
