@@ -18,8 +18,13 @@ use Illuminate\Support\Facades\DB;
  * Common export aliases are mapped automatically so operators don't have to
  * rename columns by hand:
  *   place -> rank, div -> division, class -> category,
- *   member number -> membership_number, impacts -> hits,
+ *   member number -> membership_number, impacts -> points,
  *   match % -> percentage, time (seconds) -> time_ms.
+ *
+ * Note: in impact scoring the "Impacts" column is the raw score (points the
+ * shooter put on target), and "Match %" is that score normalised against the
+ * top scorer of the day — so impacts map to score_points and the percentage
+ * is stored separately.
  *
  * When there is no single shooter_name column, separate "first"/"last"
  * columns (as produced by the impact-scoring exports) are combined into one.
@@ -59,8 +64,8 @@ class EventResultsCsvImporter
         'member no' => 'membership_number',
         'membership no' => 'membership_number',
         'member #' => 'membership_number',
-        'impacts' => 'hits',
-        'impact' => 'hits',
+        'impacts' => 'points',
+        'impact' => 'points',
         'match %' => 'percentage',
         'match%' => 'percentage',
         'percent' => 'percentage',

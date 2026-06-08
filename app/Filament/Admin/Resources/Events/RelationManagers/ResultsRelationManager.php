@@ -96,7 +96,7 @@ class ResultsRelationManager extends RelationManager
                     ->color('primary')
                     ->visible(fn () => auth()->user()?->can('results.manage'))
                     ->modalHeading('Upload results CSV')
-                    ->modalDescription('Columns: rank, shooter_name, division, category, member_id, member_email, membership_number, hits, possible, points, percentage, time_ms, dnf, dq, notes. Impact-scoring exports work too: Place→rank, Div→division, Class→category, Member Number→membership_number, Impacts→hits, Match %→percentage, Time (seconds)→time_ms, and separate First/Last columns are combined into the shooter name. Extra columns are ignored.')
+                    ->modalDescription('Columns: rank, shooter_name, division, category, member_id, member_email, membership_number, hits, possible, points, percentage, time_ms, dnf, dq, notes. Impact-scoring exports work too: Place→rank, Div→division, Class→category, Member Number→membership_number, Impacts→points (the score), Match %→percentage, Time (seconds)→time_ms, and separate First/Last columns are combined into the shooter name. Extra columns are ignored.')
                     ->schema([
                         FileUpload::make('file')
                             ->label('CSV file')

@@ -101,11 +101,19 @@ class RegistrationsRelationManager extends RelationManager
                     ->helperText('Applies the junior fee tier. Members under 18 are detected automatically — only flag this for guests or to override.')
                     ->inline(false),
 
+                Toggle::make('free_entry')
+                    ->label('Free entry (comped)')
+                    ->helperText('Waive the fee — this shooter shoots for free. Use for guests, officials or sponsors the match director comps.')
+                    ->live()
+                    ->dehydrated(false)
+                    ->afterStateUpdated(fn ($state, callable $set) => $set('fee_cents', $state ? 0 : null))
+                    ->inline(false),
+
                 TextInput::make('fee_cents')
                     ->label('Fee override (ZAR)')
                     ->numeric()
                     ->prefix('R')
-                    ->helperText('Leave blank to use the match\'s member / non-member price. Set to 0 to waive. ExCo members and SAPRF entries are handled automatically.')
+                    ->helperText('Leave blank to use the match\'s member / non-member price. Set to 0 (or toggle "Free entry") to waive. ExCo members and SAPRF entries are handled automatically.')
                     ->dehydrateStateUsing(fn ($state) => $state === null || $state === ''
                         ? null
                         : (int) round(((float) $state) * 100))

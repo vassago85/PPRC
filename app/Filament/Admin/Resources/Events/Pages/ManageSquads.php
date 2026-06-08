@@ -2,11 +2,16 @@
 
 namespace App\Filament\Admin\Resources\Events\Pages;
 
+use App\Enums\EventRegistrationStatus;
 use App\Filament\Admin\Resources\Events\EventResource;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Models\Member;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -158,6 +163,90 @@ class ManageSquads extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('add_shooter')
+                ->label('Add shooter')
+                ->icon('heroicon-o-user-plus')
+                ->color('primary')
+                ->visible(fn () => (bool) auth()->user()?->can('events.registrations.manage'))
+                ->modalHeading('Add a shooter')
+                ->modalDescription('Add a member or a walk-in guest to this match. Defaults to a free (comped) entry — turn it off to charge the normal fee.')
+                ->modalSubmitActionLabel('Add to match')
+                ->schema([
+                    Select::make('member_id')
+                        ->label('Member')
+                        ->options(fn () => Member::query()
+                            ->orderBy('last_name')
+                            ->orderBy('first_name')
+                            ->limit(500)
+                            ->get()
+                            ->mapWithKeys(fn (Member $m) => [
+                                $m->id => trim(($m->first_name ?? '').' '.($m->last_name ?? ''))
+                                    .($m->membership_number ? " ({$m->membership_number})" : ''),
+                            ])
+                            ->all())
+                        ->searchable()
+                        ->helperText('Leave blank and use the guest name below for a non-member / walk-in.'),
+                    TextInput::make('guest_name')
+                        ->label('Guest name')
+                        ->maxLength(150)
+                        ->helperText('For walk-ins who aren\'t members.'),
+                    Select::make('division')
+                        ->label('Division')
+                        ->options(fn () => collect($this->getRecord()->registrationDivisionChoices())
+                            ->mapWithKeys(fn (string $v) => [$v => $v])
+                            ->all())
+                        ->searchable()
+                        ->nullable(),
+                    Select::make('category')
+                        ->label('Category')
+                        ->options(fn () => collect($this->getRecord()->registrationCategoryChoices())
+                            ->mapWithKeys(fn (string $v) => [$v => $v])
+                            ->all())
+                        ->searchable()
+                        ->nullable(),
+                    Select::make('course')
+                        ->label('Course')
+                        ->options([
+                            'full' => 'Full course (provincial / SAPRF)',
+                            'club' => 'Club course (PPRC short)',
+                        ])
+                        ->visible(fn () => $this->getRecord()->offersBothCourses()),
+                    Toggle::make('free_entry')
+                        ->label('Free entry (comped)')
+                        ->helperText('On = shoots for free, no charge.')
+                        ->default(true)
+                        ->inline(false),
+                ])
+                ->action(function (array $data): void {
+                    $memberId = $data['member_id'] ?? null;
+                    $guestName = trim((string) ($data['guest_name'] ?? ''));
+
+                    if (! $memberId && $guestName === '') {
+                        Notification::make()
+                            ->warning()
+                            ->title('Pick a member or enter a guest name')
+                            ->send();
+
+                        return;
+                    }
+
+                    $this->getRecord()->registrations()->create([
+                        'member_id' => $memberId ?: null,
+                        'guest_name' => $guestName ?: null,
+                        'division' => $data['division'] ?? null,
+                        'category' => $data['category'] ?? null,
+                        'course' => $data['course'] ?? null,
+                        'status' => EventRegistrationStatus::Registered->value,
+                        'fee_cents' => ! empty($data['free_entry']) ? 0 : null,
+                        'registered_at' => now(),
+                    ]);
+
+                    Notification::make()
+                        ->success()
+                        ->title('Shooter added')
+                        ->body('Added to "Unassigned" — drag them into a squad.')
+                        ->send();
+                }),
             Action::make('back')
                 ->label('Back to match')
                 ->icon('heroicon-o-arrow-left')

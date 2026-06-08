@@ -54,9 +54,11 @@ it('imports an impact-scoring export with split name and aliased headers', funct
     expect($first->shooter_name)->toBe('Kevin Goncalves');
     expect($first->division)->toBe('Factory');
     expect($first->category)->toBe('Senior');
-    expect($first->score_hits)->toBe(171);
+    expect($first->score_points)->toBe(171); // Impacts -> points (the score)
+    expect($first->score_hits)->toBeNull();
     expect((float) $first->score_percentage)->toBe(89.06);
     expect($first->score_time_ms)->toBe(77510); // 77.51s -> ms
+    expect($first->displayScore())->toBe('171'); // Score column shows points, not %
 });
 
 it('still imports the canonical shooter_name format', function () {
