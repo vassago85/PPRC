@@ -28,6 +28,8 @@ class EventRegistration extends Model
         'registered_at',
         'checked_in_by_user_id',
         'checked_in_at',
+        'paid_at',
+        'marked_paid_by_user_id',
     ];
 
     protected $casts = [
@@ -36,6 +38,7 @@ class EventRegistration extends Model
         'is_junior' => 'boolean',
         'registered_at' => 'datetime',
         'checked_in_at' => 'datetime',
+        'paid_at' => 'datetime',
         'status' => EventRegistrationStatus::class,
         'squad_number' => 'integer',
         'firing_order' => 'integer',
@@ -94,6 +97,37 @@ class EventRegistration extends Model
     public function checkedInBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'checked_in_by_user_id');
+    }
+
+    public function markedPaidBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'marked_paid_by_user_id');
+    }
+
+    /**
+     * Whether this entry still owes a fee and has not yet been marked paid —
+     * the set a treasurer needs to chase / approve. Entries that owe nothing
+     * (waived / SAPRF / free) are never "awaiting payment".
+     */
+    public function awaitingPayment(): bool
+    {
+        if ($this->paid_at !== null) {
+            return false;
+        }
+
+        if ($this->is_saprf_entry || $this->isWaived()) {
+            return false;
+        }
+
+        return (int) ($this->effectiveFeeCents() ?? 0) > 0;
+    }
+
+    /**
+     * True once the fee has been confirmed received, or when nothing is owed.
+     */
+    public function isPaid(): bool
+    {
+        return $this->paid_at !== null || ! $this->awaitingPayment();
     }
 
     public function shooterName(): string
@@ -157,5 +191,64 @@ class EventRegistration extends Model
         }
 
         return 'Waived';
+    }
+
+    /**
+     * Email address to send a payment request to — the linked member's portal
+     * account email, or the guest email captured at registration.
+     */
+    public function payerEmail(): ?string
+    {
+        if ($this->member) {
+            $email = $this->member->user?->email;
+
+            return filled($email) ? $email : null;
+        }
+
+        return filled($this->guest_email) ? $this->guest_email : null;
+    }
+
+    /**
+     * First name to greet in the payment email.
+     */
+    public function payerFirstName(): string
+    {
+        if ($this->member && filled($this->member->first_name)) {
+            return (string) $this->member->first_name;
+        }
+
+        $name = trim((string) $this->guest_name);
+
+        return $name === '' ? 'there' : explode(' ', $name)[0];
+    }
+
+    /**
+     * Whether a payment email makes sense for this entry — i.e. it actually
+     * owes PPRC money and we have somewhere to send it.
+     */
+    public function owesPayment(): bool
+    {
+        if ($this->is_saprf_entry || $this->isWaived()) {
+            return false;
+        }
+
+        return (int) ($this->effectiveFeeCents() ?? 0) > 0
+            && filled($this->payerEmail());
+    }
+
+    /**
+     * Stable, human-traceable EFT reference for this match entry, e.g.
+     * "PPRC-M5-123" (M = match, then event id + entry id). Deterministic so
+     * re-sending the email always quotes the same reference for reconciliation.
+     */
+    public function paymentReference(): string
+    {
+        $prefix = trim((string) \App\Models\SiteSetting::get('payments.bank.reference_prefix', ''));
+        if ($prefix === '') {
+            $prefix = (string) config('membership.payment_ref_prefix', 'PPRC') ?: 'PPRC';
+        }
+        $prefix = strtoupper(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '', $prefix), '-')) ?: 'PPRC';
+
+        return sprintf('%s-M%d-%d', $prefix, $this->event_id, $this->id);
     }
 }

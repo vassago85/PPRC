@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\Events\RelationManagers;
 use App\Enums\EventRegistrationStatus;
 use App\Models\EventRegistration;
 use App\Models\Member;
+use App\Services\Events\MatchEntryPaymentRequestService;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -15,13 +17,17 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 class RegistrationsRelationManager extends RelationManager
 {
@@ -147,8 +153,8 @@ class RegistrationsRelationManager extends RelationManager
                     ),
                 TextColumn::make('status')
                     ->badge()
-                    ->formatStateUsing(fn (?EventRegistrationStatus $s) => $s?->label())
-                    ->color(fn (?EventRegistrationStatus $s) => $s?->color() ?? 'gray'),
+                    ->formatStateUsing(fn (?EventRegistrationStatus $state) => $state?->label())
+                    ->color(fn (?EventRegistrationStatus $state) => $state?->color() ?? 'gray'),
                 TextColumn::make('fee_display')
                     ->label('Fee')
                     ->state(function (EventRegistration $r) {
@@ -171,6 +177,20 @@ class RegistrationsRelationManager extends RelationManager
                         $r->isWaived() => 'success',
                         default => 'gray',
                     }),
+                TextColumn::make('payment_status')
+                    ->label('Payment')
+                    ->state(fn (EventRegistration $r) => match (true) {
+                        $r->paid_at !== null => 'Paid',
+                        $r->awaitingPayment() => 'Awaiting',
+                        default => 'No fee',
+                    })
+                    ->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'Paid' => 'success',
+                        'Awaiting' => 'warning',
+                        default => 'gray',
+                    })
+                    ->description(fn (EventRegistration $r) => $r->paid_at?->format('d M Y')),
                 TextColumn::make('division')->label('Div.')->toggleable(),
                 TextColumn::make('category')->label('Cat.')->toggleable(),
                 TextColumn::make('course')
@@ -192,6 +212,16 @@ class RegistrationsRelationManager extends RelationManager
                 SelectFilter::make('status')
                     ->options(collect(EventRegistrationStatus::cases())
                         ->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all()),
+                TernaryFilter::make('paid')
+                    ->label('Payment')
+                    ->placeholder('All entries')
+                    ->trueLabel('Marked paid')
+                    ->falseLabel('Not marked paid')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereNotNull('paid_at'),
+                        false: fn (Builder $query) => $query->whereNull('paid_at'),
+                        blank: fn (Builder $query) => $query,
+                    ),
             ])
             ->headerActions([
                 CreateAction::make()
@@ -201,6 +231,71 @@ class RegistrationsRelationManager extends RelationManager
                     ])),
             ])
             ->recordActions([
+                Action::make('send_payment_email')
+                    ->label('Send payment email')
+                    ->icon('heroicon-o-envelope')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Send payment email')
+                    ->modalDescription(fn (EventRegistration $r) => 'Email '.$r->shooterName().' at '
+                        .($r->payerEmail() ?? '—').' with the entry fee (R '
+                        .number_format((int) ($r->effectiveFeeCents() ?? 0) / 100, 2)
+                        .'), banking details and a payment reference?')
+                    ->visible(fn (EventRegistration $r) => $r->owesPayment()
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->action(function (EventRegistration $r) {
+                        try {
+                            app(MatchEntryPaymentRequestService::class)->send($r);
+
+                            Notification::make()->success()
+                                ->title('Payment email sent')
+                                ->body('Sent to '.$r->payerEmail().' with reference '.$r->paymentReference().'.')
+                                ->send();
+                        } catch (ValidationException $e) {
+                            Notification::make()->danger()
+                                ->title('Could not send payment email')
+                                ->body(collect($e->errors())->flatten()->first() ?? $e->getMessage())
+                                ->send();
+                        }
+                    }),
+                Action::make('mark_paid')
+                    ->label('Mark paid')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Confirm payment received')
+                    ->modalDescription(fn (EventRegistration $r) => 'Mark '.$r->shooterName().'\'s entry (R '
+                        .number_format((int) ($r->effectiveFeeCents() ?? 0) / 100, 2)
+                        .') as paid? Do this once the EFT reflects in the club account.')
+                    ->visible(fn (EventRegistration $r) => $r->paid_at === null
+                        && $r->awaitingPayment()
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->action(function (EventRegistration $r) {
+                        $r->update($this->paidAttributes($r));
+
+                        Notification::make()->success()
+                            ->title('Marked as paid')
+                            ->body($r->shooterName().'\'s entry fee is confirmed received.')
+                            ->send();
+                    }),
+                Action::make('mark_unpaid')
+                    ->label('Undo paid')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Undo payment confirmation')
+                    ->visible(fn (EventRegistration $r) => $r->paid_at !== null
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->action(function (EventRegistration $r) {
+                        $r->update([
+                            'paid_at' => null,
+                            'marked_paid_by_user_id' => null,
+                        ]);
+
+                        Notification::make()->success()
+                            ->title('Marked as unpaid')
+                            ->send();
+                    }),
                 Action::make('check_in')
                     ->label('Check in')
                     ->icon('heroicon-o-check-circle')
@@ -221,9 +316,73 @@ class RegistrationsRelationManager extends RelationManager
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BulkAction::make('send_payment_email')
+                        ->label('Send payment email')
+                        ->icon('heroicon-o-envelope')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Send payment emails')
+                        ->modalDescription('Email the selected entries their banking details and payment reference. Entries that owe nothing (free / ExCo / SAPRF) or have no email are skipped automatically.')
+                        ->visible(fn () => auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (Collection $records) {
+                            $result = app(MatchEntryPaymentRequestService::class)->sendBulk($records);
+
+                            Notification::make()->success()
+                                ->title('Payment emails sent')
+                                ->body("Sent {$result['sent']}, skipped {$result['skipped']} (nothing owed or no email).")
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                    BulkAction::make('mark_paid')
+                        ->label('Mark paid')
+                        ->icon('heroicon-o-banknotes')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Confirm payments received')
+                        ->modalDescription('Mark the selected entries as paid. Entries that owe nothing (free / ExCo / SAPRF) or are already paid are skipped automatically.')
+                        ->visible(fn () => auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (Collection $records) {
+                            $count = 0;
+
+                            foreach ($records as $r) {
+                                if ($r->paid_at !== null || ! $r->awaitingPayment()) {
+                                    continue;
+                                }
+
+                                $r->update($this->paidAttributes($r));
+                                $count++;
+                            }
+
+                            Notification::make()->success()
+                                ->title('Marked as paid')
+                                ->body($count.' '.str('entry')->plural($count).' updated.')
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                     DeleteBulkAction::make()
                         ->visible(fn () => auth()->user()?->can('events.registrations.manage')),
                 ]),
             ]);
+    }
+
+    /**
+     * Attributes applied when confirming an entry's fee was received. Marking
+     * paid also confirms the entry (the "approval"), but never overrides a
+     * cancelled / no-show status.
+     *
+     * @return array<string, mixed>
+     */
+    protected function paidAttributes(EventRegistration $r): array
+    {
+        $data = [
+            'paid_at' => now(),
+            'marked_paid_by_user_id' => auth()->id(),
+        ];
+
+        if (in_array($r->status, [EventRegistrationStatus::Registered, EventRegistrationStatus::Waitlisted], true)) {
+            $data['status'] = EventRegistrationStatus::Confirmed;
+        }
+
+        return $data;
     }
 }
