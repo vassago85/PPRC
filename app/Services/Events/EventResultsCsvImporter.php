@@ -10,13 +10,21 @@ use Illuminate\Support\Facades\DB;
 /**
  * Imports event results from a CSV file.
  *
- * Expected headers (case-insensitive, extra cols ignored):
+ * Canonical headers (case-insensitive, extra cols ignored):
  *   rank, shooter_name, division, category, member_id, member_email,
- *   hits, possible, points, percentage, time_ms, dnf, dq, notes
+ *   membership_number, hits, possible, points, percentage, time_ms,
+ *   dnf, dq, notes
  *
- * The legacy "class" header is still accepted as an alias for category so
- * older PractiScore exports keep importing without the operator renaming
- * the column by hand.
+ * Common export aliases are mapped automatically so operators don't have to
+ * rename columns by hand:
+ *   place -> rank, div -> division, class -> category,
+ *   member number -> membership_number, impacts -> hits,
+ *   match % -> percentage, time (seconds) -> time_ms.
+ *
+ * When there is no single shooter_name column, separate "first"/"last"
+ * columns (as produced by the impact-scoring exports) are combined into one.
+ * Percentage values may include a trailing "%" and time may be given in
+ * whole seconds with decimals.
  *
  * Any of the member_* columns can be used to resolve a PPRC member and link
  * the result back to their profile. If no match is found the shooter_name
@@ -24,6 +32,40 @@ use Illuminate\Support\Facades\DB;
  */
 class EventResultsCsvImporter
 {
+    /**
+     * Map of lowercased CSV header variants to the canonical key the importer
+     * reads. Headers not listed pass through unchanged (and are ignored if the
+     * importer doesn't use them).
+     *
+     * @var array<string,string>
+     */
+    private const HEADER_ALIASES = [
+        'place' => 'rank',
+        'pos' => 'rank',
+        'position' => 'rank',
+        'div' => 'division',
+        'class' => 'category',
+        'cat' => 'category',
+        'first' => 'first_name',
+        'first name' => 'first_name',
+        'firstname' => 'first_name',
+        'last' => 'last_name',
+        'last name' => 'last_name',
+        'surname' => 'last_name',
+        'lastname' => 'last_name',
+        'name' => 'shooter_name',
+        'shooter' => 'shooter_name',
+        'member number' => 'membership_number',
+        'member no' => 'membership_number',
+        'membership no' => 'membership_number',
+        'member #' => 'membership_number',
+        'impacts' => 'hits',
+        'impact' => 'hits',
+        'match %' => 'percentage',
+        'match%' => 'percentage',
+        'percent' => 'percentage',
+        '%' => 'percentage',
+    ];
     /**
      * @return array{created:int, updated:int, errors:array<int,string>}
      */
@@ -52,7 +94,11 @@ class EventResultsCsvImporter
             $headerRow[0] = preg_replace('/^\\x{FEFF}/u', '', (string) $headerRow[0]);
         }
 
-        $headers = array_map(fn ($h) => strtolower(trim((string) $h)), $headerRow);
+        $headers = array_map(function ($h) {
+            $key = strtolower(trim((string) $h));
+
+            return self::HEADER_ALIASES[$key] ?? $key;
+        }, $headerRow);
 
         $created = 0;
         $updated = 0;
@@ -78,9 +124,9 @@ class EventResultsCsvImporter
                     continue;
                 }
 
-                $shooterName = $data['shooter_name'] ?? '';
+                $shooterName = self::resolveShooterName($data);
                 if ($shooterName === '') {
-                    $errors[] = "Row {$rowNum}: missing shooter_name.";
+                    $errors[] = "Row {$rowNum}: missing shooter name.";
                     continue;
                 }
 
@@ -88,14 +134,14 @@ class EventResultsCsvImporter
 
                 $attrs = [
                     'shooter_name' => $shooterName,
-                    'division' => $data['division'] ?? null ?: null,
-                    'category' => ($data['category'] ?? $data['class'] ?? null) ?: null,
+                    'division' => ($data['division'] ?? '') ?: null,
+                    'category' => ($data['category'] ?? '') ?: null,
                     'rank' => self::nullableInt($data['rank'] ?? null),
                     'score_hits' => self::nullableInt($data['hits'] ?? null),
                     'score_possible' => self::nullableInt($data['possible'] ?? null),
                     'score_points' => self::nullableInt($data['points'] ?? null),
                     'score_percentage' => self::nullableFloat($data['percentage'] ?? null),
-                    'score_time_ms' => self::nullableInt($data['time_ms'] ?? null),
+                    'score_time_ms' => self::resolveTimeMs($data),
                     'dnf' => self::boolish($data['dnf'] ?? null),
                     'dq' => self::boolish($data['dq'] ?? null),
                     'notes' => ($data['notes'] ?? '') ?: null,
@@ -130,6 +176,42 @@ class EventResultsCsvImporter
         return compact('created', 'updated', 'errors');
     }
 
+    /**
+     * Build a single shooter name, supporting either a combined
+     * "shooter_name" column or separate "first"/"last" columns.
+     */
+    private static function resolveShooterName(array $data): string
+    {
+        $name = trim((string) ($data['shooter_name'] ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        $first = trim((string) ($data['first_name'] ?? ''));
+        $last = trim((string) ($data['last_name'] ?? ''));
+
+        return trim($first.' '.$last);
+    }
+
+    /**
+     * Accept time as milliseconds (time_ms) or whole seconds with decimals
+     * (time), as produced by the impact-scoring exports.
+     */
+    private static function resolveTimeMs(array $data): ?int
+    {
+        $ms = self::nullableInt($data['time_ms'] ?? null);
+        if ($ms !== null) {
+            return $ms;
+        }
+
+        $seconds = self::nullableFloat($data['time'] ?? null);
+        if ($seconds === null) {
+            return null;
+        }
+
+        return (int) round($seconds * 1000);
+    }
+
     private function resolveMemberId(array $data): ?int
     {
         if (! empty($data['member_id']) && ctype_digit((string) $data['member_id'])) {
@@ -162,7 +244,11 @@ class EventResultsCsvImporter
 
     private static function nullableFloat(?string $v): ?float
     {
-        if ($v === null || $v === '') return null;
+        if ($v === null) return null;
+        // Strip a trailing percent sign, thousands separators and surrounding
+        // whitespace so values like "89.06%" or "1,234.5" still parse.
+        $v = trim(str_replace([',', '%'], '', $v));
+        if ($v === '') return null;
         if (! is_numeric($v)) return null;
         return (float) $v;
     }
