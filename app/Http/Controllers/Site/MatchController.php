@@ -43,7 +43,11 @@ class MatchController extends Controller
         // shooters can still see who has signed up. Order within a squad
         // follows firing_order if it's set, then name.
         $squads = $event->registrations()
-            ->with('member:id,first_name,last_name,membership_number')
+            ->with([
+                'member:id,user_id,first_name,last_name,membership_number',
+                'member.user:id',
+                'member.user.roles:id,name',
+            ])
             ->whereNotIn('status', ['cancelled', 'no_show'])
             ->orderByRaw('squad_number IS NULL, squad_number')
             ->orderByRaw('firing_order IS NULL, firing_order')

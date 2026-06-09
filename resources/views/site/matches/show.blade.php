@@ -192,7 +192,7 @@
                                         <span class="w-5 shrink-0 text-xs tabular-nums text-slate-500">{{ $entry->firing_order }}.</span>
                                     @endif
                                     <span class="font-medium text-white">{{ $name }}</span>
-                                    @if ($entry->paid_at)
+                                    @if ($entry->paymentConfirmed())
                                         <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
                                             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                                             Confirmed

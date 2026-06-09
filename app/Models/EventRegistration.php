@@ -142,6 +142,20 @@ class EventRegistration extends Model
         return $this->payment_proof_path !== null && $this->paid_at === null;
     }
 
+    /**
+     * Whether this entry counts as settled for the public list — either a
+     * committee member confirmed the fee, or the shooter is an ExCo member
+     * who enters for free (auto-confirmed, nothing to pay).
+     */
+    public function paymentConfirmed(): bool
+    {
+        if ($this->paid_at !== null) {
+            return true;
+        }
+
+        return (bool) $this->member?->user?->hasFreeEventEntry();
+    }
+
     public function shooterName(): string
     {
         if ($this->member) {
