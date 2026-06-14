@@ -33,15 +33,15 @@ class LogSentEmail
             }
 
             $messageId = $message->getHeaders()->get('Message-ID')?->getBodyAsString();
+            $subject = $message->getSubject();
 
             // Idempotency guard. Some mail-driver paths (Symfony transports
             // wrapped by Laravel) fire MessageSent twice for a single send,
-            // which previously produced duplicate "sent" rows for every
-            // welcome email. Only the first observation per Message-ID wins.
-            if ($messageId && EmailLog::query()
-                ->where('message_id', $messageId)
-                ->where('status', EmailLog::STATUS_SENT)
-                ->exists()) {
+            // which produced duplicate "sent" rows. When a Message-ID is
+            // present we dedup on it; some transports leave it null at this
+            // point, so we fall back to a short-window match on recipient +
+            // subject so a single send is still only logged once.
+            if ($this->alreadyLogged($messageId, $primaryTo['email'], $subject)) {
                 return;
             }
 
@@ -60,7 +60,7 @@ class LogSentEmail
                 'to_name' => $primaryTo['name'],
                 'from_email' => $primaryFrom['email'] ?? null,
                 'from_name' => $primaryFrom['name'] ?? null,
-                'subject' => $message->getSubject(),
+                'subject' => $subject,
                 'body_html' => $bodyHtml,
                 'mailable_class' => is_string($mailableClass) ? $mailableClass : null,
                 'status' => EmailLog::STATUS_SENT,
@@ -78,6 +78,27 @@ class LogSentEmail
                 'subject' => optional($event->message)->getSubject(),
             ]);
         }
+    }
+
+    /**
+     * Whether this send was already recorded — keyed on Message-ID when the
+     * transport set one, otherwise on a short recipient + subject window to
+     * absorb duplicate MessageSent events for a single send.
+     */
+    private function alreadyLogged(?string $messageId, string $toEmail, ?string $subject): bool
+    {
+        $query = EmailLog::query()->where('status', EmailLog::STATUS_SENT);
+
+        if ($messageId) {
+            return $query->where('message_id', $messageId)->exists();
+        }
+
+        return $query
+            ->whereNull('message_id')
+            ->where('to_email', $toEmail)
+            ->where('subject', $subject)
+            ->where('created_at', '>=', now()->subSeconds(30))
+            ->exists();
     }
 
     /**
