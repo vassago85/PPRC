@@ -297,9 +297,12 @@ class RegistrationsRelationManager extends RelationManager
                     ->action(function (EventRegistration $r) {
                         $r->update($this->paidAttributes($r));
 
+                        $emailed = app(MatchEntryPaymentRequestService::class)->sendConfirmation($r);
+
                         Notification::make()->success()
                             ->title('Marked as paid')
-                            ->body($r->shooterName().'\'s entry fee is confirmed received.')
+                            ->body($r->shooterName().'\'s entry fee is confirmed received.'
+                                .($emailed ? ' A confirmation email was sent.' : ''))
                             ->send();
                     }),
                 Action::make('mark_unpaid')
@@ -368,6 +371,9 @@ class RegistrationsRelationManager extends RelationManager
                         ->action(function (Collection $records) {
                             $count = 0;
 
+                            $emailed = 0;
+                            $service = app(MatchEntryPaymentRequestService::class);
+
                             foreach ($records as $r) {
                                 if ($r->paid_at !== null || ! $r->awaitingPayment()) {
                                     continue;
@@ -375,11 +381,16 @@ class RegistrationsRelationManager extends RelationManager
 
                                 $r->update($this->paidAttributes($r));
                                 $count++;
+
+                                if ($service->sendConfirmation($r)) {
+                                    $emailed++;
+                                }
                             }
 
                             Notification::make()->success()
                                 ->title('Marked as paid')
-                                ->body($count.' '.str('entry')->plural($count).' updated.')
+                                ->body($count.' '.str('entry')->plural($count).' updated'
+                                    .($emailed > 0 ? ", {$emailed} confirmation ".str('email')->plural($emailed).' sent.' : '.'))
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion(),

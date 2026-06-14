@@ -9,8 +9,10 @@ use App\Models\EventRegistration;
 use App\Models\MatchFormat;
 use App\Models\Member;
 use App\Models\User;
+use App\Mail\MatchEntryPaymentConfirmedMail;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -72,6 +74,7 @@ it('renders the entries relation manager with mixed entries', function () {
 });
 
 it('marks an entry as paid and confirms it', function () {
+    Mail::fake();
     $admin = User::factory()->create(['email_verified_at' => now()]);
     $admin->assignRole('treasurer');
     $this->actingAs($admin);
@@ -115,6 +118,8 @@ it('marks an entry as paid and confirms it', function () {
     expect($entry->status)->toBe(EventRegistrationStatus::Confirmed);
     expect($entry->awaitingPayment())->toBeFalse();
     expect($entry->isPaid())->toBeTrue();
+
+    Mail::assertSent(MatchEntryPaymentConfirmedMail::class, 1);
 });
 
 it('treats waived and SAPRF entries as not awaiting payment', function () {

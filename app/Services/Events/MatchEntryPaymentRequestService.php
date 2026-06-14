@@ -2,6 +2,7 @@
 
 namespace App\Services\Events;
 
+use App\Mail\MatchEntryPaymentConfirmedMail;
 use App\Mail\MatchEntryPaymentMail;
 use App\Models\EventRegistration;
 use Illuminate\Support\Facades\Mail;
@@ -41,6 +42,27 @@ class MatchEntryPaymentRequestService
         Mail::to($email, $registration->shooterName())->send(
             new MatchEntryPaymentMail($registration, $isReminder),
         );
+    }
+
+    /**
+     * Email the entry to confirm their fee has been received and their spot is
+     * secured. Returns false (without sending) when there's no email on file.
+     */
+    public function sendConfirmation(EventRegistration $registration): bool
+    {
+        $registration->loadMissing(['event', 'member.user']);
+
+        $email = $registration->payerEmail();
+
+        if (! filled($email)) {
+            return false;
+        }
+
+        Mail::to($email, $registration->shooterName())->send(
+            new MatchEntryPaymentConfirmedMail($registration),
+        );
+
+        return true;
     }
 
     /**
