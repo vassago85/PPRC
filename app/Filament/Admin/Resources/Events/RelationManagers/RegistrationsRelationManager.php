@@ -305,6 +305,34 @@ class RegistrationsRelationManager extends RelationManager
                                 .($emailed ? ' A confirmation email was sent.' : ''))
                             ->send();
                     }),
+                Action::make('send_confirmation')
+                    ->label('Send confirmation')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Send payment confirmation')
+                    ->modalDescription(fn (EventRegistration $r) => 'Email '.$r->shooterName().' at '
+                        .($r->payerEmail() ?? '—').' confirming their entry fee has been received?')
+                    ->visible(fn (EventRegistration $r) => $r->paid_at !== null
+                        && filled($r->payerEmail())
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->action(function (EventRegistration $r) {
+                        $sent = app(MatchEntryPaymentRequestService::class)->sendConfirmation($r);
+
+                        if ($sent) {
+                            Notification::make()->success()
+                                ->title('Confirmation sent')
+                                ->body('Emailed '.$r->payerEmail().' confirming payment received.')
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()->danger()
+                            ->title('Could not send confirmation')
+                            ->body('This entry has no email address on file.')
+                            ->send();
+                    }),
                 Action::make('mark_unpaid')
                     ->label('Undo paid')
                     ->icon('heroicon-o-arrow-uturn-left')
@@ -391,6 +419,35 @@ class RegistrationsRelationManager extends RelationManager
                                 ->title('Marked as paid')
                                 ->body($count.' '.str('entry')->plural($count).' updated'
                                     .($emailed > 0 ? ", {$emailed} confirmation ".str('email')->plural($emailed).' sent.' : '.'))
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                    BulkAction::make('send_confirmation')
+                        ->label('Send confirmation')
+                        ->icon('heroicon-o-check-badge')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Send payment confirmations')
+                        ->modalDescription('Email the selected paid entries confirming their fee was received. Entries not yet marked paid or with no email are skipped automatically.')
+                        ->visible(fn () => auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (Collection $records) {
+                            $sent = 0;
+                            $skipped = 0;
+                            $service = app(MatchEntryPaymentRequestService::class);
+
+                            foreach ($records as $r) {
+                                if ($r->paid_at === null || ! $service->sendConfirmation($r)) {
+                                    $skipped++;
+
+                                    continue;
+                                }
+
+                                $sent++;
+                            }
+
+                            Notification::make()->success()
+                                ->title('Confirmations sent')
+                                ->body("Sent {$sent}, skipped {$skipped} (not paid or no email).")
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion(),

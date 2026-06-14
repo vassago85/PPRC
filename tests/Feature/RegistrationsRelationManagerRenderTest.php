@@ -122,6 +122,45 @@ it('marks an entry as paid and confirms it', function () {
     Mail::assertSent(MatchEntryPaymentConfirmedMail::class, 1);
 });
 
+it('sends a payment confirmation manually for a paid entry', function () {
+    Mail::fake();
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('treasurer');
+    $this->actingAs($admin);
+
+    $format = MatchFormat::create([
+        'slug' => 'prs-centerfire',
+        'name' => 'PRS Centerfire',
+        'short_name' => 'PRS',
+        'is_active' => true,
+    ]);
+
+    $event = Event::create([
+        'match_format_id' => $format->id,
+        'title' => 'Centerfire Club Match',
+        'start_date' => now()->addWeek()->toDateString(),
+        'status' => EventStatus::Published,
+        'member_price_cents' => 15000,
+        'non_member_price_cents' => 20000,
+    ]);
+
+    $entry = EventRegistration::create([
+        'event_id' => $event->id,
+        'guest_name' => 'Jane Guest',
+        'guest_email' => 'guest@example.com',
+        'status' => EventRegistrationStatus::Confirmed,
+        'registered_at' => now(),
+        'paid_at' => now(),
+    ]);
+
+    Livewire::test(RegistrationsRelationManager::class, [
+        'ownerRecord' => $event,
+        'pageClass' => EditEvent::class,
+    ])->callTableAction('send_confirmation', $entry)->assertHasNoTableActionErrors();
+
+    Mail::assertSent(MatchEntryPaymentConfirmedMail::class, 1);
+});
+
 it('treats waived and SAPRF entries as not awaiting payment', function () {
     $format = MatchFormat::create([
         'slug' => 'prs-centerfire',
