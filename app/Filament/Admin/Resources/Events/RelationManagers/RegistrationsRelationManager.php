@@ -193,6 +193,15 @@ class RegistrationsRelationManager extends RelationManager
                     })
                     ->description(fn (EventRegistration $r) => $r->paid_at?->format('d M Y')
                         ?? ($r->hasUnverifiedProof() ? 'Proof uploaded' : null)),
+                TextColumn::make('payment_reference')
+                    ->label('Reference')
+                    ->state(fn (EventRegistration $r) => (! $r->is_saprf_entry && (int) ($r->effectiveFeeCents() ?? 0) > 0)
+                        ? $r->paymentReference()
+                        : '—')
+                    ->copyable()
+                    ->copyMessage('Reference copied')
+                    ->badge()
+                    ->color('gray'),
                 IconColumn::make('payment_proof_path')
                     ->label('Proof')
                     ->boolean()
