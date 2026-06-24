@@ -110,4 +110,32 @@ class Membership extends Model
     {
         return $this->confirmedPayment() !== null;
     }
+
+    /**
+     * Whether this membership is a renewal rather than a first-time join.
+     * Renewals created through RenewalService carry a renewal_source; as a
+     * fallback we treat it as a renewal when the member already held an
+     * earlier membership that was active or expired (i.e. they've been a
+     * paid-up member before), ignoring abandoned/never-activated signups.
+     */
+    public function isRenewal(): bool
+    {
+        if ($this->renewal_source !== null) {
+            return true;
+        }
+
+        if ($this->member_id === null) {
+            return false;
+        }
+
+        return static::query()
+            ->where('member_id', $this->member_id)
+            ->where('id', '!=', $this->id)
+            ->whereIn('status', [
+                MembershipStatus::Active->value,
+                MembershipStatus::Expired->value,
+            ])
+            ->where('created_at', '<', $this->created_at ?? now())
+            ->exists();
+    }
 }

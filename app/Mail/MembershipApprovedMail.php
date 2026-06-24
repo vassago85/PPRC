@@ -22,7 +22,9 @@ class MembershipApprovedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your PPRC membership has been approved',
+            subject: $this->membership->isRenewal()
+                ? 'Your PPRC membership has been renewed'
+                : 'Your PPRC membership has been approved',
         );
     }
 
@@ -35,6 +37,7 @@ class MembershipApprovedMail extends Mailable
             with: [
                 'member' => $this->member,
                 'membership' => $this->membership,
+                'isRenewal' => $this->membership->isRenewal(),
                 'typeName' => $this->membership->membership_type_name_snapshot
                     ?? $this->membership->membershipType?->name
                     ?? 'Member',

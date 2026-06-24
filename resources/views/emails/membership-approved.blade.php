@@ -20,10 +20,10 @@
                         <td style="background-color:#0f172a;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);padding:40px 36px 32px;text-align:center;">
                             <img src="{{ asset('pprclogo.png') }}" alt="PPRC" width="80" height="80" style="display:inline-block;width:80px;height:80px;border-radius:50%;border:3px solid rgba(255,255,255,0.15);margin-bottom:16px;" />
                             <h1 style="margin:0 0 6px;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
-                                You're in! &#127919;
+                                @if($isRenewal ?? false) Welcome back! &#127919; @else You're in! &#127919; @endif
                             </h1>
                             <p style="margin:0;font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;font-weight:500;">
-                                Membership approved
+                                @if($isRenewal ?? false) Membership renewed @else Membership approved @endif
                             </p>
                         </td>
                     </tr>
@@ -35,7 +35,11 @@
                                 Hi {{ e($member->first_name) }},
                             </p>
                             <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
-                                Great news — your <strong>{{ e($typeName) }}</strong> membership at Pretoria Precision Rifle Club has been approved and is now <span style="color:#16a34a;font-weight:700;">active</span>.
+                                @if($isRenewal ?? false)
+                                    Great news — your <strong>{{ e($typeName) }}</strong> membership at Pretoria Precision Rifle Club has been renewed and is <span style="color:#16a34a;font-weight:700;">active</span> again. Thanks for sticking with us!
+                                @else
+                                    Great news — your <strong>{{ e($typeName) }}</strong> membership at Pretoria Precision Rifle Club has been approved and is now <span style="color:#16a34a;font-weight:700;">active</span>.
+                                @endif
                             </p>
                         </td>
                     </tr>
