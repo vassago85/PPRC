@@ -48,27 +48,55 @@ class EventResource extends Resource
         return static::canViewAny();
     }
 
-    public static function getNavigationBadge(): ?string
+    protected static function needsActionCount(): int
     {
-        $count = Event::query()
+        return Event::query()
             ->where('status', EventStatus::Draft->value)
             ->count()
             + Event::query()
                 ->where('status', EventStatus::Completed->value)
                 ->whereNull('results_published_at')
                 ->count();
+    }
+
+    protected static function newEntryCount(): int
+    {
+        return \App\Models\EventRegistration::query()->newSignups()->count();
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::needsActionCount() + static::newEntryCount();
 
         return $count > 0 ? (string) $count : null;
     }
 
     public static function getNavigationBadgeColor(): ?string
     {
+        // Lean towards "success" when the only outstanding thing is fresh
+        // signups, so a new-entry notification reads as good news rather
+        // than an overdue task.
+        if (static::newEntryCount() > 0 && static::needsActionCount() === 0) {
+            return 'success';
+        }
+
         return 'warning';
     }
 
     public static function getNavigationBadgeTooltip(): ?string
     {
-        return 'Matches needing action';
+        $parts = [];
+
+        if (($new = static::newEntryCount()) > 0) {
+            $parts[] = $new.' new '.str('entry')->plural($new)
+                .' (last '.\App\Models\EventRegistration::NEW_SIGNUP_WINDOW_DAYS.' days)';
+        }
+
+        if (($action = static::needsActionCount()) > 0) {
+            $parts[] = $action.' needing action';
+        }
+
+        return $parts === [] ? null : implode(' · ', $parts);
     }
 
     public static function getGloballySearchableAttributes(): array

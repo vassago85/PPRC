@@ -103,6 +103,14 @@ class AdminDashboardService
                 'color' => 'danger',
             ],
             [
+                'label' => 'New match entries',
+                'value' => EventRegistration::query()->newSignups()->count(),
+                'description' => 'Signed up in the last '.EventRegistration::NEW_SIGNUP_WINDOW_DAYS.' days',
+                'url' => EventResource::getUrl('index'),
+                'icon' => 'heroicon-o-clipboard-document-check',
+                'color' => 'success',
+            ],
+            [
                 'label' => 'Upcoming matches',
                 'value' => Event::query()->upcoming()->count(),
                 'description' => 'Scheduled upcoming events',

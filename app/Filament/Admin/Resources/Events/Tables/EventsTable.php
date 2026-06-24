@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Events\Tables;
 
 use App\Enums\EventStatus;
 use App\Models\Event;
+use App\Models\EventRegistration;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -24,6 +25,10 @@ class EventsTable
     {
         return $table
             ->defaultSort('start_date', 'desc')
+            ->modifyQueryUsing(fn ($query) => $query->withCount([
+                'registrations as new_entries_count' => fn ($q) => $q
+                    ->where('created_at', '>=', now()->subDays(EventRegistration::NEW_SIGNUP_WINDOW_DAYS)),
+            ]))
             ->columns([
                 TextColumn::make('start_date')->date('D d M Y')->sortable()->label('Date'),
                 TextColumn::make('title')->searchable()->sortable()->wrap(),
@@ -45,6 +50,16 @@ class EventsTable
                     ->label('Entries')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('new_entries_count')
+                    ->label('New')
+                    ->badge()
+                    ->color('success')
+                    ->icon('heroicon-m-sparkles')
+                    ->tooltip('Entries received in the last '.EventRegistration::NEW_SIGNUP_WINDOW_DAYS.' days')
+                    ->state(fn (Event $record): ?string => ($record->new_entries_count ?? 0) > 0
+                        ? (string) $record->new_entries_count
+                        : null)
+                    ->placeholder('—'),
                 TextColumn::make('match_director_name')
                     ->label('MD')
                     ->toggleable(isToggledHiddenByDefault: true)

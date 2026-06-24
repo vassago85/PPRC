@@ -3,11 +3,18 @@
 namespace App\Models;
 
 use App\Enums\EventRegistrationStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EventRegistration extends Model
 {
+    /**
+     * How many days a registration counts as a "new signup" for the admin
+     * notification badges and dashboard card.
+     */
+    public const NEW_SIGNUP_WINDOW_DAYS = 7;
+
     protected $fillable = [
         'event_id',
         'member_id',
@@ -90,6 +97,20 @@ class EventRegistration extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    /**
+     * Recent signups for matches that haven't happened yet — used to flag
+     * "new entries" to admins. Past matches are ignored so old data never
+     * lights up the notification.
+     */
+    public function scopeNewSignups(Builder $query, ?int $days = null): Builder
+    {
+        $days ??= static::NEW_SIGNUP_WINDOW_DAYS;
+
+        return $query
+            ->where('created_at', '>=', now()->subDays($days))
+            ->whereHas('event', fn (Builder $q) => $q->whereDate('start_date', '>=', now()->toDateString()));
     }
 
     public function member(): BelongsTo
