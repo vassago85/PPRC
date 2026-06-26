@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Resources\Events\Tables;
 use App\Enums\EventStatus;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Services\Events\MatchEntryDeadCenterExporter;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -100,6 +102,25 @@ class EventsTable
                     ->visible(fn (Event $record) => $record->status === EventStatus::Published)
                     ->requiresConfirmation()
                     ->action(fn (Event $record) => $record->update(['status' => EventStatus::Completed])),
+                Action::make('export_deadcenter')
+                    ->label('Export to DeadCenter')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->visible(fn () => auth()->user()?->can('events.view'))
+                    ->action(function (Event $record) {
+                        $exporter = app(MatchEntryDeadCenterExporter::class);
+
+                        if ($exporter->rows($record) === []) {
+                            Notification::make()->warning()
+                                ->title('Nothing to export')
+                                ->body('This match has no confirmed entries yet.')
+                                ->send();
+
+                            return null;
+                        }
+
+                        return $exporter->download($record);
+                    }),
                 EditAction::make(),
                 DeleteAction::make(),
             ])

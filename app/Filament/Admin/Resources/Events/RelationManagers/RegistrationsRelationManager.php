@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Events\RelationManagers;
 use App\Enums\EventRegistrationStatus;
 use App\Models\EventRegistration;
 use App\Models\Member;
+use App\Services\Events\MatchEntryDeadCenterExporter;
 use App\Services\Events\MatchEntryPaymentRequestService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -246,6 +247,26 @@ class RegistrationsRelationManager extends RelationManager
                     ->mutateDataUsing(fn (array $data) => array_merge($data, [
                         'registered_at' => now(),
                     ])),
+                Action::make('export_deadcenter')
+                    ->label('Export to DeadCenter')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->visible(fn () => auth()->user()?->can('events.view'))
+                    ->action(function () {
+                        $exporter = app(MatchEntryDeadCenterExporter::class);
+                        $event = $this->getOwnerRecord();
+
+                        if ($exporter->rows($event) === []) {
+                            Notification::make()->warning()
+                                ->title('Nothing to export')
+                                ->body('This match has no confirmed entries yet.')
+                                ->send();
+
+                            return null;
+                        }
+
+                        return $exporter->download($event);
+                    }),
             ])
             ->recordActions([
                 Action::make('send_payment_email')
