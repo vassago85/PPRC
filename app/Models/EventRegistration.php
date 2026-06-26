@@ -164,12 +164,18 @@ class EventRegistration extends Model
     }
 
     /**
-     * Whether this entry counts as settled for the public list — either a
-     * committee member confirmed the fee, or the shooter is an ExCo member
-     * who enters for free (auto-confirmed, nothing to pay).
+     * Whether this entry counts as settled for the public list. Kept in step
+     * with the admin "Confirmed" status so the shooter list never disagrees
+     * with what staff see: a confirmed entry, a received fee, an ExCo free
+     * entry, or anything with nothing to pay (waived / comped / SAPRF) all
+     * count as confirmed.
      */
     public function paymentConfirmed(): bool
     {
+        if ($this->status === EventRegistrationStatus::Confirmed) {
+            return true;
+        }
+
         if ($this->paid_at !== null) {
             return true;
         }
