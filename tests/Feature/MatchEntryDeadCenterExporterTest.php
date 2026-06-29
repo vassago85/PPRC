@@ -27,10 +27,12 @@ function exportTestMatch(): Event
 it('exports only confirmed entries, ordered by squad and firing order', function () {
     $event = exportTestMatch();
 
-    // Confirmed (paid), squad 2
+    // Confirmed (paid), squad 2 — a guest with no account
     EventRegistration::create([
         'event_id' => $event->id,
         'guest_name' => 'Bravo Shooter',
+        'guest_email' => 'bravo@example.com',
+        'guest_phone' => '082 555 1234',
         'division' => 'Open',
         'category' => 'Mens',
         'squad_number' => 2,
@@ -73,8 +75,9 @@ it('exports only confirmed entries, ordered by squad and firing order', function
 
     expect($rows)->toHaveCount(2);
     // Squad 1 sorts before squad 2
-    expect($rows[0])->toBe(['1', '3', 'Alpha Shooter', 'Limited', 'Senior']);
-    expect($rows[1])->toBe(['2', '1', 'Bravo Shooter', 'Open', 'Mens']);
+    expect($rows[0])->toBe(['1', '3', 'Alpha Shooter', 'Limited', 'Senior', '', '', '', 'No']);
+    // Guest contact details are exported for people without accounts
+    expect($rows[1])->toBe(['2', '1', 'Bravo Shooter', 'Open', 'Mens', 'bravo@example.com', '082 555 1234', '', 'No']);
 });
 
 it('builds a slugged csv filename for the match', function () {

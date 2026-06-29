@@ -262,6 +262,25 @@ class EventRegistration extends Model
     }
 
     /**
+     * Best contact number for this entry — the member's stored phone, or the
+     * guest's supplied number. Used for the DeadCenter export and admin
+     * follow-up with shooters who don't have accounts.
+     */
+    public function contactPhone(): ?string
+    {
+        if ($this->member) {
+            $phone = trim(
+                ($this->member->phone_country_code ? $this->member->phone_country_code.' ' : '')
+                .($this->member->phone_number ?? '')
+            );
+
+            return filled($phone) ? $phone : null;
+        }
+
+        return filled($this->guest_phone) ? $this->guest_phone : null;
+    }
+
+    /**
      * First name to greet in the payment email.
      */
     public function payerFirstName(): string

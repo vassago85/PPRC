@@ -17,7 +17,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class MatchEntryDeadCenterExporter
 {
     /** @var array<int, string> */
-    public const HEADERS = ['Squad', 'Bib', 'Name', 'Division', 'Category'];
+    public const HEADERS = [
+        'Squad', 'Bib', 'Name', 'Division', 'Category',
+        'Email', 'Phone', 'Membership #', 'Has account',
+    ];
 
     /**
      * Confirmed, non-cancelled entries as ordered CSV rows.
@@ -43,6 +46,10 @@ class MatchEntryDeadCenterExporter
                 $r->shooterName(),
                 $r->division ?? '',
                 $r->category ?? '',
+                $r->payerEmail() ?? '',
+                $r->contactPhone() ?? '',
+                $r->member?->membership_number ?? '',
+                $r->member ? 'Yes' : 'No',
             ])
             ->values()
             ->all();
