@@ -46,4 +46,59 @@ class MembershipPayment extends Model
     {
         return $this->belongsTo(User::class, 'confirmed_by_user_id');
     }
+
+    /**
+     * The member this payment is for, including soft-deleted members so a
+     * removed member's payment still resolves rather than showing blank.
+     */
+    public function payerMember(): ?Member
+    {
+        return $this->membership?->member
+            ?? $this->membership?->memberWithTrashed
+            ?? ($this->membership?->member_id
+                ? Member::withTrashed()->find($this->membership->member_id)
+                : null);
+    }
+
+    /**
+     * Best available display name for the payer. Falls back through the
+     * linked account name/email so a payment is never unidentifiable in
+     * the admin list, even when the member record is missing or nameless.
+     */
+    public function payerName(): string
+    {
+        $member = $this->payerMember();
+
+        if ($member) {
+            $name = $member->fullName();
+
+            if ($name !== '—') {
+                return $member->trashed() ? "{$name} (removed)" : $name;
+            }
+
+            if ($accountName = $member->user?->name) {
+                return $member->trashed() ? "{$accountName} (removed)" : $accountName;
+            }
+
+            if ($email = $member->user?->email) {
+                return $email;
+            }
+        }
+
+        return '—';
+    }
+
+    /**
+     * Secondary line for the payer column: membership type, plus the linked
+     * email when we have it, to help reconcile blank/removed members.
+     */
+    public function payerSubtitle(): ?string
+    {
+        $type = $this->membership?->membershipType?->name
+            ?? $this->membership?->membership_type_name_snapshot;
+
+        $email = $this->payerMember()?->user?->email;
+
+        return collect([$type, $email])->filter()->implode(' · ') ?: null;
+    }
 }

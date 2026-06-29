@@ -29,6 +29,11 @@ class MembershipPaymentsTable
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            ->modifyQueryUsing(fn (Builder $query) => $query->with([
+                'membership.member.user',
+                'membership.memberWithTrashed.user',
+                'membership.membershipType',
+            ]))
             ->columns([
                 TextColumn::make('reference')
                     ->label('Payment ref')
@@ -47,19 +52,19 @@ class MembershipPaymentsTable
                     ->badge()
                     ->sortable()
                     ->searchable()
+                    ->state(fn (MembershipPayment $r) => $r->payerMember()?->membership_number)
                     ->placeholder('—'),
 
                 TextColumn::make('membership.member.full_name')
                     ->label('Member')
-                    ->state(fn (MembershipPayment $r) => $r->membership?->member?->fullName() ?? '—')
+                    ->state(fn (MembershipPayment $r) => $r->payerName())
                     ->searchable(query: function (Builder $query, string $search) {
-                        $query->whereHas('membership.member', fn ($q) => $q
+                        $query->whereHas('membership.memberWithTrashed', fn ($q) => $q
+                            ->withTrashed()
                             ->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%")
-                            ->orWhere('email_cached', 'like', "%{$search}%"));
+                            ->orWhere('last_name', 'like', "%{$search}%"));
                     })
-                    ->description(fn (MembershipPayment $r) => $r->membership?->membershipType?->name
-                        ?? $r->membership?->membership_type_name_snapshot),
+                    ->description(fn (MembershipPayment $r) => $r->payerSubtitle()),
 
                 TextColumn::make('amount_cents')
                     ->label('Amount')
@@ -163,7 +168,7 @@ class MembershipPaymentsTable
                     ->requiresConfirmation()
                     ->modalHeading('Confirm payment received')
                     ->modalDescription(fn (MembershipPayment $r) => 'This will mark this payment as Confirmed and activate the membership for '
-                        .($r->membership?->member?->fullName() ?? 'this member')
+                        .($r->payerName() !== '—' ? $r->payerName() : 'this member')
                         .'. The member will receive an activation email.')
                     ->modalSubmitActionLabel('Confirm + activate')
                     ->action(function (MembershipPayment $r) {

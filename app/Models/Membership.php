@@ -68,6 +68,15 @@ class Membership extends Model
         return $this->belongsTo(Member::class);
     }
 
+    /**
+     * Same as member(), but includes soft-deleted members so payments and
+     * other admin views can still identify who a removed member was.
+     */
+    public function memberWithTrashed(): BelongsTo
+    {
+        return $this->belongsTo(Member::class)->withTrashed();
+    }
+
     public function membershipType(): BelongsTo
     {
         return $this->belongsTo(MembershipType::class);
