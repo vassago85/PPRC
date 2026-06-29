@@ -57,7 +57,7 @@ class MatchEntryDeadCenterExporter
 
     public function filename(Event $event): string
     {
-        return 'deadcenter-'.Str::slug($event->title ?: 'match').'-'.now()->format('Ymd-Hi').'.csv';
+        return 'entries-'.Str::slug($event->title ?: 'match').'-'.now()->format('Ymd-Hi').'.csv';
     }
 
     public function download(Event $event): StreamedResponse

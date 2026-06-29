@@ -247,8 +247,8 @@ class RegistrationsRelationManager extends RelationManager
                     ->mutateDataUsing(fn (array $data) => array_merge($data, [
                         'registered_at' => now(),
                     ])),
-                Action::make('export_deadcenter')
-                    ->label('Export to DeadCenter')
+                Action::make('export_entries')
+                    ->label('Export')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->visible(fn () => auth()->user()?->can('events.view'))

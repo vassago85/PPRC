@@ -102,8 +102,8 @@ class EventsTable
                     ->visible(fn (Event $record) => $record->status === EventStatus::Published)
                     ->requiresConfirmation()
                     ->action(fn (Event $record) => $record->update(['status' => EventStatus::Completed])),
-                Action::make('export_deadcenter')
-                    ->label('Export to DeadCenter')
+                Action::make('export_entries')
+                    ->label('Export')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->visible(fn () => auth()->user()?->can('events.view'))

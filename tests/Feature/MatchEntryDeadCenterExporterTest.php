@@ -84,6 +84,6 @@ it('builds a slugged csv filename for the match', function () {
     $event = exportTestMatch();
 
     expect(app(MatchEntryDeadCenterExporter::class)->filename($event))
-        ->toStartWith('deadcenter-legends-4-july-')
+        ->toStartWith('entries-legends-4-july-')
         ->toEndWith('.csv');
 });
