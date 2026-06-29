@@ -6,17 +6,33 @@ FROM composer:2 AS vendor
 
 WORKDIR /app
 
+# Optional GitHub token. Anonymous codeload.github.com zip downloads get
+# rate-limited and intermittently return HTTP 400, which breaks the build.
+# Pass --build-arg GITHUB_TOKEN=xxxx to authenticate and avoid that.
+ARG GITHUB_TOKEN=""
+RUN if [ -n "$GITHUB_TOKEN" ]; then \
+        composer config --global github-oauth.github.com "$GITHUB_TOKEN"; \
+    fi
+
 COPY composer.json composer.lock ./
 # Platform requirements (ext-intl, ext-gd, ext-redis, etc.) are satisfied in the
 # final runtime stage, not in this composer image. Ignore them here so we can
 # download the locked vendor tree without installing every PHP extension twice.
-RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --no-autoloader \
-    --no-interaction \
-    --prefer-dist \
-    --ignore-platform-reqs
+# Retry a few times: GitHub's dist downloads occasionally fail with a transient
+# HTTP 400/5xx, and a single flaky package shouldn't fail the whole deploy.
+RUN set -e; n=0; \
+    until composer install \
+        --no-dev \
+        --no-scripts \
+        --no-autoloader \
+        --no-interaction \
+        --prefer-dist \
+        --ignore-platform-reqs; do \
+        n=$((n+1)); \
+        if [ "$n" -ge 5 ]; then echo "composer install failed after $n attempts"; exit 1; fi; \
+        echo "composer install failed (transient network/GitHub error) — retry $n/5 in 10s..."; \
+        sleep 10; \
+    done
 
 # ---------- Stage 2: node asset build ----------
 # Needs vendor/filament/* (theme.css @import) and app/Filament/* + the
