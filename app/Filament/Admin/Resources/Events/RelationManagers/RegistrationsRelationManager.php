@@ -4,7 +4,9 @@ namespace App\Filament\Admin\Resources\Events\RelationManagers;
 
 use App\Enums\EventRegistrationStatus;
 use App\Models\EventRegistration;
+use App\Enums\MatchEntryAudience;
 use App\Models\Member;
+use App\Services\Events\MatchEntrantBroadcastService;
 use App\Services\Events\MatchEntryDeadCenterExporter;
 use App\Services\Events\MatchEntryPaymentRequestService;
 use Filament\Actions\Action;
@@ -252,20 +254,66 @@ class RegistrationsRelationManager extends RelationManager
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->visible(fn () => auth()->user()?->can('events.view'))
-                    ->action(function () {
+                    ->schema([
+                        Select::make('audience')
+                            ->label('Who to include')
+                            ->options(MatchEntryAudience::options())
+                            ->default(MatchEntryAudience::Confirmed->value)
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
+                        $audience = MatchEntryAudience::from($data['audience']);
                         $exporter = app(MatchEntryDeadCenterExporter::class);
                         $event = $this->getOwnerRecord();
 
-                        if ($exporter->rows($event) === []) {
+                        if ($exporter->rows($event, $audience) === []) {
                             Notification::make()->warning()
                                 ->title('Nothing to export')
-                                ->body('This match has no confirmed entries yet.')
+                                ->body('No entries match that filter.')
                                 ->send();
 
                             return null;
                         }
 
-                        return $exporter->download($event);
+                        return $exporter->download($event, $audience);
+                    }),
+                Action::make('email_entrants')
+                    ->label('Email entrants')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('warning')
+                    ->visible(fn () => auth()->user()?->can('events.registrations.manage'))
+                    ->modalHeading('Email entrants')
+                    ->modalSubmitActionLabel('Send emails')
+                    ->schema([
+                        Select::make('audience')
+                            ->label('Who to email')
+                            ->options(MatchEntryAudience::options())
+                            ->default(MatchEntryAudience::All->value)
+                            ->required(),
+                        TextInput::make('subject')
+                            ->label('Subject')
+                            ->required()
+                            ->maxLength(150),
+                        Textarea::make('body')
+                            ->label('Message')
+                            ->required()
+                            ->rows(8)
+                            ->helperText('Plain text. Each recipient is greeted by first name automatically.'),
+                    ])
+                    ->action(function (array $data) {
+                        $audience = MatchEntryAudience::from($data['audience']);
+
+                        $result = app(MatchEntrantBroadcastService::class)->send(
+                            $this->getOwnerRecord(),
+                            $audience,
+                            $data['subject'],
+                            $data['body'],
+                        );
+
+                        Notification::make()->success()
+                            ->title('Emails sent')
+                            ->body("Sent {$result['sent']}, skipped {$result['skipped']} (no email address).")
+                            ->send();
                     }),
             ])
             ->recordActions([

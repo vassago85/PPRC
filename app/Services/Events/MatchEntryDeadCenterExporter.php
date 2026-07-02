@@ -2,7 +2,7 @@
 
 namespace App\Services\Events;
 
-use App\Enums\EventRegistrationStatus;
+use App\Enums\MatchEntryAudience;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use Illuminate\Support\Str;
@@ -23,17 +23,14 @@ class MatchEntryDeadCenterExporter
     ];
 
     /**
-     * Confirmed, non-cancelled entries as ordered CSV rows.
+     * Ordered CSV rows for the entries matching the given audience (defaults
+     * to confirmed / paid, the set DeadCenter needs for scoring).
      *
      * @return array<int, array<int, string>>
      */
-    public function rows(Event $event): array
+    public function rows(Event $event, MatchEntryAudience $audience = MatchEntryAudience::Confirmed): array
     {
-        return $event->registrations()
-            ->with(['member.user.roles'])
-            ->get()
-            ->filter(fn (EventRegistration $r) => $r->status !== EventRegistrationStatus::Cancelled
-                && $r->paymentConfirmed())
+        return $audience->filter($event)
             ->sortBy(fn (EventRegistration $r) => sprintf(
                 '%06d-%06d-%s',
                 $r->squad_number ?? 999999,
@@ -60,9 +57,9 @@ class MatchEntryDeadCenterExporter
         return 'entries-'.Str::slug($event->title ?: 'match').'-'.now()->format('Ymd-Hi').'.csv';
     }
 
-    public function download(Event $event): StreamedResponse
+    public function download(Event $event, MatchEntryAudience $audience = MatchEntryAudience::Confirmed): StreamedResponse
     {
-        $rows = $this->rows($event);
+        $rows = $this->rows($event, $audience);
 
         return response()->streamDownload(function () use ($rows): void {
             $out = fopen('php://output', 'w');

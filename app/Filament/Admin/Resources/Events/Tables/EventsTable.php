@@ -3,10 +3,12 @@
 namespace App\Filament\Admin\Resources\Events\Tables;
 
 use App\Enums\EventStatus;
+use App\Enums\MatchEntryAudience;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Services\Events\MatchEntryDeadCenterExporter;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -107,19 +109,27 @@ class EventsTable
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('gray')
                     ->visible(fn () => auth()->user()?->can('events.view'))
-                    ->action(function (Event $record) {
+                    ->schema([
+                        Select::make('audience')
+                            ->label('Who to include')
+                            ->options(MatchEntryAudience::options())
+                            ->default(MatchEntryAudience::Confirmed->value)
+                            ->required(),
+                    ])
+                    ->action(function (Event $record, array $data) {
+                        $audience = MatchEntryAudience::from($data['audience']);
                         $exporter = app(MatchEntryDeadCenterExporter::class);
 
-                        if ($exporter->rows($record) === []) {
+                        if ($exporter->rows($record, $audience) === []) {
                             Notification::make()->warning()
                                 ->title('Nothing to export')
-                                ->body('This match has no confirmed entries yet.')
+                                ->body('No entries match that filter.')
                                 ->send();
 
                             return null;
                         }
 
-                        return $exporter->download($record);
+                        return $exporter->download($record, $audience);
                     }),
                 EditAction::make(),
                 DeleteAction::make(),
