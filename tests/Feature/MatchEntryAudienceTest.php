@@ -153,11 +153,12 @@ it('emails only the chosen audience and reports skips', function () {
         "Hi there,\nYour entry is confirmed once payment reflects.",
     );
 
-    // Owing guest (has email) sent; no-email guest skipped.
+    // Owing guest (has email) queued; no-email guest skipped.
     expect($result['sent'])->toBe(1);
     expect($result['skipped'])->toBe(1);
 
-    Mail::assertSent(MatchEntrantMessageMail::class, 1);
-    Mail::assertSent(MatchEntrantMessageMail::class, fn (MatchEntrantMessageMail $mail) => $mail->hasTo('owing@example.com')
+    // Bulk sends are queued (staggered) rather than sent immediately.
+    Mail::assertQueued(MatchEntrantMessageMail::class, 1);
+    Mail::assertQueued(MatchEntrantMessageMail::class, fn (MatchEntrantMessageMail $mail) => $mail->hasTo('owing@example.com')
         && $mail->subjectLine === 'Please pay your match fee');
 });

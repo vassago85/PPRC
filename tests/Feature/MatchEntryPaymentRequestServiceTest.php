@@ -161,5 +161,6 @@ it('skips invalid entries in bulk and reports counts', function () {
     expect($result['sent'])->toBe(1)
         ->and($result['skipped'])->toBe(1);
 
-    Mail::assertSent(MatchEntryPaymentMail::class, 1);
+    // Bulk sends are queued with staggered delays, not sent immediately.
+    Mail::assertQueued(MatchEntryPaymentMail::class, 1);
 });

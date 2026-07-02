@@ -9,6 +9,7 @@ use App\Models\Member;
 use App\Services\Events\MatchEntrantBroadcastService;
 use App\Services\Events\MatchEntryDeadCenterExporter;
 use App\Services\Events\MatchEntryPaymentRequestService;
+use App\Support\MailThrottle;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -479,7 +480,7 @@ class RegistrationsRelationManager extends RelationManager
                                 $r->update($this->paidAttributes($r));
                                 $count++;
 
-                                if ($service->sendConfirmation($r)) {
+                                if ($service->sendConfirmation($r, MailThrottle::delayFor($emailed))) {
                                     $emailed++;
                                 }
                             }
@@ -505,7 +506,7 @@ class RegistrationsRelationManager extends RelationManager
                             $service = app(MatchEntryPaymentRequestService::class);
 
                             foreach ($records as $r) {
-                                if ($r->paid_at === null || ! $service->sendConfirmation($r)) {
+                                if ($r->paid_at === null || ! $service->sendConfirmation($r, MailThrottle::delayFor($sent))) {
                                     $skipped++;
 
                                     continue;
