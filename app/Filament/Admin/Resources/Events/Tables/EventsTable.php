@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Events\Tables;
 
 use App\Enums\EventStatus;
 use App\Enums\MatchEntryAudience;
+use App\Filament\Admin\Resources\Events\EventResource;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Services\Events\MatchEntryDeadCenterExporter;
@@ -131,6 +132,12 @@ class EventsTable
 
                         return $exporter->download($record, $audience);
                     }),
+                Action::make('report')
+                    ->label('Report')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('gray')
+                    ->visible(fn () => auth()->user()?->can('events.view'))
+                    ->url(fn (Event $record) => EventResource::getUrl('report', ['record' => $record])),
                 EditAction::make(),
                 DeleteAction::make(),
             ])

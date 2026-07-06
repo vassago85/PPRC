@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\EventRegistrationStatus;
+use App\Enums\MatchPaymentMethod;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -36,6 +37,7 @@ class EventRegistration extends Model
         'checked_in_by_user_id',
         'checked_in_at',
         'paid_at',
+        'payment_method',
         'marked_paid_by_user_id',
         'payment_proof_path',
         'proof_submitted_at',
@@ -49,6 +51,7 @@ class EventRegistration extends Model
         'checked_in_at' => 'datetime',
         'paid_at' => 'datetime',
         'proof_submitted_at' => 'datetime',
+        'payment_method' => MatchPaymentMethod::class,
         'status' => EventRegistrationStatus::class,
         'squad_number' => 'integer',
         'firing_order' => 'integer',
@@ -181,6 +184,16 @@ class EventRegistration extends Model
         }
 
         return (bool) $this->member?->user?->hasFreeEventEntry();
+    }
+
+    /**
+     * True when the fee was taken in cash (typically handed to the match
+     * director on the day) rather than by EFT into the club account. A null
+     * method counts as EFT — the historical default.
+     */
+    public function isCashPayment(): bool
+    {
+        return $this->payment_method === MatchPaymentMethod::Cash;
     }
 
     public function shooterName(): string

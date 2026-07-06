@@ -6,6 +6,7 @@ use App\Filament\Admin\Resources\Events\Pages\CreateEvent;
 use App\Filament\Admin\Resources\Events\Pages\EditEvent;
 use App\Filament\Admin\Resources\Events\Pages\ListEvents;
 use App\Filament\Admin\Resources\Events\Pages\ManageSquads;
+use App\Filament\Admin\Resources\Events\Pages\MatchReport;
 use App\Filament\Admin\Resources\Events\RelationManagers\GalleryPhotosRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\RegistrationsRelationManager;
 use App\Filament\Admin\Resources\Events\RelationManagers\ResultsRelationManager;
@@ -138,6 +139,7 @@ class EventResource extends Resource
             'create' => CreateEvent::route('/create'),
             'edit' => EditEvent::route('/{record}/edit'),
             'squads' => ManageSquads::route('/{record}/squads'),
+            'report' => MatchReport::route('/{record}/report'),
         ];
     }
 

@@ -195,8 +195,9 @@ class RegistrationsRelationManager extends RelationManager
                         'Awaiting' => 'warning',
                         default => 'gray',
                     })
-                    ->description(fn (EventRegistration $r) => $r->paid_at?->format('d M Y')
-                        ?? ($r->hasUnverifiedProof() ? 'Proof uploaded' : null)),
+                    ->description(fn (EventRegistration $r) => $r->paid_at !== null
+                        ? trim($r->paid_at->format('d M Y').($r->payment_method ? ' · '.$r->payment_method->label() : ''))
+                        : ($r->hasUnverifiedProof() ? 'Proof uploaded' : null)),
                 TextColumn::make('payment_reference')
                     ->label('Reference')
                     ->state(fn (EventRegistration $r) => (! $r->is_saprf_entry && (int) ($r->effectiveFeeCents() ?? 0) > 0)

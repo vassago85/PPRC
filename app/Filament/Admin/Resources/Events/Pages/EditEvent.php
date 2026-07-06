@@ -23,6 +23,11 @@ class EditEvent extends EditRecord
                 ->icon('heroicon-o-rectangle-stack')
                 ->color('primary')
                 ->url(fn () => EventResource::getUrl('squads', ['record' => $this->getRecord()])),
+            Action::make('matchReport')
+                ->label('Report')
+                ->icon('heroicon-o-banknotes')
+                ->color('gray')
+                ->url(fn () => EventResource::getUrl('report', ['record' => $this->getRecord()])),
             DeleteAction::make(),
             ForceDeleteAction::make(),
             RestoreAction::make(),
