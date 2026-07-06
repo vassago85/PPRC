@@ -3,10 +3,12 @@
 namespace App\Filament\Admin\Resources\Events\Pages;
 
 use App\Enums\EventRegistrationStatus;
+use App\Enums\MatchCreditStatus;
 use App\Enums\MatchPaymentMethod;
 use App\Filament\Admin\Resources\Events\EventResource;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Models\MatchCredit;
 use App\Models\Member;
 use App\Models\SiteSetting;
 use App\Services\Events\MatchDirectorReport;
@@ -193,6 +195,77 @@ class MatchReport extends Page
             'checked_in_at' => now(),
             'checked_in_by_user_id' => auth()->id(),
         ]);
+    }
+
+    /**
+     * Log a paid no-show's fee to the match-credit ledger so it's tracked as
+     * money the club owes them for a future match. Idempotent per entry.
+     */
+    public function logCredit(int $entryId): void
+    {
+        if (! $this->canManagePayments()) {
+            return;
+        }
+
+        $entry = $this->entry($entryId);
+        if (! $entry) {
+            return;
+        }
+
+        $fee = (int) ($entry->effectiveFeeCents() ?? 0);
+
+        if ($entry->paid_at === null || $entry->attended || $fee <= 0) {
+            Notification::make()->warning()
+                ->title('Not a no-show credit')
+                ->body('Only a paid entry that didn\'t shoot can be logged as a credit.')
+                ->send();
+
+            return;
+        }
+
+        if (MatchCredit::query()->where('source_registration_id', $entry->id)->exists()) {
+            Notification::make()->info()
+                ->title('Already logged')
+                ->body('A credit for this entry is already in the ledger.')
+                ->send();
+
+            return;
+        }
+
+        $entry->loadMissing('member.user');
+
+        MatchCredit::create([
+            'member_id' => $entry->member_id,
+            'payee_name' => $entry->shooterName(),
+            'payee_email' => $entry->payerEmail(),
+            'amount_cents' => $fee,
+            'reason' => 'No-show at '.$this->getRecord()->title,
+            'source_event_id' => $this->getRecord()->id,
+            'source_registration_id' => $entry->id,
+            'status' => MatchCreditStatus::Available->value,
+            'created_by_user_id' => auth()->id(),
+        ]);
+
+        Notification::make()->success()
+            ->title('Credit logged')
+            ->body($entry->shooterName().'\'s R '.number_format($fee / 100, 2).' credit was added to the ledger.')
+            ->send();
+    }
+
+    /**
+     * Registration ids for this match that already have a ledger credit, so the
+     * report can show "credit logged" instead of the button.
+     *
+     * @return array<int, int>
+     */
+    public function getLoggedCreditEntryIds(): array
+    {
+        return MatchCredit::query()
+            ->where('source_event_id', $this->getRecord()->id)
+            ->whereNotNull('source_registration_id')
+            ->pluck('source_registration_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     public function saveLevyDefault(): void

@@ -5,6 +5,7 @@ use App\Enums\EventStatus;
 use App\Filament\Admin\Resources\Events\Pages\MatchReport;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Models\MatchCredit;
 use App\Models\MatchFormat;
 use App\Models\SiteSetting;
 use App\Models\User;
@@ -132,6 +133,67 @@ it('adds a walk-in shooter paid in cash', function () {
     expect($entry->attended)->toBeTrue();
     expect($entry->paid_at)->not->toBeNull();
     expect($entry->payment_method?->value)->toBe('cash');
+});
+
+it('logs a paid guest no-show to the credit ledger once', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+
+    // Guest, paid but did not shoot -> a no-show credit.
+    $entry = EventRegistration::create([
+        'event_id' => $event->id,
+        'guest_name' => 'Justin Le Roux',
+        'guest_email' => 'justin@example.com',
+        'paid_at' => now(),
+        'payment_method' => 'eft',
+        'attended' => false,
+        'status' => EventRegistrationStatus::Confirmed,
+        'registered_at' => now(),
+    ]);
+
+    $component = Livewire::test(MatchReport::class, ['record' => $event->slug]);
+    $component->call('logCredit', $entry->id);
+
+    $credit = MatchCredit::query()->where('source_registration_id', $entry->id)->first();
+
+    expect($credit)->not->toBeNull();
+    expect($credit->member_id)->toBeNull();
+    expect($credit->payee_name)->toBe('Justin Le Roux');
+    expect($credit->payee_email)->toBe('justin@example.com');
+    expect($credit->amount_cents)->toBe(25000);
+    expect($credit->source_event_id)->toBe($event->id);
+
+    // Logging again does not create a duplicate.
+    $component->call('logCredit', $entry->id);
+    expect(MatchCredit::query()->where('source_registration_id', $entry->id)->count())->toBe(1);
+
+    // And the report reports it as already logged.
+    expect($component->instance()->getLoggedCreditEntryIds())->toContain($entry->id);
+});
+
+it('will not log a credit for someone who shot', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+    $entry = EventRegistration::create([
+        'event_id' => $event->id,
+        'guest_name' => 'Attended Al',
+        'guest_email' => 'al@example.com',
+        'paid_at' => now(),
+        'attended' => true,
+        'status' => EventRegistrationStatus::Confirmed,
+        'registered_at' => now(),
+    ]);
+
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->call('logCredit', $entry->id);
+
+    expect(MatchCredit::query()->where('source_registration_id', $entry->id)->count())->toBe(0);
 });
 
 it('saves the levy default to site settings', function () {

@@ -16,6 +16,7 @@ class MatchCredit extends Model
         'amount_cents',
         'reason',
         'source_event_id',
+        'source_registration_id',
         'status',
         'used_event_id',
         'used_at',
@@ -52,6 +53,11 @@ class MatchCredit extends Model
     public function sourceEvent(): BelongsTo
     {
         return $this->belongsTo(Event::class, 'source_event_id');
+    }
+
+    public function sourceRegistration(): BelongsTo
+    {
+        return $this->belongsTo(EventRegistration::class, 'source_registration_id');
     }
 
     public function usedEvent(): BelongsTo

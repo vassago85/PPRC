@@ -6,6 +6,7 @@
         $s = $this->getSummary();
         $canPay = $this->canManagePaymentsPublic();
         $canAttend = $this->canManageAttendancePublic();
+        $loggedCreditIds = $this->getLoggedCreditEntryIds();
 
         $money = fn (int $cents) => 'R ' . number_format($cents / 100, 2);
 
@@ -19,11 +20,35 @@
 
     <style>
         @media print {
-            .fi-sidebar, .fi-topbar, .fi-header, .no-print { display: none !important; }
-            .fi-main, .fi-page { padding: 0 !important; margin: 0 !important; max-width: none !important; }
-            .print-card { box-shadow: none !important; border-color: #e5e7eb !important; }
+            /* Hide everything, then reveal only the report subtree. This kills
+               the app chrome and any translucent theme/overlay layers that
+               were showing through as a grey wash over the printout. */
+            body * { visibility: hidden !important; }
+            #match-report, #match-report * { visibility: visible !important; }
+
+            #match-report {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+            }
+
+            /* Force a clean light printout even when the admin is in dark mode. */
+            #match-report, #match-report * {
+                color: #0f172a !important;
+                background-color: transparent !important;
+                box-shadow: none !important;
+            }
+            #match-report .print-card { border: 1px solid #e5e7eb !important; }
+
+            .no-print { display: none !important; }
         }
     </style>
+
+    <div id="match-report">
 
     {{-- Match header --}}
     <div class="print-card rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-gray-900">
@@ -164,15 +189,31 @@
                         </td>
                         <td class="px-4 py-3 text-center no-print">
                             @if ($canPay)
-                                <div class="inline-flex overflow-hidden rounded-lg ring-1 ring-inset ring-gray-300 dark:ring-white/10">
-                                    <button type="button" wire:click="payVia({{ $row['id'] }}, 'eft')"
-                                        class="px-2 py-1 text-xs font-medium {{ $row['paid'] && ! $row['is_cash'] ? 'bg-success-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10' }}">
-                                        EFT
-                                    </button>
-                                    <button type="button" wire:click="payVia({{ $row['id'] }}, 'cash')"
-                                        class="border-l border-gray-300 px-2 py-1 text-xs font-medium dark:border-white/10 {{ $row['paid'] && $row['is_cash'] ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10' }}">
-                                        Cash
-                                    </button>
+                                <div class="flex flex-col items-center gap-1.5">
+                                    <div class="inline-flex overflow-hidden rounded-lg ring-1 ring-inset ring-gray-300 dark:ring-white/10">
+                                        <button type="button" wire:click="payVia({{ $row['id'] }}, 'eft')"
+                                            class="px-2 py-1 text-xs font-medium {{ $row['paid'] && ! $row['is_cash'] ? 'bg-success-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10' }}">
+                                            EFT
+                                        </button>
+                                        <button type="button" wire:click="payVia({{ $row['id'] }}, 'cash')"
+                                            class="border-l border-gray-300 px-2 py-1 text-xs font-medium dark:border-white/10 {{ $row['paid'] && $row['is_cash'] ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10' }}">
+                                            Cash
+                                        </button>
+                                    </div>
+
+                                    @if ($row['classification'] === \App\Services\Events\MatchDirectorReport::CREDIT)
+                                        @if (in_array($row['id'], $loggedCreditIds, true))
+                                            <span class="inline-flex items-center gap-1 text-xs font-medium text-warning-600 dark:text-warning-400">
+                                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                                Credit logged
+                                            </span>
+                                        @else
+                                            <button type="button" wire:click="logCredit({{ $row['id'] }})"
+                                                class="inline-flex items-center gap-1 rounded-lg bg-warning-500 px-2 py-1 text-xs font-medium text-white hover:bg-warning-400">
+                                                Log credit
+                                            </button>
+                                        @endif
+                                    @endif
                                 </div>
                             @endif
                         </td>
@@ -197,4 +238,6 @@
         <strong>EFT</strong> money sits in the club account and is what the club owes you; <strong>cash</strong> was handed to you on the day, so it's shown separately and not added to the payout.
         A paid shooter who didn't shoot shows as a <span class="text-warning-600 dark:text-warning-400">no-show credit</span> — their fee is held for a future match.
     </p>
+
+    </div>{{-- /#match-report --}}
 </x-filament-panels::page>
