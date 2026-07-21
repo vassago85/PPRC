@@ -11,6 +11,14 @@ use Illuminate\Support\Facades\Config;
 
 beforeEach(function () {
     $this->seed(MembershipTypesSeeder::class);
+
+    // These tests exercise the numeric sequencing/padding in isolation, so
+    // start from a known baseline: no "PPRC-" prefix, no padding, start at 1.
+    // Individual tests override as needed. Prefix + padding behaviour is
+    // covered separately below.
+    Config::set('membership.number_prefix', '');
+    Config::set('membership.number_start', 1);
+    Config::set('membership.number_pad_length', null);
 });
 
 it('allocates starting number when none exist', function () {
@@ -133,4 +141,41 @@ it('ignores non-numeric legacy numbers when computing max', function () {
     app(MembershipNumberAllocator::class)->assignNextTo($new);
 
     expect($new->fresh()->membership_number)->toBe('1');
+});
+
+it('pads sequences above 100 to a consistent width with the prefix', function () {
+    Config::set('membership.number_prefix', 'PPRC-');
+    Config::set('membership.number_pad_length', 4);
+
+    $allocator = app(MembershipNumberAllocator::class);
+
+    // Four-digit padding must hold for 3-, 4- and 5-digit sequences, and never
+    // truncate once the sequence exceeds the pad width.
+    expect($allocator->format('PPRC-', 100))->toBe('PPRC-0100');
+    expect($allocator->format('PPRC-', 181))->toBe('PPRC-0181');
+    expect($allocator->format('PPRC-', 1000))->toBe('PPRC-1000');
+    expect($allocator->format('PPRC-', 12345))->toBe('PPRC-12345');
+});
+
+it('assigns the exact starting number on first bootstrap (no off-by-one)', function () {
+    Config::set('membership.number_start', 200);
+    Config::set('membership.number_pad_length', null);
+
+    $first = Member::factory()->create([
+        'user_id' => User::factory()->create()->id,
+        'membership_number' => null,
+    ]);
+    app(MembershipNumberAllocator::class)->assignNextTo($first);
+
+    // First allocation must be exactly number_start, and the next must follow
+    // sequentially.
+    expect($first->fresh()->membership_number)->toBe('200');
+
+    $second = Member::factory()->create([
+        'user_id' => User::factory()->create()->id,
+        'membership_number' => null,
+    ]);
+    app(MembershipNumberAllocator::class)->assignNextTo($second);
+
+    expect($second->fresh()->membership_number)->toBe('201');
 });

@@ -98,9 +98,14 @@ class MembershipNumberAllocator
         $maxFromMembers = $this->scanMaxFromMembers($prefix);
         $next = max($start, $maxFromMembers);
 
+        // scanMaxFromMembers() returns the NEXT number to allocate, but the
+        // sequences table tracks the LAST number used. Store next - 1 so the
+        // caller's "last_sequence + 1" yields exactly $next for the first
+        // allocation (otherwise the very first number after bootstrap is
+        // silently skipped).
         DB::table('membership_number_sequences')->updateOrInsert(
             ['prefix' => $prefix],
-            ['last_sequence' => $next, 'created_at' => now(), 'updated_at' => now()],
+            ['last_sequence' => max(0, $next - 1), 'created_at' => now(), 'updated_at' => now()],
         );
 
         return $next;

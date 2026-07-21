@@ -23,19 +23,36 @@ class MembershipsTable
             ->defaultSort('period_end', 'desc')
             ->modifyQueryUsing(fn ($query) => $query->with(['payments' => fn ($q) => $q->latest('created_at')]))
             ->columns([
-                TextColumn::make('member.membership_number')->label('#')->badge()->sortable()->searchable(),
+                TextColumn::make('member.membership_number')
+                    ->label('#')
+                    ->badge()
+                    ->formatStateUsing(fn ($record) => $record->member?->formattedMembershipNumber())
+                    ->placeholder('Pending')
+                    ->tooltip(fn ($record) => $record->member?->formattedMembershipNumber() === null
+                        ? 'Assigned once the membership is approved'
+                        : null)
+                    ->sortable()
+                    ->searchable(),
                 TextColumn::make('member.first_name')->label('Member')
                     ->formatStateUsing(fn ($record) => $record->member?->fullName())
                     ->searchable(['member.first_name', 'member.last_name']),
                 TextColumn::make('membership_type_name_snapshot')->label('Type')->badge()->sortable(),
                 TextColumn::make('period_start')->date('d M Y'),
-                TextColumn::make('period_end')->date('d M Y')
-                    ->color(fn ($record) => $record->period_end?->isPast() ? 'danger' : null)
+                TextColumn::make('period_end')
+                    ->label('Period end')
+                    ->formatStateUsing(fn ($record) => $record->isLifetime()
+                        ? 'Lifetime'
+                        : $record->period_end?->format('d M Y'))
+                    ->color(fn ($record) => (! $record->isLifetime() && $record->period_end?->isPast()) ? 'danger' : null)
+                    ->tooltip(fn ($record) => ($record->isLifetime() && $record->period_end !== null)
+                        ? 'No expiry (stored end date: '.$record->period_end->format('d M Y').')'
+                        : null)
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
-                    ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
+                    ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray')
+                    ->description(fn ($record) => $record->isSuperseded() ? 'Replaced by a newer membership' : null),
 
                 TextColumn::make('renewal_source')
                     ->label('Source')
@@ -102,10 +119,12 @@ class MembershipsTable
                 Action::make('approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
+                    ->tooltip(fn ($record) => 'Approve membership for '.($record->member?->fullName() ?? 'this member'))
                     ->visible(fn ($record) => in_array($record->status, [MembershipStatus::PendingApproval, MembershipStatus::PendingPayment]))
                     ->requiresConfirmation()
                     ->action(fn ($record) => app(MemberService::class)->activate($record, auth()->user())),
-                EditAction::make(),
+                EditAction::make()
+                    ->tooltip(fn ($record) => 'Edit membership for '.($record->member?->fullName() ?? 'this member')),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

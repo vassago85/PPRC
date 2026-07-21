@@ -184,6 +184,43 @@ class Member extends Model
     }
 
     /**
+     * Membership number normalised for consistent display.
+     *
+     * The stored value is authoritative and left untouched, but historical
+     * imports produced inconsistent zero-padding (e.g. "PPRC-00181" sitting
+     * next to "PPRC-0100"). When the value matches the standard
+     * "{prefix}{digits}" shape we re-pad the numeric part to the configured
+     * width so the column always reads consistently. Non-standard legacy
+     * values (e.g. "PPRC-2019-0032", "LEGACY") are returned exactly as stored,
+     * and members without a number yet return null.
+     */
+    public function formattedMembershipNumber(): ?string
+    {
+        $raw = trim((string) $this->membership_number);
+
+        if ($raw === '') {
+            return null;
+        }
+
+        $prefix = (string) config('membership.number_prefix', '');
+        $pad = (int) config('membership.number_pad_length', 0);
+
+        $hasPrefix = $prefix !== '' && str_starts_with($raw, $prefix);
+        $body = $hasPrefix ? substr($raw, strlen($prefix)) : $raw;
+
+        // Only normalise clean numeric bodies; anything else is left as-is.
+        if ($body === '' || ! ctype_digit($body)) {
+            return $raw;
+        }
+
+        $numeric = $pad > 0
+            ? str_pad((string) (int) $body, $pad, '0', STR_PAD_LEFT)
+            : (string) (int) $body;
+
+        return ($hasPrefix ? $prefix : '').$numeric;
+    }
+
+    /**
      * Name as it appears on the South African ID — full first and surname
      * in upper case (e.g. "PAUL CHARSLEY"). Used on official documents
      * such as endorsement letters where the name must match the ID document.

@@ -147,4 +147,59 @@ class Membership extends Model
             ->where('created_at', '<', $this->created_at ?? now())
             ->exists();
     }
+
+    /**
+     * Life memberships never expire. Historically these are stored either with
+     * a null period_end or with a far-future placeholder date (the Life Member
+     * type runs 1200 months, landing roughly 100 years out — e.g. "29 Apr
+     * 2126"). Either way we treat them as lifetime for display, without
+     * altering the stored date.
+     */
+    public function isLifetime(): bool
+    {
+        if ($this->period_end === null) {
+            return true;
+        }
+
+        $slug = strtolower((string) ($this->membership_type_slug_snapshot ?? ''));
+        $name = strtolower((string) ($this->membership_type_name_snapshot ?? ''));
+
+        if (str_contains($slug, 'life') || str_contains($name, 'life')) {
+            return true;
+        }
+
+        // A period end decades away is a "never expires" placeholder, not a
+        // real renewal date.
+        return $this->period_end->greaterThan(now()->addYears(50));
+    }
+
+    /**
+     * A cancelled membership that has been replaced by a newer, non-cancelled
+     * membership for the same member covering an overlapping period. Surfaced
+     * in the admin list so an old "cancelled" row sitting next to its active
+     * twin (a re-signup) reads as intentional history rather than a
+     * duplicate-data bug.
+     */
+    public function isSuperseded(): bool
+    {
+        if ($this->status !== MembershipStatus::Cancelled || $this->member_id === null) {
+            return false;
+        }
+
+        $start = $this->period_start?->toDateString();
+        $end = $this->period_end?->toDateString();
+
+        return static::query()
+            ->where('member_id', $this->member_id)
+            ->where('id', '!=', $this->id)
+            ->where('status', '!=', MembershipStatus::Cancelled->value)
+            // Overlaps this membership's period (null ends are treated as open).
+            ->where(fn ($q) => $end === null ? $q : $q
+                ->whereNull('period_start')
+                ->orWhere('period_start', '<=', $end))
+            ->where(fn ($q) => $start === null ? $q : $q
+                ->whereNull('period_end')
+                ->orWhere('period_end', '>=', $start))
+            ->exists();
+    }
 }
