@@ -12,8 +12,9 @@
                 @foreach ($this->getItems() as $item)
                     @if ($item['value'] > 0)
                         <a href="{{ $item['url'] }}"
-                           class="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-sm dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500/30">
-                            <div @class([
+                           aria-label="{{ number_format($item['value']).' '.$item['label'].' — view list' }}"
+                           class="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500/30 dark:focus-visible:ring-offset-gray-900">
+                            <div aria-hidden="true" @class([
                                 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
                                 'bg-warning-50 text-warning-600 dark:bg-warning-500/10 dark:text-warning-400' => $item['color'] === 'warning',
                                 'bg-danger-50 text-danger-600 dark:bg-danger-500/10 dark:text-danger-400' => $item['color'] === 'danger',
@@ -56,8 +57,9 @@
             ])>
                 @foreach ($revenue as $item)
                     <a href="{{ $item['url'] }}"
-                       class="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-sm dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500/30">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-success-50 text-success-600 dark:bg-success-500/10 dark:text-success-400">
+                       aria-label="{{ $item['label'].': '.($item['formatted'] ?? number_format($item['value'])).' — '.$item['description'] }}"
+                       class="group flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500/30 dark:focus-visible:ring-offset-gray-900">
+                        <div aria-hidden="true" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-success-50 text-success-600 dark:bg-success-500/10 dark:text-success-400">
                             <x-filament::icon :icon="$item['icon']" class="h-5 w-5" />
                         </div>
                         <div class="min-w-0 flex-1">

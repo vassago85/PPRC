@@ -62,9 +62,7 @@ class AdminDashboardService
                 'label' => 'Members to onboard',
                 'value' => Member::where('status', MemberStatus::Pending)->count(),
                 'description' => 'New members awaiting onboarding',
-                'url' => MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Pending->value]],
-                ]),
+                'url' => MemberResource::getUrl('index', ['activeTab' => 'pending_onboard']),
                 'icon' => 'heroicon-o-user-plus',
                 'color' => 'warning',
             ],
@@ -80,9 +78,7 @@ class AdminDashboardService
                 'label' => 'Renewals due (no action yet)',
                 'value' => $this->renewalsDueNoAction(),
                 'description' => 'Expiring within 30 days, member hasn\'t started renewal',
-                'url' => MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Active->value]],
-                ]),
+                'url' => MemberResource::getUrl('index', ['activeTab' => 'renewal_due']),
                 'icon' => 'heroicon-o-exclamation-triangle',
                 'color' => 'info',
             ],
@@ -96,9 +92,7 @@ class AdminDashboardService
                     ]))
                     ->count(),
                 'description' => 'Expired in last 60 days with no pending renewal',
-                'url' => MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Expired->value]],
-                ]),
+                'url' => MemberResource::getUrl('index', ['activeTab' => 'lapsed']),
                 'icon' => 'heroicon-o-arrow-trending-down',
                 'color' => 'danger',
             ],
@@ -234,9 +228,7 @@ class AdminDashboardService
                 'label' => 'Active members',
                 'value' => Member::where('status', MemberStatus::Active)->count(),
                 'description' => Member::count() . ' total members',
-                'url' => MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Active->value]],
-                ]),
+                'url' => MemberResource::getUrl('index', ['activeTab' => 'active']),
                 'icon' => 'heroicon-o-users',
                 'color' => 'success',
             ],
@@ -244,9 +236,7 @@ class AdminDashboardService
                 'label' => 'Pending onboard',
                 'value' => Member::where('status', MemberStatus::Pending)->count(),
                 'description' => 'Awaiting onboarding',
-                'url' => MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Pending->value]],
-                ]),
+                'url' => MemberResource::getUrl('index', ['activeTab' => 'pending_onboard']),
                 'icon' => 'heroicon-o-user-plus',
                 'color' => 'warning',
             ],
@@ -264,9 +254,7 @@ class AdminDashboardService
                 'label' => 'Renewals due',
                 'value' => $this->renewalsDueNoAction(),
                 'description' => 'Expiring within 30 days, no action yet',
-                'url' => MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Active->value]],
-                ]),
+                'url' => MemberResource::getUrl('index', ['activeTab' => 'renewal_due']),
                 'icon' => 'heroicon-o-clock',
                 'color' => 'info',
             ],
@@ -274,9 +262,7 @@ class AdminDashboardService
                 'label' => 'Lapsed',
                 'value' => Member::where('status', MemberStatus::Expired)->count(),
                 'description' => 'Expired members',
-                'url' => MemberResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MemberStatus::Expired->value]],
-                ]),
+                'url' => MemberResource::getUrl('index', ['activeTab' => 'lapsed']),
                 'icon' => 'heroicon-o-arrow-trending-down',
                 'color' => 'danger',
             ],

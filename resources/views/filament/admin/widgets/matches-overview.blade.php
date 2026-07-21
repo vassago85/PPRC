@@ -45,18 +45,36 @@
             </div>
 
             {{-- Stat pills --}}
-            <a href="{{ $data['draftsUrl'] }}" class="flex flex-col items-center justify-center rounded-xl border border-gray-200 p-4 text-center transition hover:border-warning-300 hover:shadow-sm dark:border-white/10 dark:hover:border-warning-500/30">
-                <p class="text-2xl font-bold tabular-nums {{ $data['drafts'] > 0 ? 'text-warning-600 dark:text-warning-400' : 'text-gray-400' }}">
+            <a href="{{ $data['draftsUrl'] }}"
+               aria-label="{{ $data['drafts'] > 0 ? $data['drafts'].' draft matches — view list' : 'Draft matches: none — view list' }}"
+               @class([
+                   'flex flex-col items-center justify-center rounded-xl border p-4 text-center transition hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900',
+                   'border-gray-200 hover:border-warning-300 dark:border-white/10 dark:hover:border-warning-500/30' => $data['drafts'] > 0,
+                   'border-dashed border-gray-200 hover:border-gray-300 dark:border-white/10' => $data['drafts'] === 0,
+               ])>
+                <p class="text-2xl font-bold tabular-nums {{ $data['drafts'] > 0 ? 'text-warning-600 dark:text-warning-400' : 'text-gray-300 dark:text-gray-600' }}">
                     {{ $data['drafts'] }}
                 </p>
                 <p class="mt-1 text-xs font-medium text-gray-500">Draft matches</p>
+                <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                    {{ $data['drafts'] > 0 ? 'Not published yet' : 'None in progress' }}
+                </p>
             </a>
 
-            <a href="{{ $data['awaitingResultsUrl'] }}" class="flex flex-col items-center justify-center rounded-xl border border-gray-200 p-4 text-center transition hover:border-warning-300 hover:shadow-sm dark:border-white/10 dark:hover:border-warning-500/30">
-                <p class="text-2xl font-bold tabular-nums {{ $data['awaitingResults'] > 0 ? 'text-warning-600 dark:text-warning-400' : 'text-gray-400' }}">
+            <a href="{{ $data['awaitingResultsUrl'] }}"
+               aria-label="{{ $data['awaitingResults'] > 0 ? $data['awaitingResults'].' matches awaiting results — view list' : 'Awaiting results: none — view list' }}"
+               @class([
+                   'flex flex-col items-center justify-center rounded-xl border p-4 text-center transition hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900',
+                   'border-gray-200 hover:border-warning-300 dark:border-white/10 dark:hover:border-warning-500/30' => $data['awaitingResults'] > 0,
+                   'border-dashed border-gray-200 hover:border-gray-300 dark:border-white/10' => $data['awaitingResults'] === 0,
+               ])>
+                <p class="text-2xl font-bold tabular-nums {{ $data['awaitingResults'] > 0 ? 'text-warning-600 dark:text-warning-400' : 'text-gray-300 dark:text-gray-600' }}">
                     {{ $data['awaitingResults'] }}
                 </p>
                 <p class="mt-1 text-xs font-medium text-gray-500">Awaiting results</p>
+                <p class="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
+                    {{ $data['awaitingResults'] > 0 ? 'Ready to publish' : 'All caught up' }}
+                </p>
             </a>
         </div>
     </x-filament::section>
