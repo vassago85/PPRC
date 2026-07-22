@@ -6,11 +6,13 @@ namespace App\Enums;
  * Lifecycle of a member profile (separate from User email verification):
  *
  *   Unverified → Pending → Active ─→ Expired ─→ Inactive
- *                  ↑                     │            │
- *                  └─────────────────────┘            │
- *                                                     │
- *   Suspended  (manual, never auto-touched)           │
- *   Resigned   (terminal)                             │
+ *        │         ↑ │                  │            │
+ *        │         └─┘                  │            │
+ *        └──────────┴──► Abandoned  (stale signup that was never completed;
+ *                        re-engaging moves them back to Pending)
+ *
+ *   Suspended  (manual, never auto-touched)
+ *   Resigned   (terminal)
  *
  * WP SSMM parity: unverified = email not yet confirmed on the member record
  * (distinct from User.email_verified_at which gates Fortify login).
@@ -24,6 +26,7 @@ enum MemberStatus: string
     case Expired = 'expired';
     case Inactive = 'inactive';
     case Resigned = 'resigned';
+    case Abandoned = 'abandoned';
 
     public function label(): string
     {
@@ -35,6 +38,7 @@ enum MemberStatus: string
             self::Expired => 'Expired',
             self::Inactive => 'Inactive',
             self::Resigned => 'Resigned',
+            self::Abandoned => 'Abandoned signup',
         };
     }
 
@@ -48,6 +52,7 @@ enum MemberStatus: string
             self::Expired => 'gray',
             self::Inactive => 'gray',
             self::Resigned => 'gray',
+            self::Abandoned => 'gray',
         };
     }
 }

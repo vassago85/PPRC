@@ -6,6 +6,7 @@ use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
 use App\Support\NameCase;
 use Database\Factories\MemberFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +42,7 @@ class Member extends Model
         'join_date',
         'expiry_date',
         'last_renewal_reminder_at',
+        'signup_reminder_sent_at',
         'resigned_at',
         'resignation_reason',
         'linked_adult_member_id',
@@ -55,6 +57,7 @@ class Member extends Model
         'join_date' => 'date',
         'expiry_date' => 'date',
         'last_renewal_reminder_at' => 'datetime',
+        'signup_reminder_sent_at' => 'datetime',
         'resigned_at' => 'datetime',
         'saprf_verified_at' => 'datetime',
         'shooting_disciplines' => 'array',
@@ -136,6 +139,31 @@ class Member extends Model
             ->whereIn('membership_id', $this->memberships()->select('id'))
             ->orderByDesc('created_at')
             ->first();
+    }
+
+    /**
+     * Registered but never confirmed their email, and it's been a while.
+     * These accounts have a User + Member but no verified email and no
+     * membership application — pure abandoned signups.
+     */
+    public function scopeStaleUnverifiedSignups(Builder $query, \DateTimeInterface $before): Builder
+    {
+        return $query
+            ->where('status', MemberStatus::Unverified->value)
+            ->where('created_at', '<', $before);
+    }
+
+    /**
+     * Verified their email but never started a membership application (no
+     * membership row at all), and it's been a while. This is the largest
+     * slice of the "Members to onboard" queue.
+     */
+    public function scopeStaleUnstartedSignups(Builder $query, \DateTimeInterface $before): Builder
+    {
+        return $query
+            ->where('status', MemberStatus::Pending->value)
+            ->whereDoesntHave('memberships')
+            ->where('created_at', '<', $before);
     }
 
     public function hasActiveMembership(): bool

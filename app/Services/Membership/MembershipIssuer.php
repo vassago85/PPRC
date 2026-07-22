@@ -3,6 +3,7 @@
 namespace App\Services\Membership;
 
 use App\Enums\MembershipStatus;
+use App\Enums\MemberStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
 use App\Enums\RenewalSource;
@@ -57,6 +58,13 @@ class MembershipIssuer
                 'membership_type_slug_snapshot' => $type->slug,
                 'membership_type_name_snapshot' => $type->name,
             ]);
+
+            // Someone who'd been archived as a stale signup is clearly back —
+            // revive them into the pending queue (activation later flips them
+            // to Active as normal).
+            if ($member->status === MemberStatus::Abandoned) {
+                $member->update(['status' => MemberStatus::Pending]);
+            }
 
             if ($status === MembershipStatus::PendingPayment) {
                 MembershipPayment::create([

@@ -44,11 +44,13 @@ class MemberService
 
     /**
      * Called when a member's email is verified. Moves unverified → pending
-     * so a committee member can approve.
+     * so a committee member can approve. Also revives an Abandoned signup
+     * (someone who ignored the finish-your-signup nudge and later came back
+     * to verify) back into the pending queue.
      */
     public function markVerified(Member $member): void
     {
-        if ($member->status !== MemberStatus::Unverified) {
+        if (! in_array($member->status, [MemberStatus::Unverified, MemberStatus::Abandoned], true)) {
             return;
         }
 

@@ -73,6 +73,11 @@ class ListMembers extends ListRecords
                     ]))
                     ->count())
                 ->badgeColor('danger'),
+
+            'abandoned' => Tab::make('Abandoned')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', MemberStatus::Abandoned->value))
+                ->badge(Member::where('status', MemberStatus::Abandoned->value)->count())
+                ->badgeColor('gray'),
         ];
     }
 }

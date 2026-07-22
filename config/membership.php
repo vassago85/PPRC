@@ -53,4 +53,22 @@ return [
 
     'renewal_window_days' => (int) env('MEMBERSHIP_RENEWAL_WINDOW_DAYS', 60),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Stale signup cleanup
+    |--------------------------------------------------------------------------
+    |
+    | People who register but never finish (never verify their email, or verify
+    | then never pick a membership) otherwise sit in "Pending" forever and clog
+    | the "Members to onboard" queue. The cleanup command nudges them once to
+    | finish, then — if they still haven't after the grace window — moves them
+    | to the "Abandoned signup" status. It is fully reversible: if they come
+    | back and verify / apply, they return to Pending automatically.
+    |
+    */
+
+    'stale_signup_months' => (int) env('MEMBERSHIP_STALE_SIGNUP_MONTHS', 6),
+
+    'stale_signup_grace_days' => (int) env('MEMBERSHIP_STALE_SIGNUP_GRACE_DAYS', 14),
+
 ];
