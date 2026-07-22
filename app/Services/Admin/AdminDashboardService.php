@@ -185,11 +185,19 @@ class AdminDashboardService
 
     public function matchesOverview(): array
     {
-        $nextEvent = Event::query()
+        // All upcoming matches (soonest first), already scoped to published
+        // events with a future start date by the upcoming() scope.
+        $upcoming = Event::query()
             ->upcoming()
-            ->orderBy('start_date')
-            ->orderBy('start_time')
-            ->first();
+            ->withCount('registrations')
+            ->get()
+            ->map(fn (Event $event) => [
+                'title' => $event->title,
+                'date' => $event->start_date?->format('D j M Y'),
+                'registrationCount' => $event->registrations_count,
+                'url' => EventResource::getUrl('edit', ['record' => $event]),
+            ])
+            ->all();
 
         $drafts = Event::where('status', EventStatus::Draft)->count();
         $awaitingResults = Event::where('status', EventStatus::Completed)
@@ -197,12 +205,10 @@ class AdminDashboardService
             ->count();
 
         return [
-            'next' => $nextEvent ? [
-                'title' => $nextEvent->title,
-                'date' => $nextEvent->start_date?->format('D j M Y'),
-                'registrationCount' => $nextEvent->registrations()->count(),
-                'url' => EventResource::getUrl('edit', ['record' => $nextEvent]),
-            ] : null,
+            // The soonest match keeps the prominent "hero" treatment; the full
+            // list (including this one) is exposed as `upcoming`.
+            'next' => $upcoming[0] ?? null,
+            'upcoming' => $upcoming,
             'drafts' => $drafts,
             'draftsUrl' => EventResource::getUrl('index', [
                 'tableFilters' => ['status' => ['value' => EventStatus::Draft->value]],

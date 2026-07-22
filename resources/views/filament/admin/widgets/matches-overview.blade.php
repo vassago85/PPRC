@@ -77,5 +77,35 @@
                 </p>
             </a>
         </div>
+
+        {{-- All other upcoming matches (the soonest is shown as the hero above) --}}
+        @if (count($data['upcoming']) > 1)
+            <div class="mt-4 border-t border-gray-100 pt-4 dark:border-white/5">
+                <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    More upcoming ({{ count($data['upcoming']) - 1 }})
+                </p>
+                <ul role="list" class="divide-y divide-gray-100 dark:divide-white/5">
+                    @foreach (array_slice($data['upcoming'], 1) as $match)
+                        <li>
+                            <a href="{{ $match['url'] }}"
+                               aria-label="{{ $match['title'].' — '.$match['date'].', '.$match['registrationCount'].' registered' }}"
+                               class="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:hover:bg-white/5">
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{{ $match['title'] }}</p>
+                                    <p class="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500">
+                                        <x-heroicon-o-calendar class="h-3.5 w-3.5" aria-hidden="true" />
+                                        {{ $match['date'] }}
+                                    </p>
+                                </div>
+                                <span class="inline-flex shrink-0 items-center gap-1 text-xs text-gray-500">
+                                    <x-heroicon-o-users class="h-3.5 w-3.5" aria-hidden="true" />
+                                    {{ $match['registrationCount'] }}
+                                </span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
     </x-filament::section>
 </x-filament-widgets::widget>
