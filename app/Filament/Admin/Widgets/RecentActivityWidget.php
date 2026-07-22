@@ -7,12 +7,9 @@ use Filament\Widgets\Widget;
 
 class RecentActivityWidget extends Widget
 {
-    protected static ?int $sort = 1;
-
-    protected int|string|array $columnSpan = [
-        'default' => 'full',
-        'lg' => 1,
-    ];
+    // Placement is controlled by the Dashboard page's custom view; the widget
+    // just fills whatever container it's rendered into.
+    protected int|string|array $columnSpan = 'full';
 
     protected string $view = 'filament.admin.widgets.recent-activity';
 
