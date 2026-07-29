@@ -29,7 +29,8 @@ class ListMembers extends ListRecords
     {
         $counts = [
             'active' => Member::query()->active()->count(),
-            'pending' => Member::query()->pending()->count(),
+            'onboard' => Member::query()->needsOnboarding()->count(),
+            'awaiting_email' => Member::query()->awaitingEmail()->count(),
             'renewal_due' => Member::query()->renewalDue()->count(),
             'lapsed' => Member::query()->recentlyLapsed()->count(),
             'suspended' => Member::query()->suspended()->count(),
@@ -44,9 +45,16 @@ class ListMembers extends ListRecords
                 ->badge($counts['active']),
 
             'pending_onboard' => Tab::make('Pending onboard')
-                ->modifyQueryUsing(fn (Builder $query) => $query->pending())
-                ->badge($counts['pending'])
-                ->badgeColor($counts['pending'] > 0 ? 'warning' : 'gray'),
+                ->modifyQueryUsing(fn (Builder $query) => $query->needsOnboarding())
+                ->badge($counts['onboard'])
+                ->badgeColor($counts['onboard'] > 0 ? 'warning' : 'gray'),
+
+            // Kept out of the onboarding queue on purpose: nobody at the club can
+            // move these along, only the member can, by clicking the link.
+            'awaiting_email' => Tab::make('Awaiting email')
+                ->modifyQueryUsing(fn (Builder $query) => $query->awaitingEmail())
+                ->badge($counts['awaiting_email'])
+                ->badgeColor('gray'),
 
             'renewal_due' => Tab::make('Renewal due')
                 ->modifyQueryUsing(fn (Builder $query) => $query->renewalDue())

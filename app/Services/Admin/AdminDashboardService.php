@@ -60,8 +60,8 @@ class AdminDashboardService
             ],
             [
                 'label' => 'Members to onboard',
-                'value' => Member::query()->pending()->count(),
-                'description' => 'Signed up and still worth chasing',
+                'value' => Member::query()->needsOnboarding()->count(),
+                'description' => 'Confirmed their email and waiting on the club',
                 'url' => MemberResource::getUrl('index', ['activeTab' => 'pending_onboard']),
                 'icon' => 'heroicon-o-user-plus',
                 'color' => 'warning',
@@ -228,7 +228,7 @@ class AdminDashboardService
             ],
             [
                 'label' => 'Pending onboard',
-                'value' => Member::query()->pending()->count(),
+                'value' => Member::query()->needsOnboarding()->count(),
                 'description' => 'Awaiting onboarding',
                 'url' => MemberResource::getUrl('index', ['activeTab' => 'pending_onboard']),
                 'icon' => 'heroicon-o-user-plus',

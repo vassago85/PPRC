@@ -345,6 +345,21 @@ class Member extends Model
         return $query->pending()->whereHas('user', fn (Builder $q) => $q->whereNull('email_verified_at'));
     }
 
+    /**
+     * The pending members an admin can actually do something about: they have
+     * confirmed their email, so there is a real person on the other end.
+     *
+     * This is what "Members to onboard" counts, and it is deliberately narrower
+     * than pending(). Most signups never confirm their email — they are pending,
+     * but they are not work, and counting them buries the handful of people who
+     * are genuinely waiting on the club. Nothing is hidden: they have their own
+     * "Awaiting email" tab.
+     */
+    public function scopeNeedsOnboarding(Builder $query): Builder
+    {
+        return $query->pending()->whereHas('user', fn (Builder $q) => $q->whereNotNull('email_verified_at'));
+    }
+
     /** Pending, email confirmed, but they never picked a membership type. */
     public function scopeAwaitingChoice(Builder $query): Builder
     {

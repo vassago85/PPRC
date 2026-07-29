@@ -42,7 +42,7 @@ class MemberResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = Member::query()->pending()->count();
+        $count = Member::query()->needsOnboarding()->count();
 
         return $count > 0 ? (string) $count : null;
     }

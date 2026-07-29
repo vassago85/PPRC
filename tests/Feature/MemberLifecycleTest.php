@@ -132,6 +132,19 @@ it('splits the pending bucket into what each member is waiting on', function () 
         ->and(Member::query()->pending()->count())->toBe(6);
 });
 
+it('treats the onboarding queue as pending members who have confirmed their email', function () {
+    Member::factory()->count(4)->awaitingEmail()->create();
+    Member::factory()->count(3)->create();
+
+    // The 4 who never confirmed cannot be moved along by the club, so onboarding
+    // is only the 3 who did — pending minus awaiting-email, and the two together
+    // reconcile back to the whole pending bucket.
+    expect(Member::query()->needsOnboarding()->count())->toBe(3)
+        ->and(Member::query()->awaitingEmail()->count())->toBe(4)
+        ->and(Member::query()->needsOnboarding()->count() + Member::query()->awaitingEmail()->count())
+        ->toBe(Member::query()->pending()->count());
+});
+
 it('only chases renewals nobody has started yet', function () {
     Config::set('membership.renewal_due_days', 30);
 
