@@ -4,19 +4,20 @@ namespace App\Filament\Admin\Resources\Events\Tables;
 
 use App\Enums\EventStatus;
 use App\Enums\MatchEntryAudience;
+use App\Filament\Admin\Actions\EnterMatchAction;
 use App\Filament\Admin\Resources\Events\EventResource;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Services\Events\MatchEntryDeadCenterExporter;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
-use Filament\Notifications\Notification;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -87,6 +88,7 @@ class EventsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                EnterMatchAction::make(),
                 Action::make('publish')
                     ->icon('heroicon-o-megaphone')
                     ->color('success')

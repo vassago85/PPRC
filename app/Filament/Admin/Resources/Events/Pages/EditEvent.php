@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Events\Pages;
 
+use App\Filament\Admin\Actions\EnterMatchAction;
 use App\Filament\Admin\Resources\Events\EventResource;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -18,6 +19,7 @@ class EditEvent extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            EnterMatchAction::make(),
             Action::make('manageSquads')
                 ->label('Squadding')
                 ->icon('heroicon-o-rectangle-stack')
