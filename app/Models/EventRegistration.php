@@ -28,6 +28,7 @@ class EventRegistration extends Model
         'squad_number',
         'firing_order',
         'fee_cents',
+        'credit_applied_cents',
         'is_saprf_entry',
         'is_junior',
         'status',
@@ -56,6 +57,7 @@ class EventRegistration extends Model
         'squad_number' => 'integer',
         'firing_order' => 'integer',
         'fee_cents' => 'integer',
+        'credit_applied_cents' => 'integer',
     ];
 
     /**
@@ -146,7 +148,7 @@ class EventRegistration extends Model
             return false;
         }
 
-        return (int) ($this->effectiveFeeCents() ?? 0) > 0;
+        return $this->outstandingCents() > 0;
     }
 
     /**
@@ -234,6 +236,24 @@ class EventRegistration extends Model
      * True when PPRC isn't charging this entry but the event normally has a fee.
      * Covers ExCo waivers and SAPRF-paid entries — both render a badge in the UI.
      */
+    /**
+     * How much of the fee was settled with a match credit instead of new money.
+     */
+    public function creditAppliedCents(): int
+    {
+        return max(0, (int) ($this->credit_applied_cents ?? 0));
+    }
+
+    /**
+     * What the shooter still has to hand over. Distinct from the fee: the match
+     * director is owed for the head at full price whether the club funded it
+     * from a credit or the shooter paid cash.
+     */
+    public function outstandingCents(): int
+    {
+        return max(0, (int) ($this->effectiveFeeCents() ?? 0) - $this->creditAppliedCents());
+    }
+
     public function isWaived(): bool
     {
         if ($this->effectiveFeeCents() !== 0) {
@@ -317,7 +337,7 @@ class EventRegistration extends Model
             return false;
         }
 
-        return (int) ($this->effectiveFeeCents() ?? 0) > 0
+        return $this->outstandingCents() > 0
             && filled($this->payerEmail());
     }
 
@@ -328,7 +348,7 @@ class EventRegistration extends Model
      */
     public function paymentReference(): string
     {
-        $prefix = trim((string) \App\Models\SiteSetting::get('payments.bank.reference_prefix', ''));
+        $prefix = trim((string) SiteSetting::get('payments.bank.reference_prefix', ''));
         if ($prefix === '') {
             $prefix = (string) config('membership.payment_ref_prefix', 'PPRC') ?: 'PPRC';
         }

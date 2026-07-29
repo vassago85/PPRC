@@ -3,13 +3,18 @@
 namespace App\Filament\Admin\Resources\Events\RelationManagers;
 
 use App\Enums\EventRegistrationStatus;
-use App\Models\EventRegistration;
 use App\Enums\MatchEntryAudience;
+use App\Filament\Admin\Actions\ApplyMatchCreditAction;
+use App\Filament\Admin\Actions\TransferMatchEntryAction;
+use App\Filament\Admin\Support\MemberSearch;
+use App\Filament\Admin\Support\SearchTerm;
+use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Services\Events\MatchEntrantBroadcastService;
 use App\Services\Events\MatchEntryDeadCenterExporter;
 use App\Services\Events\MatchEntryPaymentRequestService;
 use App\Support\MailThrottle;
+use App\Support\MediaDisk;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -150,11 +155,13 @@ class RegistrationsRelationManager extends RelationManager
                     ->label('Shooter')
                     ->state(fn (EventRegistration $r) => $r->shooterName())
                     ->searchable(
-                        query: fn ($query, string $search) => $query
-                            ->where('guest_name', 'like', "%{$search}%")
-                            ->orWhereHas('member', fn ($q) => $q
-                                ->where('first_name', 'like', "%{$search}%")
-                                ->orWhere('last_name', 'like', "%{$search}%")),
+                        query: function ($query, string $search) {
+                            $term = SearchTerm::make($query, $search);
+
+                            $query
+                                ->where($term->column('guest_name'), 'like', $term->contains())
+                                ->orWhereHas('member', fn ($q) => MemberSearch::apply($q, $search));
+                        },
                     ),
                 TextColumn::make('status')
                     ->badge()
@@ -181,7 +188,15 @@ class RegistrationsRelationManager extends RelationManager
                         $r->is_saprf_entry => 'info',
                         $r->isWaived() => 'success',
                         default => 'gray',
-                    }),
+                    })
+                    // Where a transferred credit part-covered a dearer match, the
+                    // fee alone would read as if the shooter owes the lot.
+                    ->description(fn (EventRegistration $r) => $r->creditAppliedCents() > 0
+                        ? 'R '.number_format($r->creditAppliedCents() / 100, 2).' from credit'
+                            .($r->outstandingCents() > 0
+                                ? ' · R '.number_format($r->outstandingCents() / 100, 2).' owing'
+                                : '')
+                        : null),
                 TextColumn::make('payment_status')
                     ->label('Payment')
                     ->state(fn (EventRegistration $r) => match (true) {
@@ -326,8 +341,8 @@ class RegistrationsRelationManager extends RelationManager
                     ->requiresConfirmation()
                     ->modalHeading('Send payment email')
                     ->modalDescription(fn (EventRegistration $r) => 'Email '.$r->shooterName().' at '
-                        .($r->payerEmail() ?? '—').' with the entry fee (R '
-                        .number_format((int) ($r->effectiveFeeCents() ?? 0) / 100, 2)
+                        .($r->payerEmail() ?? '—').' with the amount outstanding (R '
+                        .number_format($r->outstandingCents() / 100, 2)
                         .'), banking details and a payment reference?')
                     ->visible(fn (EventRegistration $r) => $r->owesPayment()
                         && auth()->user()?->can('events.registrations.manage'))
@@ -422,6 +437,8 @@ class RegistrationsRelationManager extends RelationManager
                             ->title('Marked as unpaid')
                             ->send();
                     }),
+                ApplyMatchCreditAction::make(),
+                TransferMatchEntryAction::make(),
                 Action::make('check_in')
                     ->label('Check in')
                     ->icon('heroicon-o-check-circle')
@@ -555,7 +572,7 @@ class RegistrationsRelationManager extends RelationManager
             return null;
         }
 
-        $disk = Storage::disk(\App\Support\MediaDisk::name());
+        $disk = Storage::disk(MediaDisk::name());
 
         try {
             return method_exists($disk, 'temporaryUrl')

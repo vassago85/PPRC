@@ -37,9 +37,9 @@ class MatchEntryPaymentRequestService
             ]);
         }
 
-        if ($registration->isWaived() || (int) ($registration->effectiveFeeCents() ?? 0) <= 0) {
+        if ($registration->isWaived() || $registration->outstandingCents() <= 0) {
             throw ValidationException::withMessages([
-                'entry' => 'This entry has no fee to pay (free / comped / ExCo).',
+                'entry' => 'This entry has nothing left to pay (free / comped / ExCo / settled by credit).',
             ]);
         }
 

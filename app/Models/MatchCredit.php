@@ -19,6 +19,7 @@ class MatchCredit extends Model
         'source_registration_id',
         'status',
         'used_event_id',
+        'used_registration_id',
         'used_at',
         'created_by_user_id',
         'notes',
@@ -63,6 +64,11 @@ class MatchCredit extends Model
     public function usedEvent(): BelongsTo
     {
         return $this->belongsTo(Event::class, 'used_event_id');
+    }
+
+    public function usedRegistration(): BelongsTo
+    {
+        return $this->belongsTo(EventRegistration::class, 'used_registration_id');
     }
 
     public function createdBy(): BelongsTo

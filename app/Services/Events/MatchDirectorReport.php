@@ -60,6 +60,8 @@ class MatchDirectorReport
                     'division' => $r->division,
                     'category' => $r->category,
                     'fee_cents' => $fee,
+                    'credit_applied_cents' => $r->creditAppliedCents(),
+                    'outstanding_cents' => $r->outstandingCents(),
                     'paid' => $paid,
                     'is_cash' => $r->isCashPayment(),
                     'attended' => $attended,
@@ -128,7 +130,12 @@ class MatchDirectorReport
             'eft_base_cents' => $eftBaseCents,
             'cash_base_cents' => $cashBaseCents,
             'credit_cents' => (int) $credit->sum('fee_cents'),
-            'outstanding_cents' => (int) $awaiting->sum('fee_cents'),
+            // What is still to come in, net of any fee already settled from a
+            // transferred credit — chasing the full fee would double-bill.
+            'outstanding_cents' => (int) $awaiting->sum('outstanding_cents'),
+            // Part of the gross above that arrived as a credit carried over
+            // from another match rather than as new money into the account.
+            'credit_funded_cents' => (int) $rows->sum('credit_applied_cents'),
 
             'levy_cents' => $this->levyCents,
             'levy_total_cents' => $levyTotalCents,

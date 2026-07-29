@@ -72,6 +72,9 @@
                                     <td style="padding:0 20px 18px;text-align:center;">
                                         <p style="margin:0;font-size:13px;color:#64748b;">Amount to pay</p>
                                         <p style="margin:4px 0 0;font-size:28px;font-weight:700;color:#0f172a;">R {{ number_format($amountCents / 100, 2) }}</p>
+                                        @if (($creditAppliedCents ?? 0) > 0)
+                                            <p style="margin:6px 0 0;font-size:13px;color:#64748b;">R {{ number_format($creditAppliedCents / 100, 2) }} of this entry is already covered by your match credit.</p>
+                                        @endif
                                     </td>
                                 </tr>
                             </table>

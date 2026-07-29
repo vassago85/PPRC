@@ -3,7 +3,10 @@
 namespace App\Filament\Admin\Resources\MatchCredits\Tables;
 
 use App\Enums\MatchCreditStatus;
+use App\Filament\Admin\Actions\UseMatchCreditAction;
+use App\Filament\Admin\Support\SearchTerm;
 use App\Models\MatchCredit;
+use App\Services\Events\MatchEntryTransferService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -13,6 +16,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\ValidationException;
 
 class MatchCreditsTable
 {
@@ -28,9 +32,13 @@ class MatchCreditsTable
                     ->label('Owed to')
                     ->state(fn (MatchCredit $r) => $r->payeeName())
                     ->description(fn (MatchCredit $r) => $r->payee_email ?: ($r->member ? 'Member' : 'Guest'))
-                    ->searchable(query: fn (Builder $query, string $search) => $query
-                        ->where('payee_name', 'like', "%{$search}%")
-                        ->orWhere('payee_email', 'like', "%{$search}%"))
+                    ->searchable(query: function (Builder $query, string $search) {
+                        $term = SearchTerm::make($query, $search);
+
+                        $query
+                            ->where($term->column('payee_name'), 'like', $term->contains())
+                            ->orWhere($term->column('payee_email'), 'like', $term->contains());
+                    })
                     ->sortable(),
 
                 TextColumn::make('amount_cents')
@@ -59,7 +67,10 @@ class MatchCreditsTable
                 TextColumn::make('usedEvent.title')
                     ->label('Used on')
                     ->placeholder('—')
-                    ->description(fn (MatchCredit $r) => $r->used_at?->format('d M Y'))
+                    ->description(fn (MatchCredit $r) => collect([
+                        $r->used_at?->format('d M Y'),
+                        $r->used_registration_id ? 'settled an entry' : null,
+                    ])->filter()->implode(' · ') ?: null)
                     ->toggleable(),
 
                 TextColumn::make('created_at')
@@ -73,7 +84,10 @@ class MatchCreditsTable
                     ->options(MatchCreditStatus::options()),
             ])
             ->recordActions([
+                UseMatchCreditAction::make(),
+
                 Action::make('mark_used')
+                    ->tooltip('Write the credit off the ledger without entering them in a match')
                     ->label('Mark used')
                     ->icon('heroicon-o-check')
                     ->color('gray')
@@ -100,14 +114,37 @@ class MatchCreditsTable
                         && auth()->user()?->can('events.registrations.manage'))
                     ->requiresConfirmation()
                     ->modalHeading('Reinstate credit')
+                    ->modalDescription(fn (MatchCredit $r) => $r->used_registration_id
+                        ? 'This credit paid for an entry on '.($r->usedEvent?->title ?? 'a match')
+                            .'. Reinstating it takes the money back off that entry, so it will owe again '
+                            .'unless it was also paid in cash.'
+                        : null)
                     ->action(function (MatchCredit $r) {
-                        $r->update([
-                            'status' => MatchCreditStatus::Available->value,
-                            'used_event_id' => null,
-                            'used_at' => null,
-                        ]);
+                        if ($r->used_registration_id === null) {
+                            $r->update([
+                                'status' => MatchCreditStatus::Available->value,
+                                'used_event_id' => null,
+                                'used_at' => null,
+                            ]);
 
-                        Notification::make()->success()->title('Credit reinstated')->send();
+                            Notification::make()->success()->title('Credit reinstated')->send();
+
+                            return;
+                        }
+
+                        try {
+                            app(MatchEntryTransferService::class)->unsettle($r, auth()->user());
+
+                            Notification::make()->success()
+                                ->title('Credit reinstated')
+                                ->body('Taken back off the entry it had settled.')
+                                ->send();
+                        } catch (ValidationException $e) {
+                            Notification::make()->danger()
+                                ->title('Could not reinstate this credit')
+                                ->body(collect($e->errors())->flatten()->first() ?? $e->getMessage())
+                                ->send();
+                        }
                     }),
 
                 EditAction::make()
