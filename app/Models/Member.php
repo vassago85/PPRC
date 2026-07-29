@@ -460,10 +460,17 @@ class Member extends Model
      * Picked a membership type but never paid for it. Deliberately separate
      * from the two above because these people did engage — the club just never
      * saw the money — so they are chased on a shorter, gentler clock.
+     *
+     * The clock runs from when the unpaid membership was created, not when the
+     * member first registered: what is stale here is the outstanding payment,
+     * not the account. Keying off member.created_at would unfairly nudge someone
+     * who registered a year ago but only chose a type yesterday.
      */
     public function scopeStaleUnpaidSignups(Builder $query, \DateTimeInterface $before): Builder
     {
-        return $query->awaitingPayment()->where('created_at', '<', $before);
+        return $query->pending()->whereHas('memberships', fn (Builder $m) => $m
+            ->where('status', MembershipStatus::PendingPayment->value)
+            ->where('created_at', '<', $before));
     }
 
     public function hasActiveMembership(): bool

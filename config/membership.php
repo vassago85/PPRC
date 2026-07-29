@@ -71,6 +71,13 @@ return [
 
     'stale_signup_grace_days' => (int) env('MEMBERSHIP_STALE_SIGNUP_GRACE_DAYS', 14),
 
+    // People who chose a membership but never paid are chased on a shorter,
+    // gentler clock than the never-verified / never-chose cohorts: they did
+    // engage — the club just never saw the money — so 30 days unpaid triggers
+    // the nudge, then the same grace window above before archiving. The clock
+    // runs from when the payment was requested, not when they first registered.
+    'stale_unpaid_signup_days' => (int) env('MEMBERSHIP_STALE_UNPAID_SIGNUP_DAYS', 30),
+
     /*
     |--------------------------------------------------------------------------
     | Lifecycle bucket windows

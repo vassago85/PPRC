@@ -58,11 +58,16 @@ class MembershipIssuer
                 'membership_type_name_snapshot' => $type->name,
             ]);
 
-            // Someone who'd been archived as a stale signup is clearly back —
-            // clearing the stamp returns them to the onboarding queue
-            // (activation later flips them to Active as normal).
-            if ($member->isAbandoned()) {
-                $member->update(['abandoned_at' => null]);
+            // Choosing a membership is real progress, so the signup clock resets:
+            // clear any abandonment (they're clearly back in the onboarding queue)
+            // and the earlier "choose" nudge stamp, so the unpaid cohort starts
+            // its own fresh 30-day clock rather than inheriting a spent reminder
+            // and being archived without a payment nudge.
+            if ($member->isAbandoned() || $member->signup_reminder_sent_at !== null) {
+                $member->update([
+                    'abandoned_at' => null,
+                    'signup_reminder_sent_at' => null,
+                ]);
             }
 
             if ($status === MembershipStatus::PendingPayment) {

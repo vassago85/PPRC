@@ -162,9 +162,14 @@ class MemberService
             $updates['lifecycle'] = MemberLifecycle::Active;
         }
 
-        // Someone who paid again has clearly not abandoned their signup.
+        // Someone who paid has clearly not abandoned their signup, and the
+        // signup clock is spent — clear both so nothing lingers to re-archive
+        // them if the membership later lapses back into a pending state.
         if ($member->isAbandoned()) {
             $updates['abandoned_at'] = null;
+        }
+        if ($member->signup_reminder_sent_at !== null) {
+            $updates['signup_reminder_sent_at'] = null;
         }
 
         $periodEnd = $membership->period_end;

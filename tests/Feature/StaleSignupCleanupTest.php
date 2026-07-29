@@ -18,8 +18,21 @@ use Illuminate\Support\Facades\Mail;
 beforeEach(function () {
     Config::set('membership.stale_signup_months', 6);
     Config::set('membership.stale_signup_grace_days', 14);
+    Config::set('membership.stale_unpaid_signup_days', 30);
     Mail::fake();
 });
+
+/**
+ * Back-date a membership row so the "unpaid for N days" clock, which runs from
+ * when the payment was requested, has something to bite on. Written straight to
+ * the DB so Eloquent doesn't stamp created_at back to now.
+ */
+function ageMembership(Membership $membership, int $days): void
+{
+    Membership::withTrashed()->whereKey($membership->id)->update([
+        'created_at' => now()->subDays($days),
+    ]);
+}
 
 /**
  * A member whose account is $monthsAgo months old.
@@ -124,17 +137,73 @@ it('leaves fresh signups alone', function () {
     Mail::assertNothingSent();
 });
 
-it('never touches a pending member who has already started an application', function () {
+it('leaves a recently chosen but unpaid application alone (inside the 30-day clock)', function () {
     $member = staleMember(8);
     Membership::factory()->create([
         'member_id' => $member->id,
         'status' => MembershipStatus::PendingPayment,
-    ]);
+    ]); // created now → payment is only just outstanding
 
     $stats = runCleanup();
 
     expect($stats['candidates'])->toBe(0);
     expect($member->fresh()->standing())->toBe(MemberStanding::AwaitingPayment);
+});
+
+it('nudges a member who chose a membership but has not paid for over 30 days', function () {
+    $member = staleMember(8);
+    $membership = Membership::factory()->create([
+        'member_id' => $member->id,
+        'status' => MembershipStatus::PendingPayment,
+    ]);
+    ageMembership($membership, days: 45);
+
+    $stats = runCleanup();
+
+    expect($stats['nudged'])->toBe(1)
+        ->and($stats['archived'])->toBe(0)
+        ->and($member->fresh()->standing())->toBe(MemberStanding::AwaitingPayment);
+
+    Mail::assertSent(FinishSignupReminderMail::class, fn ($m) => $m->variant === 'pay');
+});
+
+it('archives an unpaid application that was nudged and still not paid past the grace window', function () {
+    $member = staleMember(8);
+    $membership = Membership::factory()->create([
+        'member_id' => $member->id,
+        'status' => MembershipStatus::PendingPayment,
+    ]);
+    ageMembership($membership, days: 45);
+    $member->forceFill(['signup_reminder_sent_at' => now()->subDays(20)])->saveQuietly();
+
+    $stats = runCleanup();
+
+    expect($stats['archived'])->toBe(1)
+        ->and($stats['nudged'])->toBe(0)
+        ->and($member->fresh()->standing())->toBe(MemberStanding::Abandoned)
+        ->and($member->fresh()->lifecycle)->toBe(MemberLifecycle::Pending);
+
+    Mail::assertNothingSent();
+});
+
+it('gives a member who just chose a membership a fresh clock, not the spent choose-nudge', function () {
+    $this->seed(MembershipTypesSeeder::class);
+    $type = MembershipType::where('slug', 'full-member')->first();
+
+    // Nudged weeks ago as "choose", never acted — then finally picks a type.
+    $member = staleMember(8);
+    $member->forceFill(['signup_reminder_sent_at' => now()->subDays(20)])->saveQuietly();
+
+    app(MembershipIssuer::class)->issue($member, $type);
+
+    // The choose-nudge stamp is cleared, so they are not instantly archived;
+    // the 30-day unpaid clock starts from the membership they just created.
+    expect($member->fresh()->signup_reminder_sent_at)->toBeNull();
+
+    $stats = runCleanup();
+
+    expect($stats['archived'])->toBe(0)
+        ->and($stats['candidates'])->toBe(0); // membership is brand new
 });
 
 it('never touches active, expired or suspended members', function () {

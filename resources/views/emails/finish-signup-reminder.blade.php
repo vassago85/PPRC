@@ -1,8 +1,21 @@
 @php
     $isVerify = $variant === 'verify';
-    $statusLabel = $isVerify ? 'Confirm your email' : 'Choose your membership';
-    $headline = $isVerify ? 'Finish setting up your account' : 'One step left to join';
-    $ctaLabel = $isVerify ? 'Confirm my email →' : 'Choose my membership →';
+    $isPay = $variant === 'pay';
+    $statusLabel = match ($variant) {
+        'verify' => 'Confirm your email',
+        'pay' => 'Complete your payment',
+        default => 'Choose your membership',
+    };
+    $headline = match ($variant) {
+        'verify' => 'Finish setting up your account',
+        'pay' => 'One payment away from joining',
+        default => 'One step left to join',
+    };
+    $ctaLabel = match ($variant) {
+        'verify' => 'Confirm my email →',
+        'pay' => 'View payment details →',
+        default => 'Choose my membership →',
+    };
 @endphp
 <!doctype html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -47,6 +60,15 @@
                                 </p>
                                 <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
                                     Log in and we'll send you a quick verification PIN to finish. It only takes a minute.
+                                </p>
+                            @elseif ($isPay)
+                                <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
+                                    You chose a Pretoria Precision Rifle Club membership but we haven't received your
+                                    payment yet, so your membership isn't active. You're one EFT away from being all set.
+                                </p>
+                                <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
+                                    Open the portal for the banking details and your payment reference. If you've already
+                                    paid, ignore this — it can take us a day or two to match the deposit.
                                 </p>
                             @else
                                 <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">

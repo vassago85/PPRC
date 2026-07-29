@@ -18,10 +18,11 @@ Schedule::command('members:send-renewal-reminders --sleep=2')
     ->dailyAt('04:00')
     ->withoutOverlapping();
 
-// Nudge incomplete signups to finish, then archive the ones that never do.
-// Runs weekly (Mondays) — the nudge-then-grace cadence doesn't need daily
-// churn, and it keeps the "Members to onboard" queue from filling with
-// long-abandoned registrations.
+// Nudge incomplete signups to finish, then archive the ones that never do:
+// never-verified and never-chose signups on the long (months) clock, plus
+// chosen-but-unpaid memberships on the shorter (30-day) clock. Runs weekly
+// (Mondays) — the nudge-then-grace cadence doesn't need daily churn, and it
+// keeps the "Members to onboard" queue from filling with abandoned signups.
 Schedule::command('members:cleanup-stale-signups --sleep=2')
     ->weeklyOn(1, '05:00')
     ->withoutOverlapping();
