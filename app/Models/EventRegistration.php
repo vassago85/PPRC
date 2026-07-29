@@ -39,6 +39,7 @@ class EventRegistration extends Model
         'checked_in_by_user_id',
         'checked_in_at',
         'paid_at',
+        'payment_reference',
         'payment_method',
         'marked_paid_by_user_id',
         'payment_proof_path',
@@ -97,6 +98,18 @@ class EventRegistration extends Model
             if ($member?->user?->hasFreeEventEntry()) {
                 $reg->fee_cents = 0;
             }
+        });
+
+        // The reference needs the id, so it can only be written once the row
+        // exists. Stamping it here means it is settled before anything can quote
+        // it, and it stays put even if the format changes later.
+        static::created(function (EventRegistration $reg) {
+            if ($reg->payment_reference !== null) {
+                return;
+            }
+
+            $reg->payment_reference = static::buildPaymentReference($reg->id);
+            $reg->saveQuietly();
         });
     }
 
@@ -343,19 +356,30 @@ class EventRegistration extends Model
     }
 
     /**
-     * Stable, human-traceable EFT reference for this match entry, e.g.
-     * "PPRC-M123" (M = match entry, then the entry id). Deterministic so
-     * re-sending the email always quotes the same reference for reconciliation.
+     * The EFT reference this entry was quoted, e.g. "PPRC-M123".
      *
-     * The entry id is globally unique on its own, so the match id this used to
-     * carry ("PPRC-M5-123") was decoration — and it cost us length. At that size
-     * a bank that strips the separators leaves "PPRCM5123", which can be read
-     * several ways; one number after the M stays unambiguous however badly it
-     * gets mangled in transit. PaymentReferenceResolver still reads the old
-     * two-part form for entries whose payment email predates this.
+     * Read from the column, never recomputed. Once a reference has gone out in
+     * an email it is a promise, so the format changing must not reach back and
+     * alter it — entries created before the short form arrived keep their longer
+     * "PPRC-M5-123", and PaymentReferenceResolver reads both.
+     *
+     * Falls back to generating one for a row that predates the column or has not
+     * been saved yet, so this can never return an empty reference.
      */
     public function paymentReference(): string
     {
-        return sprintf('%s-M%d', PaymentReferencePrefix::get(), $this->id);
+        return $this->payment_reference ?? static::buildPaymentReference($this->id);
+    }
+
+    /**
+     * The short form used for every new entry. The entry id is globally unique
+     * on its own, so the match id the old format also carried was decoration
+     * that cost length: at that size a bank stripping the separators left
+     * "PPRCM5123", which can be read several ways. One number after the M stays
+     * unambiguous however badly it gets mangled in transit.
+     */
+    protected static function buildPaymentReference(int|string|null $id): string
+    {
+        return sprintf('%s-M%s', PaymentReferencePrefix::get(), $id ?? '');
     }
 }
