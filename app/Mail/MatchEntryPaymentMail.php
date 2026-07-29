@@ -23,9 +23,15 @@ class MatchEntryPaymentMail extends Mailable
     {
         $title = $this->registration->event?->title ?? 'PPRC match';
 
+        // The reference goes in the subject as well as the body: it's the one
+        // place a member can still find it after they've scrolled past the
+        // email in their banking app, and the wrong reference is what makes
+        // reconciling the club's statement painful.
+        $reference = $this->registration->paymentReference();
+
         $subject = $this->isReminder
-            ? "Reminder: payment for {$title}"
-            : "Payment details for {$title}";
+            ? "Reminder: payment for {$title} — use ref {$reference}"
+            : "Payment details for {$title} — use ref {$reference}";
 
         return new Envelope(subject: $subject);
     }

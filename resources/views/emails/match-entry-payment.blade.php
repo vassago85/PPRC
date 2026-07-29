@@ -64,8 +64,12 @@
                                 </tr>
                                 <tr>
                                     <td style="padding:0 20px 10px;text-align:center;">
-                                        <p style="margin:0;font-family:Consolas,Monaco,monospace;font-size:24px;font-weight:700;color:#0f172a;letter-spacing:0.06em;">{{ $reference }}</p>
-                                        <p style="margin:6px 0 0;font-size:12px;color:#64748b;">Use this exact reference when paying</p>
+                                        <p style="margin:0;font-family:Consolas,Monaco,monospace;font-size:32px;font-weight:700;color:#0f172a;letter-spacing:0.04em;line-height:1.2;">{{ $reference }}</p>
+                                        <p style="margin:10px 0 0;font-size:13px;color:#92400e;font-weight:600;">Type this into the reference field, exactly as shown.</p>
+                                        <p style="margin:4px 0 0;font-size:12px;color:#64748b;line-height:1.5;">
+                                            Your banking app may call it &ldquo;beneficiary reference&rdquo;, &ldquo;my reference&rdquo; or &ldquo;payment description&rdquo;.
+                                            It belongs to this match only &mdash; please don&rsquo;t reuse a reference from an earlier payment.
+                                        </p>
                                     </td>
                                 </tr>
                                 <tr>

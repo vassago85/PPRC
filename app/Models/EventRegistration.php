@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\EventRegistrationStatus;
 use App\Enums\MatchPaymentMethod;
+use App\Support\PaymentReferencePrefix;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -343,17 +344,18 @@ class EventRegistration extends Model
 
     /**
      * Stable, human-traceable EFT reference for this match entry, e.g.
-     * "PPRC-M5-123" (M = match, then event id + entry id). Deterministic so
+     * "PPRC-M123" (M = match entry, then the entry id). Deterministic so
      * re-sending the email always quotes the same reference for reconciliation.
+     *
+     * The entry id is globally unique on its own, so the match id this used to
+     * carry ("PPRC-M5-123") was decoration — and it cost us length. At that size
+     * a bank that strips the separators leaves "PPRCM5123", which can be read
+     * several ways; one number after the M stays unambiguous however badly it
+     * gets mangled in transit. PaymentReferenceResolver still reads the old
+     * two-part form for entries whose payment email predates this.
      */
     public function paymentReference(): string
     {
-        $prefix = trim((string) SiteSetting::get('payments.bank.reference_prefix', ''));
-        if ($prefix === '') {
-            $prefix = (string) config('membership.payment_ref_prefix', 'PPRC') ?: 'PPRC';
-        }
-        $prefix = strtoupper(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '', $prefix), '-')) ?: 'PPRC';
-
-        return sprintf('%s-M%d-%d', $prefix, $this->event_id, $this->id);
+        return sprintf('%s-M%d', PaymentReferencePrefix::get(), $this->id);
     }
 }

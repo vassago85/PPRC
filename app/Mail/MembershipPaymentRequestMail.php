@@ -5,6 +5,7 @@ namespace App\Mail;
 use App\Models\Member;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
+use App\Models\SiteSetting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -24,9 +25,16 @@ class MembershipPaymentRequestMail extends Mailable
 
     public function envelope(): Envelope
     {
+        // Carrying the reference in the subject gives the member somewhere to
+        // find it once they're in their banking app and no longer reading the
+        // email, which is where the wrong reference usually gets typed.
+        $reference = filled($this->payment->reference)
+            ? ' — use ref '.$this->payment->reference
+            : '';
+
         $subject = $this->isReminder
-            ? 'Reminder: PPRC membership payment — pay or upload proof'
-            : 'PPRC membership payment — your banking details';
+            ? 'Reminder: PPRC membership payment'.$reference
+            : 'PPRC membership payment'.$reference;
 
         return new Envelope(subject: $subject);
     }
@@ -45,12 +53,12 @@ class MembershipPaymentRequestMail extends Mailable
                     ?? $this->membership->membershipType?->name
                     ?? 'Member',
                 'portalUrl' => url('/portal/membership'),
-                'bankName' => (string) \App\Models\SiteSetting::get('payments.bank.bank', ''),
-                'accountName' => (string) \App\Models\SiteSetting::get('payments.bank.account_name', ''),
-                'accountNumber' => (string) \App\Models\SiteSetting::get('payments.bank.account_number', ''),
-                'branchCode' => (string) \App\Models\SiteSetting::get('payments.bank.branch_code', ''),
-                'accountType' => (string) \App\Models\SiteSetting::get('payments.bank.account_type', 'cheque'),
-                'bankNotes' => (string) \App\Models\SiteSetting::get('payments.bank.notes', ''),
+                'bankName' => (string) SiteSetting::get('payments.bank.bank', ''),
+                'accountName' => (string) SiteSetting::get('payments.bank.account_name', ''),
+                'accountNumber' => (string) SiteSetting::get('payments.bank.account_number', ''),
+                'branchCode' => (string) SiteSetting::get('payments.bank.branch_code', ''),
+                'accountType' => (string) SiteSetting::get('payments.bank.account_type', 'cheque'),
+                'bankNotes' => (string) SiteSetting::get('payments.bank.notes', ''),
                 'isReminder' => $this->isReminder,
             ],
         );
