@@ -52,7 +52,7 @@ function excoShooter(string $role = 'chairperson'): User
 {
     $user = User::factory()->create(['email_verified_at' => now()]);
     $user->assignRole($role);
-    Member::factory()->create(['user_id' => $user->id, 'status' => 'active']);
+    Member::factory()->active()->create(['user_id' => $user->id]);
 
     return $user->refresh();
 }

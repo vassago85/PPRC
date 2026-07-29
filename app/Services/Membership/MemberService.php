@@ -2,8 +2,8 @@
 
 namespace App\Services\Membership;
 
+use App\Enums\MemberLifecycle;
 use App\Enums\MembershipStatus;
-use App\Enums\MemberStatus;
 use App\Enums\PaymentStatus;
 use App\Events\MemberActivated;
 use App\Events\MemberEmailVerified;
@@ -25,8 +25,9 @@ class MemberService
     /**
      * Create a Member profile for a User that just registered (Fortify).
      *
-     * WP SSMM parity: register() → status = unverified; once the user
-     * verifies their email the listener can transition to pending.
+     * They start Pending. Whether they still owe us an email confirmation is
+     * read off the user account rather than stored on the member, so the two
+     * can never disagree.
      */
     public function register(User $user, array $profile = []): Member
     {
@@ -34,7 +35,7 @@ class MemberService
             'user_id' => $user->id,
             'first_name' => $profile['first_name'] ?? $this->guessFirstName($user->name),
             'last_name' => $profile['last_name'] ?? $this->guessLastName($user->name),
-            'status' => MemberStatus::Unverified,
+            'lifecycle' => MemberLifecycle::Pending,
             'join_date' => Carbon::today(),
         ], array_filter($profile, fn ($v) => $v !== null && $v !== '')));
 
@@ -44,18 +45,22 @@ class MemberService
     }
 
     /**
-     * Called when a member's email is verified. Moves unverified → pending
-     * so a committee member can approve. Also revives an Abandoned signup
-     * (someone who ignored the finish-your-signup nudge and later came back
-     * to verify) back into the pending queue.
+     * Called when a member's email is verified.
+     *
+     * The lifecycle does not move — they were already Pending — but confirming
+     * the address changes what they are waiting on, and it revives an abandoned
+     * signup (someone who ignored the finish-your-signup nudge and later came
+     * back) into the queue.
      */
     public function markVerified(Member $member): void
     {
-        if (! in_array($member->status, [MemberStatus::Unverified, MemberStatus::Abandoned], true)) {
+        if ($member->lifecycle !== MemberLifecycle::Pending) {
             return;
         }
 
-        $member->update(['status' => MemberStatus::Pending]);
+        if ($member->isAbandoned()) {
+            $member->update(['abandoned_at' => null]);
+        }
 
         MemberEmailVerified::dispatch($member);
     }
@@ -145,14 +150,21 @@ class MemberService
 
         $updates = [];
 
-        // Suspended and resigned are deliberate administrative states; only a
-        // human lifts those, exactly as members:check-expiry treats them.
-        if (! in_array($member->status, [
-            MemberStatus::Active,
-            MemberStatus::Suspended,
-            MemberStatus::Resigned,
+        // Resigning is terminal, so an active membership row must never quietly
+        // bring somebody back. A suspension, by contrast, is a flag laid over
+        // the lifecycle: the member's position can be corrected underneath it
+        // and the suspension still stands, which is what lets lifting one
+        // reveal the right state instead of an admin guessing.
+        if (! in_array($member->lifecycle, [
+            MemberLifecycle::Active,
+            MemberLifecycle::Resigned,
         ], true)) {
-            $updates['status'] = MemberStatus::Active;
+            $updates['lifecycle'] = MemberLifecycle::Active;
+        }
+
+        // Someone who paid again has clearly not abandoned their signup.
+        if ($member->isAbandoned()) {
+            $updates['abandoned_at'] = null;
         }
 
         $periodEnd = $membership->period_end;

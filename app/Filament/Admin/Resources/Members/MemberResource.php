@@ -10,7 +10,6 @@ use App\Filament\Admin\Resources\Members\RelationManagers\MembershipsRelationMan
 use App\Filament\Admin\Resources\Members\RelationManagers\SubMembersRelationManager;
 use App\Filament\Admin\Resources\Members\Schemas\MemberForm;
 use App\Filament\Admin\Resources\Members\Tables\MembersTable;
-use App\Enums\MemberStatus;
 use App\Models\Member;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -43,9 +42,7 @@ class MemberResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = Member::query()
-            ->where('status', MemberStatus::Pending->value)
-            ->count();
+        $count = Member::query()->pending()->count();
 
         return $count > 0 ? (string) $count : null;
     }
@@ -88,7 +85,7 @@ class MemberResource extends Resource
         return array_filter([
             'Member #' => $record->membership_number,
             'Phone' => $record->phone_number,
-            'Status' => $record->status?->label() ?? null,
+            'Status' => $record->standing()->label(),
         ]);
     }
 

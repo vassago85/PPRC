@@ -62,7 +62,7 @@ function transferShooter(): Member
 {
     $user = User::factory()->create(['email_verified_at' => now()]);
 
-    return Member::factory()->create(['user_id' => $user->id, 'status' => 'active']);
+    return Member::factory()->active()->create(['user_id' => $user->id]);
 }
 
 function paidEntry(Event $event, ?Member $member = null, array $overrides = []): EventRegistration
@@ -134,9 +134,8 @@ function refMember(string $first, string $last, array $overrides = []): Member
 {
     $user = User::factory()->create(['email_verified_at' => now()]);
 
-    return Member::factory()->create(array_merge([
+    return Member::factory()->active()->create(array_merge([
         'user_id' => $user->id,
-        'status' => 'active',
         'first_name' => $first,
         'last_name' => $last,
     ], $overrides));

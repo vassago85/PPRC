@@ -3,12 +3,12 @@
 namespace App\Models;
 
 use App\Enums\EventStatus;
+use App\Support\MediaDisk;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Event extends Model
@@ -233,7 +233,7 @@ class Event extends Model
             return null;
         }
 
-        return \App\Support\MediaDisk::url($this->banner_path);
+        return MediaDisk::url($this->banner_path);
     }
 
     public function hasMatchBook(): bool
@@ -295,7 +295,7 @@ class Event extends Model
             return null;
         }
 
-        return \App\Support\MediaDisk::url($this->match_book_path);
+        return MediaDisk::url($this->match_book_path);
     }
 
     /**
@@ -315,7 +315,7 @@ class Event extends Model
             return 0;
         }
 
-        $isActiveMember = $member?->status?->value === 'active';
+        $isActiveMember = $member?->isActiveMember() ?? false;
 
         if ($treatAsJunior || ($isActiveMember && $member?->isJunior())) {
             return $this->juniorPriceCents();

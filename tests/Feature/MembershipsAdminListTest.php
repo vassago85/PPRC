@@ -1,7 +1,8 @@
 <?php
 
+use App\Enums\MemberLifecycle;
 use App\Enums\MembershipStatus;
-use App\Enums\MemberStatus;
+use App\Enums\MemberStanding;
 use App\Filament\Admin\Resources\Memberships\Pages\ListMemberships;
 use App\Models\Member;
 use App\Models\Membership;
@@ -180,7 +181,7 @@ it('changes status and dates from the quick edit modal', function () {
 
     expect($membership->status)->toBe(MembershipStatus::Active)
         ->and($membership->period_end->toDateString())->toBe(now()->addYear()->toDateString())
-        ->and($membership->member->fresh()->status)->toBe(MemberStatus::Active);
+        ->and($membership->member->fresh()->lifecycle)->toBe(MemberLifecycle::Active);
 });
 
 it('renews into a fresh period without losing paid time', function () {
@@ -224,7 +225,7 @@ it('approves several pending memberships at once', function () {
 
 it('activates the member when a membership is set active directly', function () {
     $membership = membershipFor(
-        ['status' => MemberStatus::Expired, 'expiry_date' => now()->subMonths(2)],
+        ['lifecycle' => MemberLifecycle::Expired, 'expiry_date' => now()->subMonths(2)],
         ['status' => MembershipStatus::PendingPayment, 'period_end' => now()->addYear()],
     );
 
@@ -232,13 +233,13 @@ it('activates the member when a membership is set active directly', function () 
 
     $member = $membership->member->fresh();
 
-    expect($member->status)->toBe(MemberStatus::Active)
+    expect($member->lifecycle)->toBe(MemberLifecycle::Active)
         ->and($member->expiry_date->toDateString())->toBe($membership->period_end->toDateString());
 });
 
 it('clears a stale expiry date when the membership never expires', function () {
     $membership = membershipFor(
-        ['status' => MemberStatus::Expired, 'expiry_date' => now()->subMonths(2)],
+        ['lifecycle' => MemberLifecycle::Expired, 'expiry_date' => now()->subMonths(2)],
         ['status' => MembershipStatus::PendingPayment, 'period_end' => null],
     );
 
@@ -246,24 +247,30 @@ it('clears a stale expiry date when the membership never expires', function () {
 
     $member = $membership->member->fresh();
 
-    expect($member->status)->toBe(MemberStatus::Active)
+    expect($member->lifecycle)->toBe(MemberLifecycle::Active)
         ->and($member->expiry_date)->toBeNull();
 });
 
 it('leaves a suspended member suspended when their membership is saved active', function () {
     $membership = membershipFor(
-        ['status' => MemberStatus::Suspended],
+        ['suspended_at' => now()->subMonth()],
         ['status' => MembershipStatus::Active, 'period_end' => now()->addYear()],
     );
 
     $membership->update(['admin_notes' => 'Reviewed by committee']);
 
-    expect($membership->member->fresh()->status)->toBe(MemberStatus::Suspended);
+    $member = $membership->member->fresh();
+
+    // The suspension survives, and the member still gets no member benefits,
+    // even though the lifecycle underneath is brought in line with the active
+    // membership so lifting the suspension does the right thing.
+    expect($member->standing())->toBe(MemberStanding::Suspended)
+        ->and($member->isActiveMember())->toBeFalse();
 });
 
 it('does not pull a member expiry date backwards', function () {
     $membership = membershipFor(
-        ['status' => MemberStatus::Active, 'expiry_date' => now()->addYear()],
+        ['lifecycle' => MemberLifecycle::Active, 'expiry_date' => now()->addYear()],
         ['status' => MembershipStatus::PendingPayment, 'period_end' => now()->addMonth()],
     );
 
@@ -276,18 +283,18 @@ it('does not pull a member expiry date backwards', function () {
 
 it('reaches the same member state whether approved or edited straight to active', function () {
     $viaApprove = membershipFor(
-        ['status' => MemberStatus::Expired, 'expiry_date' => now()->subMonths(2)],
+        ['lifecycle' => MemberLifecycle::Expired, 'expiry_date' => now()->subMonths(2)],
         ['status' => MembershipStatus::PendingApproval, 'period_end' => now()->addYear()],
     );
     $viaEdit = membershipFor(
-        ['status' => MemberStatus::Expired, 'expiry_date' => now()->subMonths(2)],
+        ['lifecycle' => MemberLifecycle::Expired, 'expiry_date' => now()->subMonths(2)],
         ['status' => MembershipStatus::PendingApproval, 'period_end' => now()->addYear()],
     );
 
     app(MemberService::class)->activate($viaApprove);
     $viaEdit->update(['status' => MembershipStatus::Active]);
 
-    expect($viaEdit->member->fresh()->status)->toBe($viaApprove->member->fresh()->status)
+    expect($viaEdit->member->fresh()->lifecycle)->toBe($viaApprove->member->fresh()->lifecycle)
         ->and($viaEdit->member->fresh()->expiry_date->toDateString())
         ->toBe($viaApprove->member->fresh()->expiry_date->toDateString());
 });

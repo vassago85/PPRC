@@ -2,7 +2,9 @@
 
 namespace App\Filament\Admin\Resources\Members\RelationManagers;
 
-use App\Enums\MemberStatus;
+use App\Enums\MemberLifecycle;
+use App\Enums\MemberStanding;
+use App\Models\Member;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteBulkAction;
@@ -47,10 +49,13 @@ class SubMembersRelationManager extends RelationManager
                     ->label('Name')
                     ->formatStateUsing(fn ($record) => $record->fullName())
                     ->searchable(['first_name', 'last_name', 'known_as']),
-                TextColumn::make('status')
+                TextColumn::make('standing')
+                    ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (?MemberStatus $state) => $state?->label())
-                    ->color(fn (?MemberStatus $state) => $state?->color() ?? 'gray'),
+                    ->state(fn (Member $record) => $record->standing())
+                    ->formatStateUsing(fn (MemberStanding $state) => $state->label())
+                    ->color(fn (MemberStanding $state) => $state->color())
+                    ->tooltip(fn (MemberStanding $state) => $state->description()),
                 TextColumn::make('expiry_date')
                     ->label('Expiry')
                     ->date('d M Y')
@@ -71,7 +76,7 @@ class SubMembersRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
-                        $data['status'] = MemberStatus::Active->value;
+                        $data['lifecycle'] = MemberLifecycle::Active->value;
                         $data['country'] = $data['country'] ?? 'ZA';
 
                         return $data;

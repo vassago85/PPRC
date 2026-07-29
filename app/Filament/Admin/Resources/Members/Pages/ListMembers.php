@@ -2,8 +2,6 @@
 
 namespace App\Filament\Admin\Resources\Members\Pages;
 
-use App\Enums\MembershipStatus;
-use App\Enums\MemberStatus;
 use App\Filament\Admin\Resources\Members\MemberResource;
 use App\Models\Member;
 use Filament\Actions\CreateAction;
@@ -22,61 +20,52 @@ class ListMembers extends ListRecords
         ];
     }
 
+    /**
+     * Every tab is a lifecycle scope from the Member model, so these counts are
+     * the same numbers the dashboard, the nav badges and the scheduled reminders
+     * use. They used to be hand-written here and drift from everywhere else.
+     */
     public function getTabs(): array
     {
+        $counts = [
+            'active' => Member::query()->active()->count(),
+            'pending' => Member::query()->pending()->count(),
+            'renewal_due' => Member::query()->renewalDue()->count(),
+            'lapsed' => Member::query()->recentlyLapsed()->count(),
+            'suspended' => Member::query()->suspended()->count(),
+            'abandoned' => Member::query()->abandoned()->count(),
+        ];
+
         return [
             'all' => Tab::make('All'),
 
             'active' => Tab::make('Active')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', MemberStatus::Active->value))
-                ->badge(Member::where('status', MemberStatus::Active->value)->count()),
+                ->modifyQueryUsing(fn (Builder $query) => $query->active())
+                ->badge($counts['active']),
 
             'pending_onboard' => Tab::make('Pending onboard')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', MemberStatus::Pending->value))
-                ->badge(Member::where('status', MemberStatus::Pending->value)->count())
-                ->badgeColor(Member::where('status', MemberStatus::Pending->value)->count() > 0 ? 'warning' : 'gray'),
+                ->modifyQueryUsing(fn (Builder $query) => $query->pending())
+                ->badge($counts['pending'])
+                ->badgeColor($counts['pending'] > 0 ? 'warning' : 'gray'),
 
             'renewal_due' => Tab::make('Renewal due')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->where('status', MemberStatus::Active->value)
-                    ->whereNotNull('expiry_date')
-                    ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays(30)->toDateString()])
-                    ->whereDoesntHave('memberships', fn (Builder $q) => $q->whereIn('status', [
-                        MembershipStatus::PendingPayment->value,
-                        MembershipStatus::PendingApproval->value,
-                    ])))
-                ->badge(Member::query()
-                    ->where('status', MemberStatus::Active->value)
-                    ->whereNotNull('expiry_date')
-                    ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays(30)->toDateString()])
-                    ->whereDoesntHave('memberships', fn (Builder $q) => $q->whereIn('status', [
-                        MembershipStatus::PendingPayment->value,
-                        MembershipStatus::PendingApproval->value,
-                    ]))
-                    ->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->renewalDue())
+                ->badge($counts['renewal_due'])
                 ->badgeColor('info'),
 
             'lapsed' => Tab::make('Lapsed')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->where('status', MemberStatus::Expired->value)
-                    ->where('expiry_date', '>=', now()->subDays(60)->toDateString())
-                    ->whereDoesntHave('memberships', fn (Builder $q) => $q->whereIn('status', [
-                        MembershipStatus::PendingPayment->value,
-                        MembershipStatus::PendingApproval->value,
-                    ])))
-                ->badge(Member::query()
-                    ->where('status', MemberStatus::Expired->value)
-                    ->where('expiry_date', '>=', now()->subDays(60)->toDateString())
-                    ->whereDoesntHave('memberships', fn (Builder $q) => $q->whereIn('status', [
-                        MembershipStatus::PendingPayment->value,
-                        MembershipStatus::PendingApproval->value,
-                    ]))
-                    ->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->recentlyLapsed())
+                ->badge($counts['lapsed'])
                 ->badgeColor('danger'),
 
+            'suspended' => Tab::make('Suspended')
+                ->modifyQueryUsing(fn (Builder $query) => $query->suspended())
+                ->badge($counts['suspended'])
+                ->badgeColor($counts['suspended'] > 0 ? 'danger' : 'gray'),
+
             'abandoned' => Tab::make('Abandoned')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', MemberStatus::Abandoned->value))
-                ->badge(Member::where('status', MemberStatus::Abandoned->value)->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query->abandoned())
+                ->badge($counts['abandoned'])
                 ->badgeColor('gray'),
         ];
     }

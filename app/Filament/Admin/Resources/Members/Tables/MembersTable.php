@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Members\Tables;
 
-use App\Enums\MemberStatus;
+use App\Enums\MemberStanding;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Filament\Admin\Support\SearchTerm;
@@ -19,6 +19,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
@@ -29,6 +30,10 @@ class MembersTable
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            // The derived status badge needs to know about the user account and
+            // whether an application was ever started; without these it would
+            // be two queries per row.
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('user')->withExists('memberships'))
             ->searchable([
                 'membership_number',
                 'first_name',
@@ -50,10 +55,17 @@ class MembersTable
                     ->searchable(['first_name', 'last_name', 'known_as']),
                 TextColumn::make('user.email')->label('Email')->copyable(),
                 TextColumn::make('phone_number')->label('Phone')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('status')
+                // Derived rather than the stored lifecycle, so the badge says
+                // what the member is actually waiting on instead of just
+                // "Pending".
+                TextColumn::make('standing')
+                    ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (?MemberStatus $state) => $state?->label())
-                    ->color(fn (?MemberStatus $state) => $state?->color() ?? 'gray'),
+                    ->state(fn (Member $record) => $record->standing())
+                    ->formatStateUsing(fn (MemberStanding $state) => $state->label())
+                    ->color(fn (MemberStanding $state) => $state->color())
+                    ->icon(fn (MemberStanding $state) => $state->icon())
+                    ->tooltip(fn (MemberStanding $state) => $state->description()),
                 TextColumn::make('join_date')->date('d M Y')->toggleable(),
                 TextColumn::make('expiry_date')->date('d M Y')
                     ->color(fn ($record) => $record->expiry_date && $record->expiry_date->isPast() ? 'danger' : null)

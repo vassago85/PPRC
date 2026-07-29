@@ -2,12 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\MemberLifecycle;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\Member;
 use App\Models\MembershipType;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -61,7 +63,7 @@ class ImportSsmmMembers extends Command
         'spouse' => 'spouse',
     ];
 
-    /** @var array<string,string> plugin status -> MemberStatus enum value */
+    /** @var array<string,string> plugin status -> legacy status vocabulary */
     private const STATUS_MAP = [
         'active' => 'active',
         'pending' => 'pending',
@@ -209,7 +211,7 @@ class ImportSsmmMembers extends Command
                     'province' => trim((string) ($row['province'] ?? '')) ?: null,
                     'date_of_birth' => $dob,
                     'shooting_disciplines' => $disciplines,
-                    'status' => $status,
+                    ...MemberLifecycle::mapLegacy($status, $expiryDate),
                     'join_date' => $joinDate,
                     'expiry_date' => $expiryDate,
                 ], fn ($v) => $v !== null && $v !== '' && $v !== []);
@@ -247,7 +249,7 @@ class ImportSsmmMembers extends Command
                         $periodEnd = $expiryDate;
                         $isLifetime = $typeSlug === 'life-member';
                         if (! $periodEnd && $membershipStatus === 'active' && $type && ! $isLifetime) {
-                            $periodEnd = \Illuminate\Support\Carbon::parse($periodStart)
+                            $periodEnd = Carbon::parse($periodStart)
                                 ->addMonths($type->duration_months ?: 12)
                                 ->subDay()
                                 ->toDateString();

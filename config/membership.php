@@ -71,4 +71,27 @@ return [
 
     'stale_signup_grace_days' => (int) env('MEMBERSHIP_STALE_SIGNUP_GRACE_DAYS', 14),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Lifecycle bucket windows
+    |--------------------------------------------------------------------------
+    |
+    | These define the lifecycle buckets on the Member model, and therefore
+    | every list, tab badge, dashboard card and scheduled reminder that counts
+    | members. They used to be hardcoded separately in each place, which is why
+    | "lapsed" meant 60 days on the members list, 180 days to the renewal
+    | reminder command, and no window at all on the membership overview.
+    |
+    */
+
+    // Active members inside this many days of expiry are "renewal due".
+    'renewal_due_days' => (int) env('MEMBERSHIP_RENEWAL_DUE_DAYS', 30),
+
+    // Expired this recently and still worth chasing back.
+    'recently_lapsed_days' => (int) env('MEMBERSHIP_RECENTLY_LAPSED_DAYS', 60),
+
+    // Expired longer ago than this and no longer part of the renewal effort.
+    // Replaces the old stored "inactive" status.
+    'long_lapsed_months' => (int) env('MEMBERSHIP_LONG_LAPSED_MONTHS', 6),
+
 ];

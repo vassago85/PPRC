@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Enums\MemberLifecycle;
 use App\Enums\MembershipStatus;
-use App\Enums\MemberStatus;
 use App\Models\Member;
 use App\Models\Membership;
 use App\Models\MembershipType;
@@ -59,7 +59,7 @@ class PaulCharsleyTestMemberSeeder extends Seeder
                 'country' => 'South Africa',
                 'date_of_birth' => '1980-01-15',
                 'shooting_disciplines' => ['PRS'],
-                'status' => MemberStatus::Active,
+                'lifecycle' => MemberLifecycle::Active,
                 'join_date' => now()->toDateString(),
             ],
         );

@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\MemberStatus;
+use App\Enums\MemberLifecycle;
 use App\Mail\MembershipRenewalReminderMail;
 use App\Models\EmailLog;
 use App\Models\Member;
@@ -70,20 +70,22 @@ class SendMembershipRenewalReminders extends Command
             $query->where(function ($q) use ($today, $expiringCutoff, $lapsedCutoff) {
                 // Almost-expired bucket: active + expiry within the look-ahead window.
                 $q->where(function ($qq) use ($today, $expiringCutoff) {
-                    $qq->where('status', MemberStatus::Active->value)
-                       ->whereBetween('expiry_date', [$today, $expiringCutoff]);
+                    $qq->where('lifecycle', MemberLifecycle::Active->value)
+                        ->whereNull('suspended_at')
+                        ->whereBetween('expiry_date', [$today, $expiringCutoff]);
                 })
-                // Recently lapsed bucket: expired status + expiry within the look-back window.
-                ->orWhere(function ($qq) use ($today, $lapsedCutoff) {
-                    $qq->where('status', MemberStatus::Expired->value)
-                       ->whereBetween('expiry_date', [$lapsedCutoff, $today->copy()->subDay()]);
-                });
+                // Recently lapsed bucket: expired + expiry within the look-back window.
+                    ->orWhere(function ($qq) use ($today, $lapsedCutoff) {
+                        $qq->where('lifecycle', MemberLifecycle::Expired->value)
+                            ->whereNull('suspended_at')
+                            ->whereBetween('expiry_date', [$lapsedCutoff, $today->copy()->subDay()]);
+                    });
             });
 
             if (! $resend && $throttleCutoff !== null) {
                 $query->where(function ($q) use ($throttleCutoff) {
                     $q->whereNull('last_renewal_reminder_at')
-                      ->orWhere('last_renewal_reminder_at', '<', $throttleCutoff);
+                        ->orWhere('last_renewal_reminder_at', '<', $throttleCutoff);
                 });
             }
         }

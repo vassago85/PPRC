@@ -2,7 +2,6 @@
 
 namespace App\Filament\Admin\Pages;
 
-use App\Enums\MemberStatus;
 use App\Mail\ClubBroadcastMail;
 use App\Models\Member;
 use BackedEnum;
@@ -170,7 +169,7 @@ class SendClubBroadcast extends Page
         $query = Member::query()->whereHas('user', fn ($q) => $q->whereNotNull('email'));
 
         if ($audience === 'active_members') {
-            $query->where('status', MemberStatus::Active);
+            $query->active();
         }
 
         return $query

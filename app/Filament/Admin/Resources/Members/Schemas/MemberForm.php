@@ -2,9 +2,11 @@
 
 namespace App\Filament\Admin\Resources\Members\Schemas;
 
-use App\Enums\MemberStatus;
+use App\Enums\MemberLifecycle;
 use App\Models\Member;
+use App\Support\MediaDisk;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -45,7 +47,7 @@ class MemberForm
                                         FileUpload::make('profile_photo_path')
                                             ->label('Photo')
                                             ->image()
-                                            ->disk(\App\Support\MediaDisk::name())
+                                            ->disk(MediaDisk::name())
                                             ->directory('members/profile-photos')
                                             ->imageEditor()
                                             ->columnSpanFull(),
@@ -132,12 +134,17 @@ class MemberForm
                                 Section::make('Membership record')
                                     ->columns(2)
                                     ->schema([
-                                        Select::make('status')
-                                            ->options(collect(MemberStatus::cases())
-                                                ->mapWithKeys(fn ($c) => [$c->value => $c->label()])
-                                                ->all())
+                                        Select::make('lifecycle')
+                                            ->label('Lifecycle')
+                                            ->options(MemberLifecycle::options())
                                             ->required()
-                                            ->default(MemberStatus::Pending->value),
+                                            ->default(MemberLifecycle::Pending->value)
+                                            ->helperText('Where the member sits in the club lifecycle. Suspension is separate — it sits on top of this.'),
+                                        DateTimePicker::make('suspended_at')
+                                            ->label('Suspended since')
+                                            ->native(false)
+                                            ->displayFormat('d M Y H:i')
+                                            ->helperText('Leave blank unless the committee has suspended this member. Clearing it restores whatever lifecycle they were in.'),
                                         TextInput::make('membership_number')
                                             ->helperText('Leave blank for auto-assignment when a membership becomes active. Numbers are sequential; resigned or deleted members do not free their number for reuse.'),
                                         DatePicker::make('join_date')->native(false)->displayFormat('d M Y'),

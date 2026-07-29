@@ -2,7 +2,6 @@
 
 namespace App\Services\Membership;
 
-use App\Enums\MemberStatus;
 use App\Mail\FinishSignupReminderMail;
 use App\Models\EmailLog;
 use App\Models\Member;
@@ -14,15 +13,16 @@ use Illuminate\Support\Facades\Mail;
  * Handles incomplete signups that have gone stale.
  *
  * Two cohorts are targeted:
- *   - "verify"  : registered but never confirmed their email (Unverified)
- *   - "choose"  : verified but never started a membership application (Pending
- *                 with no membership row)
+ *   - "verify"  : registered but never confirmed their email
+ *   - "choose"  : verified but never started a membership application (no
+ *                 membership row at all)
  *
  * Policy is nudge-then-archive: the first time we see a stale account we email
  * a single "finish your signup" reminder and stamp signup_reminder_sent_at.
- * If, after the grace window, they still haven't progressed, we move them to
- * the Abandoned status. It is fully reversible — verifying their email or
- * starting an application returns them to Pending (see MemberService /
+ * If, after the grace window, they still haven't progressed, we stamp
+ * abandoned_at, which drops them out of the onboarding inbox while leaving
+ * their lifecycle position alone. It is fully reversible — verifying their
+ * email or starting an application clears the stamp (see MemberService /
  * MembershipIssuer).
  */
 class StaleSignupProcessor
@@ -68,7 +68,7 @@ class StaleSignupProcessor
             if ($member->signup_reminder_sent_at !== null) {
                 if ($member->signup_reminder_sent_at->lessThanOrEqualTo($graceCutoff)) {
                     if (! $dryRun) {
-                        $member->update(['status' => MemberStatus::Abandoned]);
+                        $member->update(['abandoned_at' => now()]);
                     }
                     $stats['archived']++;
                     $log(($dryRun ? '[DRY] ' : '').'[ARCHIVE] '.$label);
@@ -83,7 +83,7 @@ class StaleSignupProcessor
             // Never nudged. If we have no email we can't nudge — archive directly.
             if ($email === '') {
                 if (! $dryRun) {
-                    $member->update(['status' => MemberStatus::Abandoned]);
+                    $member->update(['abandoned_at' => now()]);
                 }
                 $stats['archived']++;
                 $log(($dryRun ? '[DRY] ' : '').'[ARCHIVE] '.$label.'  (no email to nudge)');

@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\MemberLifecycle;
 use App\Enums\MembershipStatus;
+use App\Enums\MemberStanding;
 use App\Enums\MemberStatus;
 use App\Support\NameCase;
 use Database\Factories\MemberFactory;
@@ -39,6 +41,9 @@ class Member extends Model
         'shooting_disciplines',
         'profile_photo_path',
         'status',
+        'lifecycle',
+        'suspended_at',
+        'abandoned_at',
         'join_date',
         'expiry_date',
         'last_renewal_reminder_at',
@@ -60,9 +65,29 @@ class Member extends Model
         'signup_reminder_sent_at' => 'datetime',
         'resigned_at' => 'datetime',
         'saprf_verified_at' => 'datetime',
+        'suspended_at' => 'datetime',
+        'abandoned_at' => 'datetime',
         'shooting_disciplines' => 'array',
         'status' => MemberStatus::class,
+        'lifecycle' => MemberLifecycle::class,
     ];
+
+    /**
+     * Keep the legacy eight-value `status` column in step with the canonical
+     * lifecycle.
+     *
+     * `lifecycle` is the only thing written by application code now. This
+     * mirror exists so the old column stays truthful while the change is being
+     * verified — anything still reading `status`, including a rollback, gets the
+     * right answer without a second source of truth to keep in sync by hand.
+     * It goes away with the column.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $member) {
+            $member->status = $member->legacyStatus();
+        });
+    }
 
     /**
      * Title-case mutators. Lower/upper-only input is normalised on save;
@@ -141,6 +166,261 @@ class Member extends Model
             ->first();
     }
 
+    // -----------------------------------------------------------------
+    // Lifecycle
+    // -----------------------------------------------------------------
+
+    /**
+     * The richer status a human reads, worked out from the lifecycle plus what
+     * is already on the record. Nothing here is stored, so it cannot drift.
+     */
+    public function standing(): MemberStanding
+    {
+        if ($this->lifecycle === MemberLifecycle::Resigned) {
+            return MemberStanding::Resigned;
+        }
+
+        // A suspension is laid over the lifecycle rather than replacing it, so
+        // it wins the display without the underlying position being lost.
+        if ($this->isSuspended()) {
+            return MemberStanding::Suspended;
+        }
+
+        return match ($this->lifecycle) {
+            MemberLifecycle::Pending => $this->pendingStanding(),
+            MemberLifecycle::Active => MemberStanding::Active,
+            MemberLifecycle::Expired => $this->isLongLapsed()
+                ? MemberStanding::LongLapsed
+                : MemberStanding::Expired,
+            default => MemberStanding::Resigned,
+        };
+    }
+
+    /** What exactly a Pending member is waiting on. */
+    protected function pendingStanding(): MemberStanding
+    {
+        if ($this->isAbandoned()) {
+            return MemberStanding::Abandoned;
+        }
+
+        if (! $this->hasVerifiedEmail()) {
+            return MemberStanding::AwaitingEmail;
+        }
+
+        return $this->hasStartedApplication()
+            ? MemberStanding::AwaitingPayment
+            : MemberStanding::AwaitingChoice;
+    }
+
+    /**
+     * Whether they ever picked a membership type. Prefers an eager-loaded
+     * relation or a withExists() aggregate so rendering a list of members does
+     * not fire a query per row.
+     */
+    public function hasStartedApplication(): bool
+    {
+        $counted = $this->getAttribute('memberships_exists');
+
+        if ($counted !== null) {
+            return (bool) $counted;
+        }
+
+        if ($this->relationLoaded('memberships')) {
+            return $this->memberships->isNotEmpty();
+        }
+
+        return $this->memberships()->exists();
+    }
+
+    /**
+     * Entitled to member rates and member-only features. A suspension revokes
+     * that without disturbing the lifecycle underneath it.
+     */
+    public function isActiveMember(): bool
+    {
+        return $this->lifecycle === MemberLifecycle::Active && ! $this->isSuspended();
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
+    }
+
+    public function isAbandoned(): bool
+    {
+        return $this->abandoned_at !== null;
+    }
+
+    /**
+     * Replaces the old stored "unverified" status. A member with no user
+     * account has no email to confirm, so there is nothing to wait for.
+     */
+    public function hasVerifiedEmail(): bool
+    {
+        return $this->user === null || $this->user->email_verified_at !== null;
+    }
+
+    /**
+     * Expired long enough ago that chasing the renewal is no longer realistic.
+     * Replaces the old stored "inactive" status.
+     */
+    public function isLongLapsed(): bool
+    {
+        if ($this->lifecycle !== MemberLifecycle::Expired || $this->expiry_date === null) {
+            return false;
+        }
+
+        return $this->expiry_date->lt(now()->subMonths((int) config('membership.long_lapsed_months', 6)));
+    }
+
+    /**
+     * The old eight-value status this member would have had. Only used to keep
+     * the deprecated column truthful; see booted().
+     */
+    public function legacyStatus(): MemberStatus
+    {
+        $lifecycle = $this->lifecycle instanceof MemberLifecycle
+            ? $this->lifecycle
+            : MemberLifecycle::tryFrom((string) $this->lifecycle) ?? MemberLifecycle::Pending;
+
+        if ($lifecycle === MemberLifecycle::Resigned) {
+            return MemberStatus::Resigned;
+        }
+
+        if ($this->isSuspended()) {
+            return MemberStatus::Suspended;
+        }
+
+        return match ($lifecycle) {
+            MemberLifecycle::Pending => match (true) {
+                $this->isAbandoned() => MemberStatus::Abandoned,
+                ! $this->hasVerifiedEmail() => MemberStatus::Unverified,
+                default => MemberStatus::Pending,
+            },
+            MemberLifecycle::Active => MemberStatus::Active,
+            MemberLifecycle::Expired => $this->isLongLapsed()
+                ? MemberStatus::Inactive
+                : MemberStatus::Expired,
+            default => MemberStatus::Resigned,
+        };
+    }
+
+    // -----------------------------------------------------------------
+    // Lifecycle buckets
+    //
+    // One scope per bucket, used by every list, badge, dashboard card and
+    // scheduled command. Before this, each screen wrote its own where()
+    // clauses and "lapsed" meant three different things depending on where you
+    // read it, which is why the counts never agreed.
+    // -----------------------------------------------------------------
+
+    /** Paid-up members in good standing. Suspensions are counted separately. */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query
+            ->where('lifecycle', MemberLifecycle::Active->value)
+            ->whereNull('suspended_at');
+    }
+
+    public function scopeSuspended(Builder $query): Builder
+    {
+        return $query->whereNotNull('suspended_at');
+    }
+
+    /**
+     * The real onboarding inbox: signed up, not yet paid up, and not given up
+     * on. This is the count that used to be inflated by stale signups.
+     */
+    public function scopePending(Builder $query): Builder
+    {
+        return $query
+            ->where('lifecycle', MemberLifecycle::Pending->value)
+            ->whereNull('abandoned_at')
+            ->whereNull('suspended_at');
+    }
+
+    /** Pending, and we are waiting on them to confirm their email address. */
+    public function scopeAwaitingEmail(Builder $query): Builder
+    {
+        return $query->pending()->whereHas('user', fn (Builder $q) => $q->whereNull('email_verified_at'));
+    }
+
+    /** Pending, email confirmed, but they never picked a membership type. */
+    public function scopeAwaitingChoice(Builder $query): Builder
+    {
+        return $query->pending()
+            ->whereDoesntHave('memberships')
+            ->where(fn (Builder $q) => $q
+                ->whereDoesntHave('user')
+                ->orWhereHas('user', fn (Builder $u) => $u->whereNotNull('email_verified_at')));
+    }
+
+    /** Pending with an application in flight: the money or the approval is due. */
+    public function scopeAwaitingPayment(Builder $query): Builder
+    {
+        return $query->pending()->whereHas('memberships');
+    }
+
+    /** Stale signups we have stopped chasing. Deliberately out of the inbox. */
+    public function scopeAbandoned(Builder $query): Builder
+    {
+        return $query->whereNotNull('abandoned_at')->whereNull('suspended_at');
+    }
+
+    /**
+     * Raw lifecycle position, suspended or not.
+     *
+     * The scopes above answer "whose list does this member belong on", so they
+     * exclude suspensions the way the displayed standing does. These two answer
+     * "where is this member in the lifecycle", which a suspension does not
+     * change.
+     */
+    public function scopeExpired(Builder $query): Builder
+    {
+        return $query->where('lifecycle', MemberLifecycle::Expired->value);
+    }
+
+    public function scopeResigned(Builder $query): Builder
+    {
+        return $query->where('lifecycle', MemberLifecycle::Resigned->value);
+    }
+
+    /**
+     * Active, expiring soon, and nobody has started the renewal yet — so it is
+     * still worth a nudge.
+     */
+    public function scopeRenewalDue(Builder $query, ?int $withinDays = null): Builder
+    {
+        $days = $withinDays ?? (int) config('membership.renewal_due_days', 30);
+
+        return $query->active()
+            ->whereNotNull('expiry_date')
+            ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays($days)->toDateString()])
+            ->whereDoesntHave('memberships', fn (Builder $q) => $q->needsAction());
+    }
+
+    /** Recently expired with no renewal started: the winnable-back list. */
+    public function scopeRecentlyLapsed(Builder $query, ?int $withinDays = null): Builder
+    {
+        $days = $withinDays ?? (int) config('membership.recently_lapsed_days', 60);
+
+        return $query->expired()
+            ->whereNull('suspended_at')
+            ->whereNotNull('expiry_date')
+            ->where('expiry_date', '>=', now()->subDays($days)->toDateString())
+            ->whereDoesntHave('memberships', fn (Builder $q) => $q->needsAction());
+    }
+
+    /** Expired so long ago they are no longer part of the renewal effort. */
+    public function scopeLongLapsed(Builder $query, ?int $months = null): Builder
+    {
+        $months = $months ?? (int) config('membership.long_lapsed_months', 6);
+
+        return $query->expired()
+            ->whereNotNull('expiry_date')
+            ->where('expiry_date', '<', now()->subMonths($months)->toDateString());
+    }
+
     /**
      * Registered but never confirmed their email, and it's been a while.
      * These accounts have a User + Member but no verified email and no
@@ -148,9 +428,7 @@ class Member extends Model
      */
     public function scopeStaleUnverifiedSignups(Builder $query, \DateTimeInterface $before): Builder
     {
-        return $query
-            ->where('status', MemberStatus::Unverified->value)
-            ->where('created_at', '<', $before);
+        return $query->awaitingEmail()->where('created_at', '<', $before);
     }
 
     /**
@@ -160,10 +438,17 @@ class Member extends Model
      */
     public function scopeStaleUnstartedSignups(Builder $query, \DateTimeInterface $before): Builder
     {
-        return $query
-            ->where('status', MemberStatus::Pending->value)
-            ->whereDoesntHave('memberships')
-            ->where('created_at', '<', $before);
+        return $query->awaitingChoice()->where('created_at', '<', $before);
+    }
+
+    /**
+     * Picked a membership type but never paid for it. Deliberately separate
+     * from the two above because these people did engage — the club just never
+     * saw the money — so they are chased on a shorter, gentler clock.
+     */
+    public function scopeStaleUnpaidSignups(Builder $query, \DateTimeInterface $before): Builder
+    {
+        return $query->awaitingPayment()->where('created_at', '<', $before);
     }
 
     public function hasActiveMembership(): bool

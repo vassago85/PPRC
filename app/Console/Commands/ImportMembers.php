@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\MemberLifecycle;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\Member;
@@ -130,7 +131,7 @@ class ImportMembers extends Command
                         'postal_code' => $row['postal_code'] ?? null,
                         'country' => ($row['country'] ?? null) ?: 'South Africa',
                         'date_of_birth' => ($row['date_of_birth'] ?? null) ?: null,
-                        'status' => ($row['status'] ?? null) ?: 'active',
+                        ...MemberLifecycle::mapLegacy(($row['status'] ?? null) ?: 'active', $row['expiry_date'] ?? null),
                         'join_date' => ($row['join_date'] ?? null) ?: null,
                         'expiry_date' => ($row['expiry_date'] ?? null) ?: null,
                         'saprf_membership_number' => $row['saprf_membership_number'] ?? null,

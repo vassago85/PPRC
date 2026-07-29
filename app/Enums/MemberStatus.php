@@ -3,6 +3,12 @@
 namespace App\Enums;
 
 /**
+ * @deprecated Superseded by MemberLifecycle (where a member is) plus
+ * MemberStanding (what a human reads). This enum now exists only to keep the
+ * legacy `members.status` column readable while the change is verified —
+ * Member::legacyStatus() writes it, nothing else should. It goes away with the
+ * column.
+ *
  * Lifecycle of a member profile (separate from User email verification):
  *
  *   Unverified → Pending → Active ─→ Expired ─→ Inactive

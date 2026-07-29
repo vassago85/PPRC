@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\MemberLifecycle;
 use App\Enums\MembershipStatus;
-use App\Enums\MemberStatus;
 use App\Models\Member;
 use App\Models\Membership;
 use App\Services\Membership\MemberService;
@@ -13,18 +13,21 @@ use Illuminate\Support\Carbon;
 /**
  * WP SSMM parity: checkAndUpdateExpiryStatus applied to every member daily.
  *
- * Rules (matching the WordPress plugin behaviour):
+ * Rules:
  *   - Null expiry_date → no change (life / honorary memberships).
- *   - Suspended → never touched automatically.
- *   - Resigned  → never touched automatically.
- *   - Unverified / Pending → not auto-expired (hasn't been activated yet).
- *   - Past expiry_date → expired.
- *   - >6 months past expiry_date → inactive.
- *   - Future expiry_date + was expired/inactive → reactivate to active.
+ *   - Resigned → never touched automatically; leaving is terminal.
+ *   - Pending  → not auto-expired; they have never been activated.
+ *   - Past expiry_date → Expired.
+ *   - Future expiry_date and currently Expired → back to Active.
  *
- * Additionally expires Membership rows whose period_end has passed while
- * still marked as "active", then pulls each member's status and expiry_date up
- * to the best membership they still hold, keeping the two in sync.
+ * A suspended member is now aged like anybody else, because the suspension is a
+ * flag over the lifecycle rather than a status that replaces it. That is the
+ * point: lifting a suspension reveals the correct position instead of leaving an
+ * admin to guess what it should have been.
+ *
+ * Additionally expires Membership rows whose period_end has passed while still
+ * marked "active", then pulls each member's lifecycle and expiry_date up to the
+ * best membership they still hold, keeping the two in sync.
  */
 class CheckMemberExpiryStatus extends Command
 {
@@ -36,44 +39,40 @@ class CheckMemberExpiryStatus extends Command
     {
         $dryRun = (bool) $this->option('dry-run');
         $today = Carbon::today();
-        $sixMonthsAgo = $today->copy()->subMonths(6);
 
-        $stats = ['expired' => 0, 'inactive' => 0, 'reactivated' => 0, 'skipped' => 0];
+        $stats = ['expired' => 0, 'reactivated' => 0, 'skipped' => 0];
 
         $expiredMemberships = $this->expireStaleMembershipRows($today, $dryRun);
         $resynced = $this->syncMembersToActiveMemberships($dryRun);
 
         $members = Member::query()
             ->whereNotNull('expiry_date')
-            ->whereNotIn('status', [
-                MemberStatus::Suspended->value,
-                MemberStatus::Resigned->value,
-                MemberStatus::Unverified->value,
-                MemberStatus::Pending->value,
+            ->whereNotIn('lifecycle', [
+                MemberLifecycle::Resigned->value,
+                MemberLifecycle::Pending->value,
             ])
             ->cursor();
 
         foreach ($members as $member) {
             $expiry = Carbon::parse($member->expiry_date);
 
-            $newStatus = $this->resolveStatus($member->status, $expiry, $today, $sixMonthsAgo);
+            $next = $this->resolveLifecycle($member->lifecycle, $expiry, $today);
 
-            if ($newStatus === null || $newStatus === $member->status) {
+            if ($next === null || $next === $member->lifecycle) {
                 $stats['skipped']++;
 
                 continue;
             }
 
             if ($dryRun) {
-                $this->line("  {$member->membership_number} ({$member->fullName()}): {$member->status->label()} → {$newStatus->label()}");
+                $this->line("  {$member->membership_number} ({$member->fullName()}): {$member->lifecycle->label()} → {$next->label()}");
             } else {
-                $member->update(['status' => $newStatus]);
+                $member->update(['lifecycle' => $next]);
             }
 
-            match ($newStatus) {
-                MemberStatus::Expired => $stats['expired']++,
-                MemberStatus::Inactive => $stats['inactive']++,
-                MemberStatus::Active => $stats['reactivated']++,
+            match ($next) {
+                MemberLifecycle::Expired => $stats['expired']++,
+                MemberLifecycle::Active => $stats['reactivated']++,
                 default => $stats['skipped']++,
             };
         }
@@ -84,9 +83,9 @@ class CheckMemberExpiryStatus extends Command
             ["{$prefix}Membership rows expired", $expiredMemberships],
             ["{$prefix}Members resynced to active membership", $resynced],
             ["{$prefix}Members expired", $stats['expired']],
-            ["{$prefix}Members inactive (6mo+)", $stats['inactive']],
             ["{$prefix}Members reactivated", $stats['reactivated']],
             ['Skipped / unchanged', $stats['skipped']],
+            ['Long lapsed (derived, not stored)', Member::query()->longLapsed()->count()],
         ]);
 
         return self::SUCCESS;
@@ -160,10 +159,12 @@ class CheckMemberExpiryStatus extends Command
 
             $member = $membership->member;
             $changes = collect($updates)
-                ->map(fn ($value, $key) => $key === 'status'
-                    ? "status {$member->status->label()} → {$value->label()}"
-                    : 'expiry '.($member->expiry_date?->toDateString() ?? 'none')
-                        .' → '.($value?->toDateString() ?? 'none'))
+                ->map(fn ($value, $key) => match ($key) {
+                    'lifecycle' => "lifecycle {$member->lifecycle->label()} → {$value->label()}",
+                    'abandoned_at' => 'no longer treated as an abandoned signup',
+                    default => 'expiry '.($member->expiry_date?->toDateString() ?? 'none')
+                        .' → '.($value?->toDateString() ?? 'none'),
+                })
                 ->implode(', ');
 
             $this->line("  {$member->membership_number} ({$member->fullName()}): {$changes}");
@@ -172,24 +173,17 @@ class CheckMemberExpiryStatus extends Command
         return $resynced;
     }
 
-    protected function resolveStatus(
-        MemberStatus $current,
-        Carbon $expiry,
-        Carbon $today,
-        Carbon $sixMonthsAgo,
-    ): ?MemberStatus {
+    /**
+     * There are only two answers now. How long ago a membership lapsed used to
+     * be a third stored status ("inactive"); it is read off expiry_date instead,
+     * so this no longer has to decide it.
+     */
+    protected function resolveLifecycle(MemberLifecycle $current, Carbon $expiry, Carbon $today): ?MemberLifecycle
+    {
         if ($expiry->isFuture() || $expiry->isSameDay($today)) {
-            if (in_array($current, [MemberStatus::Expired, MemberStatus::Inactive], true)) {
-                return MemberStatus::Active;
-            }
-
-            return null;
+            return $current === MemberLifecycle::Expired ? MemberLifecycle::Active : null;
         }
 
-        if ($expiry->lt($sixMonthsAgo)) {
-            return $current === MemberStatus::Inactive ? null : MemberStatus::Inactive;
-        }
-
-        return $current === MemberStatus::Expired ? null : MemberStatus::Expired;
+        return $current === MemberLifecycle::Expired ? null : MemberLifecycle::Expired;
     }
 }

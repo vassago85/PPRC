@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Site;
 
-use App\Enums\MemberStatus;
+use App\Enums\MemberLifecycle;
 use App\Http\Controllers\Controller;
 use App\Mail\MembershipCancelledMail;
 use App\Models\Member;
@@ -19,7 +19,7 @@ use Illuminate\View\View;
  *
  * Flow:
  *  1. GET  /membership/cancel/{member}?signature=…  → confirmation page
- *  2. POST /membership/cancel/{member}?signature=…  → set status=Resigned,
+ *  2. POST /membership/cancel/{member}?signature=…  → set lifecycle=Resigned,
  *     stamp resigned_at, optionally save a reason, send confirmation mail
  *     to the member and the membership secretary, redirect to thank-you.
  */
@@ -31,7 +31,7 @@ class MembershipCancellationController extends Controller
 
         return view('site.membership-cancel-confirm', [
             'member' => $member,
-            'alreadyResigned' => $member->status === MemberStatus::Resigned || $member->resigned_at !== null,
+            'alreadyResigned' => $member->lifecycle === MemberLifecycle::Resigned || $member->resigned_at !== null,
         ]);
     }
 
@@ -43,12 +43,12 @@ class MembershipCancellationController extends Controller
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if ($member->status === MemberStatus::Resigned || $member->resigned_at !== null) {
+        if ($member->lifecycle === MemberLifecycle::Resigned || $member->resigned_at !== null) {
             return view('site.membership-cancel-done', ['member' => $member, 'alreadyResigned' => true]);
         }
 
         $member->forceFill([
-            'status' => MemberStatus::Resigned,
+            'lifecycle' => MemberLifecycle::Resigned,
             'resigned_at' => now(),
             'resignation_reason' => $data['reason'] ?? null,
         ])->save();

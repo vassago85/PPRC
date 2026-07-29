@@ -26,7 +26,7 @@
             </div>
             <div>
                 <dt class="text-xs text-gray-500">Status</dt>
-                <dd class="text-gray-900 dark:text-gray-100">{{ $member?->status?->label() ?? '—' }}</dd>
+                <dd class="text-gray-900 dark:text-gray-100">{{ $member?->standing()->label() ?? '—' }}</dd>
             </div>
             <div>
                 <dt class="text-xs text-gray-500">Active membership</dt>
