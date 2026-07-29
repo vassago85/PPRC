@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Memberships\Pages;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Resources\Memberships\MembershipResource;
+use App\Filament\Admin\Support\LapsedActivationWarning;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -38,5 +39,7 @@ class EditMembership extends EditRecord
                     'confirmed_by_user_id' => auth()->id(),
                 ]);
         }
+
+        LapsedActivationWarning::notify($membership);
     }
 }

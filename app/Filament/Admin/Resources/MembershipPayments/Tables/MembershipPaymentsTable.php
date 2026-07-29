@@ -6,8 +6,10 @@ use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
+use App\Filament\Admin\Support\MemberSearch;
 use App\Models\MembershipPayment;
 use App\Services\Membership\MemberService;
+use App\Support\MediaDisk;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -59,10 +61,10 @@ class MembershipPaymentsTable
                     ->label('Member')
                     ->state(fn (MembershipPayment $r) => $r->payerName())
                     ->searchable(query: function (Builder $query, string $search) {
-                        $query->whereHas('membership.memberWithTrashed', fn ($q) => $q
-                            ->withTrashed()
-                            ->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%"));
+                        $query->whereHas(
+                            'membership.memberWithTrashed',
+                            fn ($q) => MemberSearch::apply($q->withTrashed(), $search),
+                        );
                     })
                     ->description(fn (MembershipPayment $r) => $r->payerSubtitle()),
 
@@ -176,6 +178,7 @@ class MembershipPaymentsTable
                             Notification::make()->danger()
                                 ->title('Payment has no membership attached')
                                 ->send();
+
                             return;
                         }
 
@@ -242,10 +245,12 @@ class MembershipPaymentsTable
                             foreach ($records as $payment) {
                                 if (! in_array($payment->status, [PaymentStatus::Pending, PaymentStatus::Submitted], true)) {
                                     $skipped++;
+
                                     continue;
                                 }
                                 if (! $payment->membership) {
                                     $skipped++;
+
                                     continue;
                                 }
                                 app(MemberService::class)->activate($payment->membership, auth()->user());
@@ -267,7 +272,7 @@ class MembershipPaymentsTable
             return null;
         }
 
-        $disk = Storage::disk(\App\Support\MediaDisk::name());
+        $disk = Storage::disk(MediaDisk::name());
 
         try {
             // Temporary URL works on S3/R2; falls back gracefully on local.

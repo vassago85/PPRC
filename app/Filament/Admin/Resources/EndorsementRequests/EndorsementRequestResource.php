@@ -8,17 +8,17 @@ use App\Models\EndorsementRequest;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Grid;
 use Illuminate\Contracts\View\View;
 use UnitEnum;
 
@@ -61,7 +61,9 @@ class EndorsementRequestResource extends Resource
                 TextColumn::make('member.membership_number')->label('#')->badge()->searchable(),
                 TextColumn::make('member.first_name')->label('Member')
                     ->formatStateUsing(fn ($record) => $record->member?->fullName())
-                    ->searchable(['member.first_name', 'member.last_name']),
+                    // Relative to the related model — a "member." prefix here
+                    // is treated as a JSON path and breaks the query.
+                    ->searchable(['first_name', 'last_name']),
                 TextColumn::make('firearm_type')->label('Firearm')->limit(30),
                 TextColumn::make('reason')->limit(40),
                 TextColumn::make('status')

@@ -11,6 +11,7 @@ use App\Events\MemberRegistered;
 use App\Mail\MembershipApprovedMail;
 use App\Models\Member;
 use App\Models\Membership;
+use App\Models\MembershipType;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
@@ -91,13 +92,7 @@ class MemberService
             return;
         }
 
-        if ($member->status !== MemberStatus::Active) {
-            $member->update(['status' => MemberStatus::Active]);
-        }
-
-        if ($member->expiry_date === null || ($membership->period_end && $membership->period_end->gt($member->expiry_date))) {
-            $member->update(['expiry_date' => $membership->period_end]);
-        }
+        $this->syncMemberToActiveMembership($membership);
 
         $this->cancelSupersededMemberships($member, $membership);
 
@@ -107,6 +102,73 @@ class MemberService
         if ($member->user?->email) {
             Mail::to($member->user)->queue(new MembershipApprovedMail($member, $membership));
         }
+    }
+
+    /**
+     * Bring the parent Member's own status and expiry date in line with an
+     * active membership.
+     *
+     * Runs from the Membership model whenever an active row is saved, so an
+     * admin who flips the status straight to Active on the edit form gets the
+     * same result as clicking Approve. Without it the member keeps showing as
+     * expired, and members:check-expiry reverts them again overnight because
+     * their expiry_date was never moved forward.
+     */
+    public function syncMemberToActiveMembership(Membership $membership): void
+    {
+        $updates = $this->pendingMemberSync($membership);
+
+        if ($updates === []) {
+            return;
+        }
+
+        $membership->member->update($updates);
+    }
+
+    /**
+     * The changes syncMemberToActiveMembership() would apply, without applying
+     * them, so members:check-expiry can report a dry run honestly.
+     *
+     * @return array<string, mixed>
+     */
+    public function pendingMemberSync(Membership $membership): array
+    {
+        if ($membership->status !== MembershipStatus::Active) {
+            return [];
+        }
+
+        $member = $membership->member;
+
+        if (! $member) {
+            return [];
+        }
+
+        $updates = [];
+
+        // Suspended and resigned are deliberate administrative states; only a
+        // human lifts those, exactly as members:check-expiry treats them.
+        if (! in_array($member->status, [
+            MemberStatus::Active,
+            MemberStatus::Suspended,
+            MemberStatus::Resigned,
+        ], true)) {
+            $updates['status'] = MemberStatus::Active;
+        }
+
+        $periodEnd = $membership->period_end;
+
+        // A null period_end means a membership that never expires, so any date
+        // inherited from an older membership has to be cleared rather than left
+        // behind for the nightly expiry job to trip over.
+        $expiryMovesForward = $member->expiry_date === null
+            || $periodEnd === null
+            || $periodEnd->gt($member->expiry_date);
+
+        if ($expiryMovesForward && $member->expiry_date?->toDateString() !== $periodEnd?->toDateString()) {
+            $updates['expiry_date'] = $periodEnd;
+        }
+
+        return $updates;
     }
 
     /**
@@ -136,7 +198,7 @@ class MemberService
      * Validate sub-member / junior constraints (same rules as MembershipIssuer
      * but accessible as a standalone check for registration flows).
      */
-    public function assertSubMemberRules(Member $member, \App\Models\MembershipType $type): void
+    public function assertSubMemberRules(Member $member, MembershipType $type): void
     {
         app(MembershipIssuer::class)->assertSubMembershipRulesPublic($member, $type);
     }

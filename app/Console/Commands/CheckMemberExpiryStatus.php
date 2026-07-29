@@ -6,6 +6,7 @@ use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
 use App\Models\Member;
 use App\Models\Membership;
+use App\Services\Membership\MemberService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -22,7 +23,8 @@ use Illuminate\Support\Carbon;
  *   - Future expiry_date + was expired/inactive → reactivate to active.
  *
  * Additionally expires Membership rows whose period_end has passed while
- * still marked as "active", keeping Membership and Member status in sync.
+ * still marked as "active", then pulls each member's status and expiry_date up
+ * to the best membership they still hold, keeping the two in sync.
  */
 class CheckMemberExpiryStatus extends Command
 {
@@ -39,6 +41,7 @@ class CheckMemberExpiryStatus extends Command
         $stats = ['expired' => 0, 'inactive' => 0, 'reactivated' => 0, 'skipped' => 0];
 
         $expiredMemberships = $this->expireStaleMembershipRows($today, $dryRun);
+        $resynced = $this->syncMembersToActiveMemberships($dryRun);
 
         $members = Member::query()
             ->whereNotNull('expiry_date')
@@ -79,6 +82,7 @@ class CheckMemberExpiryStatus extends Command
         $prefix = $dryRun ? '[DRY RUN] ' : '';
         $this->table(['action', 'count'], [
             ["{$prefix}Membership rows expired", $expiredMemberships],
+            ["{$prefix}Members resynced to active membership", $resynced],
             ["{$prefix}Members expired", $stats['expired']],
             ["{$prefix}Members inactive (6mo+)", $stats['inactive']],
             ["{$prefix}Members reactivated", $stats['reactivated']],
@@ -112,6 +116,60 @@ class CheckMemberExpiryStatus extends Command
         }
 
         return $count;
+    }
+
+    /**
+     * Pull each member's own status and expiry_date up to the best membership
+     * they still hold. Member status is derived from expiry_date, but that date
+     * is only written at activation, so anything that set a membership active
+     * without going through MemberService left the member behind — showing as
+     * expired despite holding a valid membership. Running the sync here repairs
+     * that drift instead of waiting for someone to re-save the membership.
+     *
+     * Runs after the stale rows above are expired, so only genuinely current
+     * memberships are considered.
+     */
+    protected function syncMembersToActiveMemberships(bool $dryRun): int
+    {
+        $memberships = Membership::query()
+            ->where('status', MembershipStatus::Active->value)
+            ->whereNotNull('member_id')
+            ->with('member')
+            // Best membership last, so it wins for members holding more than
+            // one — and a lifetime row (no period_end) beats any dated one.
+            ->orderByRaw('period_end IS NULL, period_end')
+            ->cursor();
+
+        $memberService = app(MemberService::class);
+        $resynced = 0;
+
+        foreach ($memberships as $membership) {
+            $updates = $memberService->pendingMemberSync($membership);
+
+            if ($updates === []) {
+                continue;
+            }
+
+            $resynced++;
+
+            if (! $dryRun) {
+                $membership->member->update($updates);
+
+                continue;
+            }
+
+            $member = $membership->member;
+            $changes = collect($updates)
+                ->map(fn ($value, $key) => $key === 'status'
+                    ? "status {$member->status->label()} → {$value->label()}"
+                    : 'expiry '.($member->expiry_date?->toDateString() ?? 'none')
+                        .' → '.($value?->toDateString() ?? 'none'))
+                ->implode(', ');
+
+            $this->line("  {$member->membership_number} ({$member->fullName()}): {$changes}");
+        }
+
+        return $resynced;
     }
 
     protected function resolveStatus(

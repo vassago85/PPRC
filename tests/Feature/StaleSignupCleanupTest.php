@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MembershipStatus;
 use App\Enums\MemberStatus;
 use App\Mail\FinishSignupReminderMail;
 use App\Models\Member;
@@ -9,6 +10,7 @@ use App\Models\User;
 use App\Services\Membership\MemberService;
 use App\Services\Membership\MembershipIssuer;
 use App\Services\Membership\StaleSignupProcessor;
+use Database\Seeders\MembershipTypesSeeder;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 
@@ -99,7 +101,10 @@ it('leaves fresh signups alone', function () {
 
 it('never touches a pending member who has already started an application', function () {
     $member = staleMember(MemberStatus::Pending->value, 8);
-    Membership::factory()->create(['member_id' => $member->id]);
+    Membership::factory()->create([
+        'member_id' => $member->id,
+        'status' => MembershipStatus::PendingPayment,
+    ]);
 
     $stats = runCleanup();
 
@@ -140,7 +145,7 @@ it('revives an abandoned member back to pending when they finally verify', funct
 });
 
 it('revives an abandoned member back to pending when they start an application', function () {
-    $this->seed(\Database\Seeders\MembershipTypesSeeder::class);
+    $this->seed(MembershipTypesSeeder::class);
     $type = MembershipType::where('slug', 'full-member')->first();
 
     $member = staleMember(MemberStatus::Abandoned->value, 8);

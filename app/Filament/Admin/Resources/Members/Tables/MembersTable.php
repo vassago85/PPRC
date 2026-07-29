@@ -5,10 +5,11 @@ namespace App\Filament\Admin\Resources\Members\Tables;
 use App\Enums\MemberStatus;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
+use App\Filament\Admin\Support\SearchTerm;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\Member;
-use App\Models\MembershipPayment;
+use App\Support\MediaDisk;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -39,7 +40,7 @@ class MembersTable
             ->columns([
                 ImageColumn::make('profile_photo_path')
                     ->label('')
-                    ->disk(\App\Support\MediaDisk::name())
+                    ->disk(MediaDisk::name())
                     ->circular()
                     ->defaultImageUrl(fn () => 'https://ui-avatars.com/api/?name=PPRC&background=64748b&color=fff'),
                 TextColumn::make('membership_number')->label('Number')->badge()->sortable()->searchable(),
@@ -67,8 +68,10 @@ class MembersTable
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->searchable(query: function ($query, string $search) {
+                        $term = SearchTerm::make($query, $search);
+
                         $query->whereHas('memberships.payments', fn ($q) => $q
-                            ->where('reference', 'like', "%{$search}%"));
+                            ->where($term->column('reference'), 'like', $term->contains()));
                     }),
 
                 TextColumn::make('latest_payment_status')
@@ -112,17 +115,19 @@ class MembersTable
                             foreach ($records as $member) {
                                 if (! $member->user) {
                                     $skipped++;
+
                                     continue;
                                 }
                                 if (self::hasAlreadyBeenWelcomed($member->user->email)) {
                                     $skipped++;
+
                                     continue;
                                 }
                                 self::sendWelcomeTo($member);
                                 $sent++;
                             }
                             Notification::make()->success()
-                                ->title("Sent {$sent} welcome email(s)" . ($skipped ? ", skipped {$skipped}" : ''))
+                                ->title("Sent {$sent} welcome email(s)".($skipped ? ", skipped {$skipped}" : ''))
                                 ->send();
                         }),
                     DeleteBulkAction::make(),

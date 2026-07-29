@@ -6,14 +6,18 @@ use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
 use App\Enums\RenewalSource;
+use App\Filament\Admin\Actions\QuickEditMembershipAction;
+use App\Filament\Admin\Actions\RenewMembershipAction;
+use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
+use App\Filament\Admin\Support\LapsedActivationWarning;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
 use App\Models\MembershipType;
-use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Services\Membership\MemberService;
 use App\Services\Membership\MembershipTypeService;
 use App\Services\Membership\PaymentReferenceGenerator;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -100,11 +104,15 @@ class MembershipsRelationManager extends RelationManager
                 TextColumn::make('membership_type_name_snapshot')->label('Type')->badge(),
                 TextColumn::make('period_start')->date('d M Y')->label('Start'),
                 TextColumn::make('period_end')->date('d M Y')->label('End')
-                    ->color(fn ($record) => $record->period_end?->isPast() ? 'danger' : null),
+                    ->color(fn (Membership $record) => $record->isLapsed() ? 'danger' : null),
                 TextColumn::make('status')
                     ->badge()
+                    ->state(fn (Membership $record) => $record->effectiveStatus())
                     ->formatStateUsing(fn (?MembershipStatus $state) => $state?->label())
-                    ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray'),
+                    ->color(fn (?MembershipStatus $state) => $state?->color() ?? 'gray')
+                    ->description(fn (Membership $record) => $record->isLapsed()
+                        ? 'Still marked active — period has ended'
+                        : null),
 
                 TextColumn::make('renewal_source')
                     ->label('Source')
@@ -147,6 +155,7 @@ class MembershipsRelationManager extends RelationManager
                             $paid .= ' <span class="text-xs text-gray-500">(now R '
                                 .number_format($current / 100, 2).')</span>';
                         }
+
                         return $paid;
                     })
                     ->html()
@@ -191,28 +200,35 @@ class MembershipsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                ResendMembershipPaymentRequestAction::forMembership(),
                 Action::make('approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn (Membership $record) => in_array($record->status, [MembershipStatus::PendingApproval, MembershipStatus::PendingPayment]))
                     ->requiresConfirmation()
                     ->action(fn (Membership $record) => app(MemberService::class)->activate($record, auth()->user())),
-                EditAction::make()
-                    ->after(function (Membership $record): void {
-                        if ($record->status === MembershipStatus::Active || $record->price_cents_snapshot === 0) {
-                            $record->payments()
-                                ->where('status', PaymentStatus::Pending->value)
-                                ->update([
-                                    'status' => $record->status === MembershipStatus::Active
-                                        ? PaymentStatus::Confirmed->value
-                                        : PaymentStatus::Cancelled->value,
-                                    'confirmed_at' => $record->status === MembershipStatus::Active ? now() : null,
-                                    'confirmed_by_user_id' => auth()->id(),
-                                ]);
-                        }
-                    }),
-                DeleteAction::make(),
+                QuickEditMembershipAction::make(),
+                ActionGroup::make([
+                    RenewMembershipAction::make(),
+                    ResendMembershipPaymentRequestAction::forMembership(),
+                    EditAction::make()
+                        ->label('Full edit')
+                        ->after(function (Membership $record): void {
+                            if ($record->status === MembershipStatus::Active || $record->price_cents_snapshot === 0) {
+                                $record->payments()
+                                    ->where('status', PaymentStatus::Pending->value)
+                                    ->update([
+                                        'status' => $record->status === MembershipStatus::Active
+                                            ? PaymentStatus::Confirmed->value
+                                            : PaymentStatus::Cancelled->value,
+                                        'confirmed_at' => $record->status === MembershipStatus::Active ? now() : null,
+                                        'confirmed_by_user_id' => auth()->id(),
+                                    ]);
+                            }
+
+                            LapsedActivationWarning::notify($record);
+                        }),
+                    DeleteAction::make(),
+                ])->tooltip('More actions'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

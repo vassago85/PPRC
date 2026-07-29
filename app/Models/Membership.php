@@ -4,8 +4,10 @@ namespace App\Models;
 
 use App\Enums\MembershipStatus;
 use App\Enums\RenewalSource;
+use App\Services\Membership\MemberService;
 use App\Services\Membership\MembershipNumberAssignment;
 use Database\Factories\MembershipFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -53,6 +55,7 @@ class Membership extends Model
             }
 
             app(MembershipNumberAssignment::class)->syncForActiveMembership($membership);
+            app(MemberService::class)->syncMemberToActiveMembership($membership);
 
             if (empty($membership->certificate_token)) {
                 $membership->forceFill([
@@ -171,6 +174,62 @@ class Membership extends Model
         // A period end decades away is a "never expires" placeholder, not a
         // real renewal date.
         return $this->period_end->greaterThan(now()->addYears(50));
+    }
+
+    /**
+     * Still marked active, but the period has actually run out. The status
+     * column only moves when members:check-expiry runs, so between an end date
+     * passing and the next nightly pass the row still reads as active.
+     */
+    public function isLapsed(): bool
+    {
+        if ($this->isLifetime()) {
+            return false;
+        }
+
+        return $this->period_end?->lt(now()->startOfDay()) ?? false;
+    }
+
+    /**
+     * Status as it stands today rather than the last value written to the
+     * column, so the admin list never claims a membership is active on a day
+     * it no longer covers.
+     */
+    public function effectiveStatus(): ?MembershipStatus
+    {
+        if ($this->status === MembershipStatus::Active && $this->isLapsed()) {
+            return MembershipStatus::Expired;
+        }
+
+        return $this->status;
+    }
+
+    /** Active and still inside its period; lifetime rows always qualify. */
+    public function scopeCurrent(Builder $query): Builder
+    {
+        return $query
+            ->where('status', MembershipStatus::Active->value)
+            ->where(fn (Builder $q) => $q
+                ->whereNull('period_end')
+                ->orWhere('period_end', '>=', now()->toDateString()));
+    }
+
+    /** Marked active, but the period end has already passed. */
+    public function scopeLapsed(Builder $query): Builder
+    {
+        return $query
+            ->where('status', MembershipStatus::Active->value)
+            ->whereNotNull('period_end')
+            ->where('period_end', '<', now()->toDateString());
+    }
+
+    /** Waiting on a committee decision or on the member's money. */
+    public function scopeNeedsAction(Builder $query): Builder
+    {
+        return $query->whereIn('status', [
+            MembershipStatus::PendingApproval->value,
+            MembershipStatus::PendingPayment->value,
+        ]);
     }
 
     /**
