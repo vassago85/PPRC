@@ -128,16 +128,46 @@
                         </button>
                     </div>
                 @endif
+
+                @if ($this->ignoredCount() > 0)
+                    <div class="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
+                        <span>{{ $this->ignoredCount() }} {{ \Illuminate\Support\Str::plural('line', $this->ignoredCount()) }} set aside.</span>
+                        <button
+                            type="button"
+                            wire:click="setFilter('{{ $filter === 'ignored' ? 'all' : 'ignored' }}')"
+                            class="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                        >
+                            {{ $filter === 'ignored' ? 'Back to the list' : 'View ignored' }}
+                        </button>
+                    </div>
+                @endif
             </div>
         </div>
 
         {{-- Lines --}}
         <div class="mt-4 space-y-3">
-            @if ($filter !== 'all')
+            @if ($filter === 'ignored')
                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Showing {{ $statusMeta[$filter]['label'] }} only.
-                    <button type="button" wire:click="setFilter('all')" class="font-medium text-primary-600 hover:underline dark:text-primary-400">Show everything</button>
+                    Showing lines you've set aside.
+                    <button type="button" wire:click="setFilter('all')" class="font-medium text-primary-600 hover:underline dark:text-primary-400">Back to the list</button>
                 </p>
+            @elseif ($filter !== 'all')
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Showing {{ $statusMeta[$filter]['label'] }} only.
+                        <button type="button" wire:click="setFilter('all')" class="font-medium text-primary-600 hover:underline dark:text-primary-400">Show everything</button>
+                    </p>
+                    @if ($this->visibleReviews() !== [])
+                        <button
+                            type="button"
+                            wire:click="ignoreAllVisible"
+                            wire:confirm="Set aside all {{ count($this->visibleReviews()) }} {{ \Illuminate\Support\Str::plural('line', count($this->visibleReviews())) }} shown? They'll drop out of the list but you can bring them back."
+                            class="text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                            Ignore all {{ count($this->visibleReviews()) }} shown
+                        </button>
+                    @endif
+                </div>
             @endif
 
             @foreach ($this->visibleReviews() as $review)
@@ -161,10 +191,34 @@
                             <p class="mt-2 break-all font-mono text-sm text-gray-900 dark:text-gray-100">
                                 {{ $review['description'] }}
                             </p>
+                            @if (($review['payer'] ?? '') !== '')
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Looks like <span class="font-medium text-gray-700 dark:text-gray-200">{{ \Illuminate\Support\Str::title(strtolower($review['payer'])) }}</span>
+                                </p>
+                            @endif
                         </div>
-                        <p class="shrink-0 text-xl font-bold text-gray-900 dark:text-white">
-                            {{ $money($review['amount_cents']) }}
-                        </p>
+                        <div class="flex shrink-0 flex-col items-end gap-1.5">
+                            <p class="text-xl font-bold text-gray-900 dark:text-white">
+                                {{ $money($review['amount_cents']) }}
+                            </p>
+                            @if ($this->isIgnored((int) $review['row']))
+                                <button
+                                    type="button"
+                                    wire:click="restore({{ $review['row'] }})"
+                                    class="text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
+                                >
+                                    Restore
+                                </button>
+                            @else
+                                <button
+                                    type="button"
+                                    wire:click="ignore({{ $review['row'] }})"
+                                    class="text-xs font-medium text-gray-400 hover:text-gray-600 hover:underline dark:text-gray-500 dark:hover:text-gray-300"
+                                >
+                                    Ignore
+                                </button>
+                            @endif
+                        </div>
                     </div>
 
                     @if ($review['candidates'] === [])

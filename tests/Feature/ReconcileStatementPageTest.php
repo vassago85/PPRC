@@ -197,6 +197,64 @@ it('keeps the page away from members with no money permissions', function () {
     expect(ReconcileStatement::canAccess())->toBeFalse();
 });
 
+it('surfaces the payer name left in the narration so an admin can recognise a line', function () {
+    seedStatementFixtures();
+
+    $reviews = collect(uploadStatement()->get('reviews'));
+
+    // "M BRUMMER" carries no reference at all — the name is all there is to
+    // go on, so it must come through even though the app has no clean match.
+    $brummer = $reviews->firstWhere('description', 'M BRUMMER');
+
+    expect($brummer['payer'])->toContain('BRUMMER');
+});
+
+it('sets a recognised line aside and can bring it back', function () {
+    seedStatementFixtures();
+
+    $page = uploadStatement();
+    $row = collect($page->get('reviews'))->firstWhere('description', 'M BRUMMER')['row'];
+
+    $page->call('ignore', $row);
+
+    // Gone from the working list, parked in the ignored pile.
+    expect(collect($page->instance()->visibleReviews())->pluck('description'))
+        ->not->toContain('M BRUMMER')
+        ->and($page->instance()->ignoredCount())->toBe(1);
+
+    $page->set('filter', 'ignored');
+    expect(collect($page->instance()->visibleReviews())->pluck('description'))
+        ->toContain('M BRUMMER');
+
+    $page->call('restore', $row)->set('filter', 'all');
+    expect(collect($page->instance()->visibleReviews())->pluck('description'))
+        ->toContain('M BRUMMER');
+});
+
+it('sets aside every line currently filtered on screen in one go', function () {
+    seedStatementFixtures();
+
+    $page = uploadStatement()->set('filter', Recon::UNMATCHED);
+
+    $page->call('ignoreAllVisible');
+
+    expect($page->instance()->ignoredCount())->toBe(1)
+        ->and($page->set('filter', Recon::UNMATCHED)->instance()->visibleReviews())->toBe([]);
+});
+
+it('leaves an ignored ready line out of the bulk settle', function () {
+    $fixtures = seedStatementFixtures();
+
+    $page = uploadStatement();
+    $row = collect($page->get('reviews'))->firstWhere('description', 'ABSA BANK PPRC-M14-103')['row'];
+
+    $page->call('ignore', $row)->call('applyAllReady');
+
+    // The ignored ready line is untouched; the other ready line still settles.
+    expect($fixtures['clean']->refresh()->paid_at)->toBeNull()
+        ->and($fixtures['mangled']->refresh()->paid_at)->not->toBeNull();
+});
+
 it('will not settle entries for someone without registration rights', function () {
     $fixtures = seedStatementFixtures();
 

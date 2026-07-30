@@ -61,6 +61,15 @@ class ReconcileStatement extends Page
     /** Statuses currently shown, so a long statement can be worked through. */
     public string $filter = 'all';
 
+    /**
+     * Row numbers the admin has set aside — old allocations they recognise by
+     * name, one-off deposits, anything that will never resolve. Kept only for
+     * this session, like the rest of the parsed statement.
+     *
+     * @var array<int, int>
+     */
+    public array $ignored = [];
+
     public static function canAccess(): bool
     {
         $user = auth()->user();
@@ -109,6 +118,7 @@ class ReconcileStatement extends Page
         $this->skipped = ['debits' => $parsed->debits, 'ignored' => $parsed->ignored];
         $this->parsed = true;
         $this->filter = 'all';
+        $this->ignored = [];
 
         Notification::make()->success()
             ->title('Statement read')
@@ -119,7 +129,42 @@ class ReconcileStatement extends Page
 
     public function clear(): void
     {
-        $this->reset(['file', 'reviews', 'summary', 'skipped', 'parsed', 'filter']);
+        $this->reset(['file', 'reviews', 'summary', 'skipped', 'parsed', 'filter', 'ignored']);
+    }
+
+    /** Set a line aside so it drops out of the working list. */
+    public function ignore(int $row): void
+    {
+        if (! in_array($row, $this->ignored, true)) {
+            $this->ignored[] = $row;
+        }
+    }
+
+    /** Bring an ignored line back into play. */
+    public function restore(int $row): void
+    {
+        $this->ignored = array_values(array_filter($this->ignored, fn (int $r) => $r !== $row));
+    }
+
+    /**
+     * Set aside every line currently on screen — the quick way to clear a batch
+     * of old, recognised deposits once they've been filtered down.
+     */
+    public function ignoreAllVisible(): void
+    {
+        foreach ($this->visibleReviews() as $review) {
+            $this->ignore((int) $review['row']);
+        }
+    }
+
+    public function isIgnored(int $row): bool
+    {
+        return in_array($row, $this->ignored, true);
+    }
+
+    public function ignoredCount(): int
+    {
+        return count($this->ignored);
     }
 
     /**
@@ -169,6 +214,11 @@ class ReconcileStatement extends Page
                 continue;
             }
 
+            // An admin who set a ready line aside meant it — don't sweep it up.
+            if ($this->isIgnored((int) $review['row'])) {
+                continue;
+            }
+
             if (! $settler->canSettle(explode(':', $review['apply'])[0], $actor)) {
                 $failed++;
 
@@ -208,13 +258,19 @@ class ReconcileStatement extends Page
      */
     public function visibleReviews(): array
     {
-        if ($this->filter === 'all') {
-            return $this->reviews;
+        // The ignored pile is its own view; every other filter hides ignored
+        // lines so they stop cluttering the work still to be done.
+        if ($this->filter === 'ignored') {
+            return array_values(array_filter(
+                $this->reviews,
+                fn (array $review) => $this->isIgnored((int) $review['row']),
+            ));
         }
 
         return array_values(array_filter(
             $this->reviews,
-            fn (array $review) => $review['status'] === $this->filter,
+            fn (array $review) => ! $this->isIgnored((int) $review['row'])
+                && ($this->filter === 'all' || $review['status'] === $this->filter),
         ));
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Services\Payments;
 
+use App\Support\PaymentReferencePrefix;
+
 /**
  * Runs every money-in line on a statement past the reference resolver and sorts
  * the results into what can be settled safely and what needs a human.
@@ -67,9 +69,23 @@ class StatementReconciliation
             'amount_cents' => $line->amountCents,
             'description' => $line->description,
             'status' => $status,
+            // The name the bank left in the narration, so an admin can recognise
+            // an old or one-off payment by the person even when nothing in the
+            // app matches it — and decide to ignore it.
+            'payer' => $this->payer($line->description),
             'apply' => $status === self::READY ? $certain[0]->key() : null,
             'candidates' => array_map(fn (PaymentMatch $match) => $match->toArray(), $candidates),
         ];
+    }
+
+    /**
+     * The human name a bank left in the narration, e.g. "J NEL" out of
+     * "PPRC-M13-95 J.NEL" or "M BRUMMER". Empty when the line is only a
+     * reference or bank boilerplate.
+     */
+    protected function payer(string $description): string
+    {
+        return implode(' ', BankNarration::make($description)->nameWords(PaymentReferencePrefix::get()));
     }
 
     /**
