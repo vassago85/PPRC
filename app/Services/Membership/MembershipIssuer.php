@@ -29,8 +29,12 @@ class MembershipIssuer
      *   - age rules on the chosen type
      *
      * Returns the new Membership. Does not create payments.
+     *
+     * $periodEnd overrides the type's own period calculation. It exists for
+     * sub-members (juniors) whose period mirrors the parent's rather than
+     * starting a fresh term of the type's duration.
      */
-    public function issue(Member $member, MembershipType $type, ?Carbon $start = null, ?RenewalSource $source = null): Membership
+    public function issue(Member $member, MembershipType $type, ?Carbon $start = null, ?RenewalSource $source = null, ?Carbon $periodEnd = null): Membership
     {
         $start ??= Carbon::now();
 
@@ -38,7 +42,7 @@ class MembershipIssuer
         $this->assertSubMembershipRules($member, $type);
 
         $priceCents = $this->resolvePrice($member, $type);
-        $periodEnd = $this->typeService->calculateExpiryDate($type, $start);
+        $periodEnd ??= $this->typeService->calculateExpiryDate($type, $start);
 
         $needsApproval = $type->requires_manual_approval;
         $status = $needsApproval

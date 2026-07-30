@@ -9,6 +9,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
@@ -30,6 +31,19 @@ class MemberForm
                     ->tabs([
                         Tab::make('Profile')
                             ->schema([
+                                // Only shows for sub-members (juniors): makes it
+                                // obvious at a glance whose account this child is
+                                // attached to, without digging into the linkage field.
+                                Section::make('Linked account')
+                                    ->visible(fn (?Member $record) => $record?->linked_adult_member_id !== null)
+                                    ->schema([
+                                        Placeholder::make('linked_adult_display')
+                                            ->label('Linked to')
+                                            ->content(fn (?Member $record) => $record?->linkedAdult
+                                                ? $record->linkedAdult->fullName().' ('.($record->linkedAdult->membership_number ?? 'no number yet').')'
+                                                : '—'),
+                                    ]),
+
                                 Section::make('Account')
                                     ->columns(2)
                                     ->schema([

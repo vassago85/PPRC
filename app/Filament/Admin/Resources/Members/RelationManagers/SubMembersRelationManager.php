@@ -2,9 +2,9 @@
 
 namespace App\Filament\Admin\Resources\Members\RelationManagers;
 
-use App\Enums\MemberLifecycle;
 use App\Enums\MemberStanding;
 use App\Models\Member;
+use App\Services\Membership\SubMemberRegistrar;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteBulkAction;
@@ -34,8 +34,15 @@ class SubMembersRelationManager extends RelationManager
                 DatePicker::make('date_of_birth')
                     ->required()
                     ->maxDate(now())
-                    ->helperText('Required so age-based rules can be applied'),
+                    ->helperText('Required so age-based rules can be applied.'),
                 TextInput::make('known_as')->maxLength(80),
+                TextInput::make('email')
+                    ->label('Contact email (optional)')
+                    ->email()
+                    ->maxLength(190)
+                    ->helperText('Leave blank for a managed junior — the parent looks after the account. If given, the junior gets their own login.')
+                    ->columnSpanFull()
+                    ->visibleOn('create'),
             ]),
         ]);
     }
@@ -75,12 +82,13 @@ class SubMembersRelationManager extends RelationManager
             ])
             ->headerActions([
                 CreateAction::make()
-                    ->mutateFormDataUsing(function (array $data): array {
-                        $data['lifecycle'] = MemberLifecycle::Active->value;
-                        $data['country'] = $data['country'] ?? 'ZA';
-
-                        return $data;
-                    }),
+                    ->label('Add junior')
+                    ->modalHeading('Add junior')
+                    // Route creation through the registrar so the junior gets a
+                    // login account and a real Junior membership (period mirrored
+                    // from the parent), rather than a bare status with no record.
+                    ->using(fn (array $data): Member => app(SubMemberRegistrar::class)
+                        ->registerJunior($this->getOwnerRecord(), $data)),
             ])
             ->recordActions([
                 EditAction::make(),
