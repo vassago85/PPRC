@@ -519,6 +519,36 @@ class Member extends Model
     }
 
     /**
+     * Whether this member is authorised to act on behalf of $other — pay their
+     * match fees, register them, upload proof, withdraw. True for self and for
+     * any linked sub-member (junior, spouse) that has this member as their
+     * linked adult. Used by every portal path that accepts a member id from
+     * the client so a tampered id can never touch someone else's data.
+     */
+    public function canActFor(Member $other): bool
+    {
+        if ($this->id === $other->id) {
+            return true;
+        }
+
+        return $other->linked_adult_member_id === $this->id;
+    }
+
+    /**
+     * Every member the logged-in adult may act for: themselves plus their
+     * linked sub-members (juniors, spouse). Ordered so the primary member
+     * comes first, then the rest alphabetically for a stable UI.
+     *
+     * @return \Illuminate\Support\Collection<int, Member>
+     */
+    public function householdMembers(): \Illuminate\Support\Collection
+    {
+        $subs = $this->subMembers()->orderBy('first_name')->orderBy('last_name')->get();
+
+        return collect([$this])->concat($subs);
+    }
+
+    /**
      * Membership number normalised for consistent display.
      *
      * The stored value is authoritative and left untouched, but historical

@@ -11,7 +11,7 @@
 <div class="space-y-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight">My Registrations</h1>
-        <p class="mt-1 text-sm text-slate-400">Your event registrations — upcoming and past.</p>
+        <p class="mt-1 text-sm text-slate-400">Your household's event registrations — upcoming and past.</p>
     </div>
 
     @if (session('flash'))
@@ -37,11 +37,17 @@
             <h2 class="text-sm font-semibold uppercase tracking-wider text-amber-400">Payment due</h2>
 
             @foreach ($this->payable as $reg)
+                @php $shooterIsSelf = $reg->member_id === $this->member->id; @endphp
                 <div class="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-2">
                         <div>
                             <p class="font-semibold text-white">{{ $reg->event->title }}</p>
-                            <p class="text-xs text-slate-400">{{ $reg->event->start_date->format('d M Y') }}</p>
+                            <p class="text-xs text-slate-400">
+                                {{ $reg->event->start_date->format('d M Y') }}
+                                @if (! $shooterIsSelf)
+                                    · <span class="text-slate-300">Shooter: {{ $reg->member?->fullName() }}</span>
+                                @endif
+                            </p>
                         </div>
                         <div class="text-right">
                             <p class="text-xs text-slate-400">Entry fee</p>
@@ -125,6 +131,7 @@
                             <thead class="border-b border-white/10 text-left text-xs uppercase tracking-wider text-slate-500">
                                 <tr>
                                     <th class="px-6 py-3 font-medium">Event</th>
+                                    <th class="px-6 py-3 font-medium">Shooter</th>
                                     <th class="px-6 py-3 font-medium">Date</th>
                                     <th class="px-6 py-3 font-medium">Location</th>
                                     <th class="px-6 py-3 font-medium">Status</th>
@@ -135,9 +142,17 @@
                             </thead>
                             <tbody class="divide-y divide-white/5">
                                 @foreach ($items as $reg)
-                                    <tr class="hover:bg-white/[0.02]">
+                                    @php $shooterIsSelf = $reg->member_id === $this->member->id; @endphp
+                                    <tr class="hover:bg-white/[0.02]" dusk="reg-row-{{ $reg->id }}">
                                         <td class="px-6 py-4">
                                             <a href="{{ url('/matches/' . $reg->event->slug) }}" class="font-medium text-white hover:text-slate-300">{{ $reg->event->title }}</a>
+                                        </td>
+                                        <td class="px-6 py-4 text-slate-300">
+                                            @if ($shooterIsSelf)
+                                                <span class="text-slate-500">You</span>
+                                            @else
+                                                {{ $reg->member?->fullName() }}
+                                            @endif
                                         </td>
                                         <td class="px-6 py-4 text-slate-400">{{ $reg->event->start_date->format('d M Y') }}</td>
                                         <td class="px-6 py-4 text-slate-400">{{ $reg->event->location_name ?? '—' }}</td>
@@ -152,7 +167,7 @@
                                                     <button
                                                         type="button"
                                                         wire:click="withdraw({{ $reg->id }})"
-                                                        wire:confirm="Withdraw from {{ $reg->event->title }}?"
+                                                        wire:confirm="Withdraw {{ $shooterIsSelf ? 'you' : $reg->member?->fullName() }} from {{ $reg->event->title }}?"
                                                         wire:loading.attr="disabled"
                                                         class="text-xs font-medium text-red-400 transition hover:text-red-300 disabled:opacity-50"
                                                     >Withdraw</button>
@@ -167,6 +182,7 @@
 
                     <div class="sm:hidden divide-y divide-white/5">
                         @foreach ($items as $reg)
+                            @php $shooterIsSelf = $reg->member_id === $this->member->id; @endphp
                             <div class="px-5 py-4">
                                 <div class="flex items-start justify-between gap-2">
                                     <a href="{{ url('/matches/' . $reg->event->slug) }}" class="font-medium text-white">{{ $reg->event->title }}</a>
@@ -175,12 +191,17 @@
                                     </span>
                                 </div>
                                 <div class="mt-1 flex items-center justify-between">
-                                    <p class="text-xs text-slate-500">{{ $reg->event->start_date->format('d M Y') }}@if ($reg->event->location_name) · {{ $reg->event->location_name }}@endif</p>
+                                    <p class="text-xs text-slate-500">
+                                        {{ $reg->event->start_date->format('d M Y') }}@if ($reg->event->location_name) · {{ $reg->event->location_name }}@endif
+                                        @if (! $shooterIsSelf)
+                                            · <span class="text-slate-300">{{ $reg->member?->fullName() }}</span>
+                                        @endif
+                                    </p>
                                     @if ($label === 'Upcoming' && $reg->status !== App\Enums\EventRegistrationStatus::Cancelled)
                                         <button
                                             type="button"
                                             wire:click="withdraw({{ $reg->id }})"
-                                            wire:confirm="Withdraw from {{ $reg->event->title }}?"
+                                            wire:confirm="Withdraw {{ $shooterIsSelf ? 'you' : $reg->member?->fullName() }} from {{ $reg->event->title }}?"
                                             class="text-xs font-medium text-red-400 hover:text-red-300"
                                         >Withdraw</button>
                                     @endif

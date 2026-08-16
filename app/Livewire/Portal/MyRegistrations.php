@@ -32,12 +32,28 @@ class MyRegistrations extends Component
         return auth()->user()->member;
     }
 
+    /**
+     * The member ids the logged-in adult may manage — themselves plus every
+     * linked sub-member (juniors, spouse). Every query and action here scopes
+     * through this set so a tampered id in a wire:call can never touch a
+     * stranger's registration.
+     *
+     * @return array<int, int>
+     */
+    protected function householdMemberIds(): array
+    {
+        return $this->member->householdMembers()->pluck('id')->all();
+    }
+
     #[Computed]
     public function registrations(): Collection
     {
         return EventRegistration::query()
-            ->where('member_id', $this->member->id)
-            ->with(['event' => fn ($q) => $q->with('matchFormat')])
+            ->whereIn('member_id', $this->householdMemberIds())
+            ->with([
+                'event' => fn ($q) => $q->with('matchFormat'),
+                'member' => fn ($q) => $q->select('id', 'first_name', 'last_name', 'linked_adult_member_id'),
+            ])
             ->whereHas('event')
             ->get()
             ->sortByDesc(fn (EventRegistration $r) => $r->event->start_date);
@@ -74,8 +90,11 @@ class MyRegistrations extends Component
 
     public function withdraw(int $registrationId): void
     {
+        // Scoped to the household set so a stranger's registration id 404s
+        // rather than silently cancelling their entry — same IDOR-hardened
+        // shape as the shop / membership proof paths.
         $reg = EventRegistration::query()
-            ->where('member_id', $this->member->id)
+            ->whereIn('member_id', $this->householdMemberIds())
             ->whereHas('event', fn ($q) => $q->where('start_date', '>=', today()))
             ->findOrFail($registrationId);
 
@@ -99,10 +118,10 @@ class MyRegistrations extends Component
         ]);
 
         $reg = EventRegistration::query()
-            ->where('member_id', $this->member->id)
+            ->whereIn('member_id', $this->householdMemberIds())
             ->findOrFail($registrationId);
 
-        $path = $this->proofUploads[$registrationId]->store('events/proofs', \App\Support\MediaDisk::name());
+        $path = $this->proofUploads[$registrationId]->store('events/proofs', \App\Support\ProofDisk::name());
 
         $reg->update([
             'payment_proof_path' => $path,

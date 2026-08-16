@@ -85,10 +85,22 @@ class ExcoMember extends Model
      * follows the committee roster. We only ADD the role here — revoking
      * remains explicit (via the user-roles admin) so terms ending or seat
      * shuffles never silently lock somebody out mid-task.
+     *
+     * Assigning a Spatie role is a privileged action: without this guard any
+     * committee member with `content.exco.manage` could link themselves to a
+     * "Chairperson"/"Vice Chair" seat and silently self-escalate to a role
+     * that holds `settings.roles.assign` (and from there to developer). We
+     * therefore only auto-assign when the roster is being edited by an
+     * authenticated user who actually holds `settings.roles.assign`. Console
+     * contexts (seeders, imports, tinker) have no web user and are trusted.
      */
     public function syncLinkedUserRole(): void
     {
         if (! $this->is_current || ! $this->linked_user_id) {
+            return;
+        }
+
+        if (! $this->actorMayAssignRoles()) {
             return;
         }
 
@@ -105,5 +117,23 @@ class ExcoMember extends Model
         if (! $user->hasRole($slug)) {
             $user->assignRole($slug);
         }
+    }
+
+    /**
+     * Only auto-assign committee roles when we can be sure the change is
+     * authorised. When there is an authenticated actor (i.e. an admin editing
+     * the roster over HTTP) they must hold `settings.roles.assign`. When there
+     * is no actor at all — seeders, imports, queued jobs, tinker — we treat the
+     * caller as a trusted system context and allow the sync.
+     */
+    protected function actorMayAssignRoles(): bool
+    {
+        $actor = auth()->user();
+
+        if ($actor === null) {
+            return true;
+        }
+
+        return (bool) $actor->can('settings.roles.assign');
     }
 }

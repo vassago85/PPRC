@@ -9,7 +9,6 @@ use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Filament\Admin\Support\MemberSearch;
 use App\Models\MembershipPayment;
 use App\Services\Membership\MemberService;
-use App\Support\MediaDisk;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -23,8 +22,6 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Storage;
-
 class MembershipPaymentsTable
 {
     public static function configure(Table $table): Table
@@ -268,19 +265,7 @@ class MembershipPaymentsTable
 
     private static function proofUrl(MembershipPayment $payment): ?string
     {
-        if (! $payment->proof_path) {
-            return null;
-        }
-
-        $disk = Storage::disk(MediaDisk::name());
-
-        try {
-            // Temporary URL works on S3/R2; falls back gracefully on local.
-            return method_exists($disk, 'temporaryUrl')
-                ? $disk->temporaryUrl($payment->proof_path, now()->addMinutes(15))
-                : $disk->url($payment->proof_path);
-        } catch (\Throwable) {
-            return $disk->url($payment->proof_path);
-        }
+        // Proofs live on the private disk; hand back a short-lived signed URL.
+        return \App\Support\ProofDisk::url($payment->proof_path);
     }
 }

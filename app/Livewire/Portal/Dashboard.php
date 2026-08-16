@@ -166,14 +166,14 @@ class Dashboard extends Component
 
     public function uploadProof(int $paymentId): void
     {
-        $this->validate(['proofUpload' => ['required', 'file', 'max:8192']]);
+        $this->validate(['proofUpload' => ['required', 'file', 'max:8192', 'mimes:pdf,jpg,jpeg,png']]);
 
         $payment = MembershipPayment::whereHas(
             'membership',
             fn ($q) => $q->where('member_id', $this->member?->id),
         )->findOrFail($paymentId);
 
-        $path = $this->proofUpload->store('memberships/proofs', \App\Support\MediaDisk::name());
+        $path = $this->proofUpload->store('memberships/proofs', \App\Support\ProofDisk::name());
 
         $payment->update([
             'proof_path' => $path,

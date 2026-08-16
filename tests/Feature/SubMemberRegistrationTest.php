@@ -127,3 +127,66 @@ it('creates a junior membership the age-out job can later expire', function () {
         ->and(Membership::where('member_id', $junior->id)->first()->status)
         ->toBe(MembershipStatus::Expired);
 });
+
+it('rejects the fifth junior — the type cap defends against over-linking', function () {
+    $parent = parentWithMembership();
+
+    foreach (range(1, 4) as $i) {
+        app(SubMemberRegistrar::class)->registerJunior($parent, [
+            'first_name' => "Kid{$i}",
+            'last_name' => 'Parent',
+            'date_of_birth' => now()->subYears(10)->toDateString(),
+        ]);
+    }
+
+    expect(fn () => app(SubMemberRegistrar::class)->registerJunior($parent, [
+        'first_name' => 'Kid5',
+        'last_name' => 'Parent',
+        'date_of_birth' => now()->subYears(10)->toDateString(),
+    ]))->toThrow(ValidationException::class);
+});
+
+it('registers a spouse as a paid sub-member awaiting EFT payment', function () {
+    $parent = parentWithMembership();
+
+    $spouse = app(SubMemberRegistrar::class)->registerSpouse($parent, [
+        'first_name' => 'Sam',
+        'last_name' => 'Partner',
+    ]);
+
+    $membership = $spouse->fresh()->currentMembership();
+
+    expect($spouse->linked_adult_member_id)->toBe($parent->id)
+        ->and($membership)->not->toBeNull()
+        ->and($membership->membership_type_slug_snapshot)->toBe('spouse')
+        ->and($membership->status)->toBe(MembershipStatus::PendingPayment)
+        ->and($membership->price_cents_snapshot)->toBeGreaterThan(0)
+        // The issuer creates an EFT payment row with a reference — that is what
+        // the parent's Membership screen surfaces so they can pay the spouse fee.
+        ->and($membership->payments()->first()?->reference)->not->toBeEmpty();
+});
+
+it('rejects a second spouse — one per household', function () {
+    $parent = parentWithMembership();
+
+    app(SubMemberRegistrar::class)->registerSpouse($parent, [
+        'first_name' => 'Sam',
+        'last_name' => 'Partner',
+    ]);
+
+    expect(fn () => app(SubMemberRegistrar::class)->registerSpouse($parent, [
+        'first_name' => 'Alex',
+        'last_name' => 'Partner',
+    ]))->toThrow(ValidationException::class);
+});
+
+it('lets the parent act for a linked sub-member but not for a stranger', function () {
+    $parent = parentWithMembership();
+    $junior = registerJunior($parent);
+    $stranger = refMember('Someone', 'Else');
+
+    expect($parent->canActFor($parent))->toBeTrue()
+        ->and($parent->canActFor($junior))->toBeTrue()
+        ->and($parent->canActFor($stranger))->toBeFalse()
+        ->and($stranger->canActFor($junior))->toBeFalse();
+});

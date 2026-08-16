@@ -296,16 +296,40 @@ class EventRegistration extends Model
     /**
      * Email address to send a payment request to — the linked member's portal
      * account email, or the guest email captured at registration.
+     *
+     * Managed juniors (parent-added, no login of their own) hold a synthetic
+     * `@members.pretoriaprc.co.za` placeholder address. That mailbox does not
+     * exist, so we hand the invoice to their linked adult instead — which is
+     * who the club expects to pay anyway.
      */
     public function payerEmail(): ?string
     {
         if ($this->member) {
             $email = $this->member->user?->email;
 
+            if ($this->isPlaceholderEmail($email)) {
+                $parentEmail = $this->member->linkedAdult?->user?->email;
+
+                return filled($parentEmail) && ! $this->isPlaceholderEmail($parentEmail)
+                    ? $parentEmail
+                    : null;
+            }
+
             return filled($email) ? $email : null;
         }
 
         return filled($this->guest_email) ? $this->guest_email : null;
+    }
+
+    /**
+     * Whether the given address is one of the synthesized placeholders we
+     * mint for managed sub-members (juniors without their own inbox). Kept in
+     * one place so any code that means "real reachable address" can ask
+     * without re-encoding the domain rule.
+     */
+    protected function isPlaceholderEmail(?string $email): bool
+    {
+        return is_string($email) && str_ends_with(strtolower($email), '@members.pretoriaprc.co.za');
     }
 
     /**

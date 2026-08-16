@@ -14,7 +14,6 @@ use App\Services\Events\MatchEntrantBroadcastService;
 use App\Services\Events\MatchEntryDeadCenterExporter;
 use App\Services\Events\MatchEntryPaymentRequestService;
 use App\Support\MailThrottle;
-use App\Support\MediaDisk;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -36,7 +35,6 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class RegistrationsRelationManager extends RelationManager
@@ -568,18 +566,7 @@ class RegistrationsRelationManager extends RelationManager
 
     protected static function proofUrl(EventRegistration $r): ?string
     {
-        if (! $r->payment_proof_path) {
-            return null;
-        }
-
-        $disk = Storage::disk(MediaDisk::name());
-
-        try {
-            return method_exists($disk, 'temporaryUrl')
-                ? $disk->temporaryUrl($r->payment_proof_path, now()->addMinutes(15))
-                : $disk->url($r->payment_proof_path);
-        } catch (\Throwable) {
-            return $disk->url($r->payment_proof_path);
-        }
+        // Proofs live on the private disk; hand back a short-lived signed URL.
+        return \App\Support\ProofDisk::url($r->payment_proof_path);
     }
 }

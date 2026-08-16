@@ -61,6 +61,39 @@ class EventRegister extends Component
         return auth()->user()?->member;
     }
 
+    /**
+     * Which members in the logged-in adult's household can still be entered
+     * in this match. Includes the parent and any linked sub-members that are
+     * not resigned. Anyone already on the list drops off — we surface an
+     * "Entered" badge in the UI instead. Returns an empty collection for
+     * guests and for members with no sub-members: the classic single-member
+     * flow re-emerges naturally.
+     */
+    public function getHouseholdMembersProperty(): \Illuminate\Support\Collection
+    {
+        $member = $this->member;
+        if (! $member instanceof Member) {
+            return collect();
+        }
+
+        $candidates = $member->householdMembers();
+
+        $enteredIds = EventRegistration::query()
+            ->where('event_id', $this->event->id)
+            ->whereIn('member_id', $candidates->pluck('id')->all())
+            ->where('status', '!=', EventRegistrationStatus::Cancelled->value)
+            ->pluck('member_id')
+            ->all();
+
+        return $candidates->map(function (Member $m) use ($enteredIds) {
+            return (object) [
+                'member' => $m,
+                'entered' => in_array($m->id, $enteredIds, true),
+                'fee_cents' => $this->event->effectivePriceCentsFor($m, $m->isJunior()),
+            ];
+        })->values();
+    }
+
     public function getAlreadyRegisteredProperty(): bool
     {
         $user = auth()->user();
@@ -213,13 +246,42 @@ class EventRegister extends Component
         };
     }
 
+    /**
+     * Register the logged-in adult themselves. Thin wrapper around
+     * registerMemberFor() so the blade's default "Register me" button keeps
+     * working without needing to know their member id.
+     */
     public function registerMember(): void
+    {
+        $member = auth()->user()?->member;
+        abort_unless($member instanceof Member, 403);
+
+        $this->registerMemberFor($member->id);
+    }
+
+    /**
+     * Enter any household member (self or a linked sub-member) into this match.
+     *
+     * `$memberId` is client-controlled — never trust it on its own. The
+     * canActFor() gate proves the logged-in adult is authorised to touch the
+     * target, so a tampered id belonging to someone else falls through as a
+     * validation error rather than mutating their data (same shape as the
+     * shop-order IDOR hardening).
+     */
+    public function registerMemberFor(int $memberId): void
     {
         $user = auth()->user();
         abort_unless($user && $user->hasVerifiedEmail(), 403);
 
-        $member = $user->member;
-        abort_unless($member instanceof Member, 403);
+        $actor = $user->member;
+        abort_unless($actor instanceof Member, 403);
+
+        $target = Member::find($memberId);
+        if (! $target || ! $actor->canActFor($target)) {
+            $this->addError('register', 'You are not authorised to register that person.');
+
+            return;
+        }
 
         if (! $this->event->isRegistrationOpen()) {
             $this->addError('register', 'Registrations are not open for this match.');
@@ -229,10 +291,12 @@ class EventRegister extends Component
 
         if (EventRegistration::query()
             ->where('event_id', $this->event->id)
-            ->where('member_id', $member->id)
+            ->where('member_id', $target->id)
             ->where('status', '!=', EventRegistrationStatus::Cancelled->value)
             ->exists()) {
-            $this->addError('register', 'You are already registered for this match.');
+            $this->addError('register', $actor->id === $target->id
+                ? 'You are already registered for this match.'
+                : $target->fullName().' is already registered for this match.');
 
             return;
         }
@@ -243,7 +307,7 @@ class EventRegister extends Component
 
         $registration = EventRegistration::create([
             'event_id' => $this->event->id,
-            'member_id' => $member->id,
+            'member_id' => $target->id,
             'guest_name' => null,
             'guest_email' => null,
             'guest_phone' => null,
@@ -251,6 +315,9 @@ class EventRegister extends Component
             'category' => $this->normalizedCategory(),
             'course' => $this->normalizedCourse(),
             'is_saprf_entry' => $isSaprfEntry,
+            // The junior tier is picked up automatically from the target's
+            // membership type — no need for a checkbox on the member path.
+            'is_junior' => $target->isJunior(),
             'fee_cents' => $isSaprfEntry ? 0 : null,
             'notes' => $isSaprfEntry && $this->saprfNumber !== ''
                 ? 'SAPRF #' . trim($this->saprfNumber)
@@ -261,10 +328,18 @@ class EventRegister extends Component
 
         $emailed = $this->dispatchPaymentDetails($registration);
 
+        $self = $actor->id === $target->id;
+
         $this->toast = match (true) {
-            $isSaprfEntry => 'You are registered as a SAPRF entry. Pay via the SAPRF portal.',
-            $emailed => 'You are registered. We have emailed your banking details and payment reference — you can also pay and upload proof under My Registrations.',
-            default => 'You are registered for this match.',
+            $isSaprfEntry => $self
+                ? 'You are registered as a SAPRF entry. Pay via the SAPRF portal.'
+                : $target->fullName().' is registered as a SAPRF entry.',
+            $emailed => $self
+                ? 'You are registered. We have emailed your banking details and payment reference — you can also pay and upload proof under My Registrations.'
+                : $target->fullName().' is registered. The banking details and payment reference are with you — pay from My Registrations.',
+            default => $self
+                ? 'You are registered for this match.'
+                : $target->fullName().' is registered for this match.',
         };
     }
 

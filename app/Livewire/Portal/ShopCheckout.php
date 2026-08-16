@@ -129,7 +129,15 @@ class ShopCheckout extends Component
     #[Computed]
     public function order(): ShopOrder
     {
-        return ShopOrder::query()->with('lines.product')->findOrFail($this->orderId);
+        // `$orderId` is a client-visible Livewire property, so never trust it
+        // on its own. Constrain the lookup to the authenticated user and this
+        // run: a tampered id belonging to another member simply 404s instead
+        // of exposing/mutating their order (IDOR).
+        return ShopOrder::query()
+            ->with('lines.product')
+            ->where('user_id', auth()->id())
+            ->where('shop_run_id', $this->run->id)
+            ->findOrFail($this->orderId);
     }
 
     public function placeOrder(): void
@@ -234,7 +242,7 @@ class ShopCheckout extends Component
     public function uploadProof(): void
     {
         $this->validate([
-            'proofUpload' => ['required', 'file', 'max:8192'],
+            'proofUpload' => ['required', 'file', 'max:8192', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
         $order = $this->order();
@@ -242,7 +250,7 @@ class ShopCheckout extends Component
         abort_unless($order->status === ShopOrderStatus::PendingPayment, 403);
         abort_unless($order->eft_reference, 403);
 
-        $path = $this->proofUpload->store('shop/orders/proofs', \App\Support\MediaDisk::name());
+        $path = $this->proofUpload->store('shop/orders/proofs', \App\Support\ProofDisk::name());
 
         $order->update([
             'proof_path' => $path,

@@ -14,8 +14,8 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Registers a junior (or other sub-member) linked to an adult member, so the
- * child ends up with the same shape as everyone else: their own account, a real
+ * Registers a junior or a spouse linked to an adult member, so the sub-member
+ * ends up with the same shape as everyone else: their own account, a real
  * Membership row, a type, a period and an expiry.
  *
  * Before this, a sub-member added from the parent's panel was written as a bare
@@ -37,24 +37,48 @@ class SubMemberRegistrar
      */
     public function registerJunior(Member $parent, array $data): Member
     {
-        $type = MembershipType::where('slug', 'junior')->first();
+        return $this->registerFor($parent, 'junior', $data);
+    }
+
+    /**
+     * Register a spouse linked to an adult member. Spouse is a paid sub-type,
+     * so the membership lands in PendingPayment with an EFT payment row the
+     * parent can pay from the portal.
+     *
+     * @param  array{first_name:string,last_name:string,date_of_birth?:mixed,known_as?:?string,email?:?string}  $data
+     */
+    public function registerSpouse(Member $parent, array $data): Member
+    {
+        return $this->registerFor($parent, 'spouse', $data);
+    }
+
+    /**
+     * Shared registration path for any sub-membership slug (junior, spouse, ...).
+     * Keeps the account provisioning + issuer wiring in one place; the type row
+     * carries the rules (age, price, cap) that make each one behave right.
+     *
+     * @param  array{first_name:string,last_name:string,date_of_birth?:mixed,known_as?:?string,email?:?string}  $data
+     */
+    protected function registerFor(Member $parent, string $slug, array $data): Member
+    {
+        $type = MembershipType::where('slug', $slug)->first();
 
         if (! $type) {
             throw ValidationException::withMessages([
-                'membership_type' => 'The Junior membership type is missing. Seed the membership types first.',
+                'membership_type' => "The '{$slug}' membership type is missing. Seed the membership types first.",
             ]);
         }
 
         return DB::transaction(function () use ($parent, $data, $type) {
             $fullName = trim(($data['first_name'] ?? '').' '.($data['last_name'] ?? ''));
 
-            $junior = new Member;
-            $junior->forceFill([
-                'user_id' => $this->resolveUser($data, $fullName)->id,
+            $sub = new Member;
+            $sub->forceFill([
+                'user_id' => $this->resolveUser($data, $fullName, $type->slug)->id,
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
                 'known_as' => $data['known_as'] ?? null,
-                'date_of_birth' => $data['date_of_birth'],
+                'date_of_birth' => $data['date_of_birth'] ?? null,
                 'linked_adult_member_id' => $parent->id,
                 // Issuing the membership below drives the final lifecycle; a free
                 // junior with an active parent lands on Active via the sync hook.
@@ -63,20 +87,19 @@ class SubMemberRegistrar
 
             [$start, $periodEnd] = $this->period($parent, $type);
 
-            $membership = $this->issuer->issue($junior, $type, $start, null, $periodEnd);
+            $membership = $this->issuer->issue($sub, $type, $start, null, $periodEnd);
 
-            // The Junior type is flagged for manual approval, but an admin adding
-            // a junior from the parent's record IS that approval — and juniors are
-            // free, so there is nothing to wait for. Activate straight away; the
-            // membership's saved hook then pulls the member's own lifecycle and
-            // expiry into line. Guarded on a zero balance so this can never skip a
-            // payment for a paid sub-membership type.
+            // Auto-approve free sub-memberships that would otherwise wait on the
+            // committee. A parent adding a free junior from the portal IS the
+            // approval and there's nothing to pay, so skip Pending immediately.
+            // Guarded on a zero balance so this can never skip a payment for a
+            // paid sub-membership like Spouse.
             if ($membership->status !== MembershipStatus::Active
                 && (int) $membership->price_cents_snapshot === 0) {
                 $membership->update(['status' => MembershipStatus::Active]);
             }
 
-            return $junior->refresh();
+            return $sub->refresh();
         });
     }
 
@@ -108,8 +131,10 @@ class SubMemberRegistrar
      * A junior usually has no inbox of their own. If a contact email is given we
      * attach or create a real account for it; otherwise we provision a managed
      * placeholder account they cannot log into, so the parent looks after them.
+     * The slug is only used to keep the placeholder email prefix meaningful
+     * ("junior-…", "spouse-…") — it does not change the underlying flow.
      */
-    protected function resolveUser(array $data, string $fullName): User
+    protected function resolveUser(array $data, string $fullName, string $slug = 'junior'): User
     {
         $email = strtolower(trim((string) ($data['email'] ?? '')));
 
@@ -137,9 +162,15 @@ class SubMemberRegistrar
         // Managed placeholder: a unique, unreachable address and a random
         // password. created_via_import suppresses the verification email that
         // would otherwise bounce off a mailbox that does not exist.
+        $prefix = preg_replace('/[^a-z0-9]+/', '', strtolower($slug)) ?: 'sub';
+        $displayFallback = match ($slug) {
+            'spouse' => 'Spouse member',
+            default => 'Junior member',
+        };
+
         return User::create([
-            'name' => $fullName !== '' ? $fullName : 'Junior member',
-            'email' => 'junior-'.Str::uuid().'@'.self::PLACEHOLDER_EMAIL_DOMAIN,
+            'name' => $fullName !== '' ? $fullName : $displayFallback,
+            'email' => $prefix.'-'.Str::uuid().'@'.self::PLACEHOLDER_EMAIL_DOMAIN,
             'password' => Hash::make(Str::random(48)),
             'created_via_import' => true,
         ]);

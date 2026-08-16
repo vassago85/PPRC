@@ -34,7 +34,7 @@ class ExcoMemberForm
                         ->required()
                         ->options($positionOptions)
                         ->searchable()
-                        ->helperText('Choosing a position and linking a user account below will grant that user the matching admin role.'),
+                        ->helperText('Choosing a position and linking a user account below will grant that user the matching admin role — but only when saved by someone who can assign roles (chair/vice/developer).'),
                     FileUpload::make('photo_path')
                         ->label('Photo')
                         ->image()
@@ -63,7 +63,7 @@ class ExcoMemberForm
                     TextInput::make('sort_order')->numeric()->default(0),
                     Toggle::make('is_current')
                         ->default(true)
-                        ->helperText('When checked and a user is linked, the matching admin role is auto-assigned on save.')
+                        ->helperText('When checked and a user is linked, the matching admin role is auto-assigned on save — only if you have permission to assign roles.')
                         ->columnSpanFull(),
                 ]),
         ]);

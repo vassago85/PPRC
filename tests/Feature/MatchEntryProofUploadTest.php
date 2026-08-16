@@ -8,15 +8,11 @@ use App\Models\EventRegistration;
 use App\Models\MatchFormat;
 use App\Models\Member;
 use App\Models\User;
-use App\Support\MediaDisk;
+use App\Support\ProofDisk;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
-
-beforeEach(function () {
-    MediaDisk::flush();
-});
 
 function makeUpcomingMatchEntry(): array
 {
@@ -48,7 +44,7 @@ function makeUpcomingMatchEntry(): array
 }
 
 it('lets a member upload proof of payment for a match entry', function () {
-    $disk = MediaDisk::name();
+    $disk = ProofDisk::name();
     Storage::fake($disk);
     [$user, $entry] = makeUpcomingMatchEntry();
 
@@ -69,7 +65,7 @@ it('lets a member upload proof of payment for a match entry', function () {
 });
 
 it('rejects a non-file proof upload', function () {
-    Storage::fake(MediaDisk::name());
+    Storage::fake(ProofDisk::name());
     [$user, $entry] = makeUpcomingMatchEntry();
 
     Livewire::actingAs($user)
@@ -82,7 +78,7 @@ it('rejects a non-file proof upload', function () {
 });
 
 it('only lets a member upload proof for their own entry', function () {
-    Storage::fake(MediaDisk::name());
+    Storage::fake(ProofDisk::name());
     [, $entry] = makeUpcomingMatchEntry();
 
     $otherUser = User::factory()->create();

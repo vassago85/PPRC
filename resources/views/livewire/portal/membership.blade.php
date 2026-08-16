@@ -161,28 +161,154 @@
             @error('renewIntoTypeId') <p class="mt-2 text-xs text-red-400">{{ $message }}</p> @enderror
         </section>
 
-        {{-- Linked sub-members --}}
-        @if ($this->subMembers->count())
+        {{-- Family (juniors + spouse) --}}
+        @if ($this->canAddFamily || $this->family->count())
             <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Linked sub-members</h2>
-                <p class="mt-1 text-sm text-slate-400">Juniors attached to your membership — free while yours is active.</p>
-                <ul class="mt-4 divide-y divide-white/5 text-sm">
-                    @foreach ($this->subMembers as $sub)
-                        @php $sm = $sub->memberships->first(); @endphp
-                        <li class="py-3 flex items-center justify-between">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Family</h2>
+                        <p class="mt-1 text-sm text-slate-400">Add your kids or spouse so you can enter them in matches and pay their fees from your account.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        @if ($this->canAddJunior)
+                            <button type="button" wire:click="openFamilyForm('junior')"
+                                class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                Add a junior
+                            </button>
+                        @endif
+                        @if ($this->canAddSpouse)
+                            <button type="button" wire:click="openFamilyForm('spouse')"
+                                class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                Add a spouse
+                            </button>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Inline add form --}}
+                @if ($this->familyForm)
+                    <div wire:key="family-form-{{ $this->familyForm }}" class="mt-5 rounded-xl border border-white/10 bg-slate-950/40 p-5">
+                        <div class="flex items-start justify-between gap-2">
                             <div>
-                                <p class="font-medium text-white">{{ $sub->fullName() }}</p>
-                                <p class="text-slate-500 text-xs">
-                                    @if ($sub->date_of_birth) Born {{ $sub->date_of_birth->format('d M Y') }} @endif
-                                    @if ($sm) · {{ $sm->membership_type_name_snapshot }} — {{ $sm->status->label() }} @endif
+                                <p class="text-sm font-semibold text-white">
+                                    {{ $this->familyForm === 'junior' ? 'Add a junior' : 'Add a spouse' }}
+                                </p>
+                                <p class="mt-1 text-xs text-slate-400">
+                                    @if ($this->familyForm === 'junior')
+                                        Under 18, linked to your membership. Free while your membership is active.
+                                    @else
+                                        Membership fee applies. You'll see the EFT reference and proof upload here after adding.
+                                    @endif
                                 </p>
                             </div>
-                            @if ($sm && $sm->period_end)
-                                <span class="text-xs text-slate-500">Expires {{ $sm->period_end->format('d M Y') }}</span>
-                            @endif
-                        </li>
-                    @endforeach
-                </ul>
+                            <button type="button" wire:click="cancelFamilyForm" class="text-xs text-slate-500 hover:text-slate-300">Cancel</button>
+                        </div>
+
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <label class="text-xs font-medium uppercase tracking-wider text-slate-500">First name</label>
+                                <input type="text" wire:model="familyFirstName" dusk="family-first-name"
+                                    class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
+                                @error('familyFirstName') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Last name</label>
+                                <input type="text" wire:model="familyLastName" dusk="family-last-name"
+                                    class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
+                                @error('familyLastName') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium uppercase tracking-wider text-slate-500">
+                                    Date of birth{{ $this->familyForm === 'junior' ? '' : ' (optional)' }}
+                                </label>
+                                <input type="date" wire:model="familyDob" dusk="family-dob"
+                                    class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20" />
+                                @error('familyDob') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium uppercase tracking-wider text-slate-500">Email (optional)</label>
+                                <input type="email" wire:model="familyEmail" dusk="family-email"
+                                    class="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20"
+                                    placeholder="Leave blank if you'll manage them" />
+                                @error('familyEmail') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
+                            </div>
+                        </div>
+                        <p class="mt-2 text-xs text-slate-500">
+                            Leave email blank if they don't need their own login — you'll manage them here.
+                        </p>
+
+                        <div class="mt-4 flex flex-wrap items-center gap-3">
+                            <button type="button" wire:click="addFamily" wire:loading.attr="disabled" wire:target="addFamily" dusk="family-add-submit"
+                                class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:opacity-50">
+                                <span wire:loading.remove wire:target="addFamily">
+                                    {{ $this->familyForm === 'junior' ? 'Add junior' : 'Add spouse' }}
+                                </span>
+                                <span wire:loading wire:target="addFamily" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Family cards --}}
+                @if ($this->family->count())
+                    <ul class="mt-5 space-y-3">
+                        @foreach ($this->family as $sub)
+                            @php
+                                $sm = $sub->memberships->first();
+                                $isSpouse = $sm && $sm->membership_type_slug_snapshot === 'spouse';
+                                $pending = $sm?->payments?->firstWhere('status', App\Enums\PaymentStatus::Pending)
+                                    ?? $sm?->payments?->firstWhere('status', App\Enums\PaymentStatus::Submitted);
+                            @endphp
+                            <li wire:key="family-{{ $sub->id }}" dusk="family-card-{{ $sub->id }}" class="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <p class="font-semibold text-white">{{ $sub->fullName() }}</p>
+                                        <p class="mt-0.5 text-xs text-slate-500">
+                                            @if ($sub->date_of_birth)
+                                                Born {{ $sub->date_of_birth->format('d M Y') }}
+                                                @if ($sub->ageOnDate(now()) !== null)
+                                                    · Age {{ $sub->ageOnDate(now()) }}
+                                                @endif
+                                            @endif
+                                            @if ($sm)
+                                                · {{ $sm->membership_type_name_snapshot }} — {{ $sm->status->label() }}
+                                            @endif
+                                        </p>
+                                        @if ($sm && ! $isSpouse && $sm->status === App\Enums\MembershipStatus::Active)
+                                            <p class="mt-1 text-xs text-emerald-300">Free while your membership is active.</p>
+                                        @endif
+                                    </div>
+                                    <a href="{{ url('/matches') }}" class="text-xs font-semibold text-brand-300 hover:text-brand-200">
+                                        Enter them in a match →
+                                    </a>
+                                </div>
+
+                                {{-- Spouse EFT card + proof upload --}}
+                                @if ($isSpouse && $sm && $sm->status === App\Enums\MembershipStatus::PendingPayment)
+                                    <div class="mt-4">
+                                        @if ($pending)
+                                            <x-portal.banking-details :payment="$pending" />
+                                        @else
+                                            <button type="button" wire:click="startEftPayment({{ $sm->id }})" wire:loading.attr="disabled"
+                                                class="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 disabled:opacity-50">
+                                                <span wire:loading.remove wire:target="startEftPayment({{ $sm->id }})">Generate EFT reference</span>
+                                                <span wire:loading wire:target="startEftPayment({{ $sm->id }})" class="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950"></span>
+                                            </button>
+                                        @endif
+                                    </div>
+                                @elseif ($isSpouse && $sm && $sm->status === App\Enums\MembershipStatus::PendingApproval)
+                                    <p class="mt-3 text-xs text-sky-300">Proof of payment uploaded — awaiting committee approval.</p>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="mt-5 text-sm text-slate-400">
+                        No family members linked yet. Add your kids or spouse to enter the whole household in matches from one account.
+                    </p>
+                @endif
             </section>
         @endif
 

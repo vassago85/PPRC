@@ -60,7 +60,7 @@ class MembershipPaymentForm
             Section::make('Proof of payment')
                 ->schema([
                     FileUpload::make('proof_path')
-                        ->disk(\App\Support\MediaDisk::name())
+                        ->disk(\App\Support\ProofDisk::name())
                         ->directory('memberships/proofs')
                         ->openable()
                         ->downloadable()

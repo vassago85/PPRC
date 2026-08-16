@@ -30,7 +30,7 @@ class ShopOrderInfolist
                         ->label('EFT reference')
                         ->placeholder('—'),
                     TextEntry::make('proof_path')
-                        ->label('Proof path (S3)')
+                        ->label('Proof path (private storage)')
                         ->placeholder('—')
                         ->columnSpanFull(),
                     TextEntry::make('lines')

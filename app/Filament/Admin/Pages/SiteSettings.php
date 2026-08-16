@@ -67,7 +67,14 @@ class SiteSettings extends Page
 
     public function mount(): void
     {
-        $this->form->fill([
+        // Only users who can manage integrations may see/edit the secret-bearing
+        // tabs (mail, storage, Paystack, Turnstile). Never decrypt those secrets
+        // into this Livewire component's state for site-only editors, otherwise
+        // the plaintext values leak into the Livewire snapshot even though the
+        // tabs are hidden. See save() for the matching write-side guard.
+        $canManageIntegrations = $this->canManageIntegrations();
+
+        $state = [
             // Contact & social
             'contact' => [
                 'email' => (string) SiteSetting::get('contact.email', ''),
@@ -79,7 +86,7 @@ class SiteSettings extends Page
                 ],
             ],
 
-            // Bank / EFT
+            // Bank / EFT (payment settings — not an integration secret)
             'bank' => [
                 'account_name' => (string) SiteSetting::get('payments.bank.account_name', ''),
                 'bank' => (string) SiteSetting::get('payments.bank.bank', ''),
@@ -90,9 +97,11 @@ class SiteSettings extends Page
                 'reference_format' => (string) SiteSetting::get('payments.bank.reference_format', 'PPRC-MEM-{id}'),
                 'notes' => (string) SiteSetting::get('payments.bank.notes', ''),
             ],
+        ];
 
+        if ($canManageIntegrations) {
             // Email delivery (runtime overrides — see RuntimeConfigServiceProvider)
-            'mail' => [
+            $state['mail'] = [
                 'transport' => (string) SiteSetting::get('mail.transport', ''),
                 'from_address' => (string) SiteSetting::get('mail.from.address', ''),
                 'from_name' => (string) SiteSetting::get('mail.from.name', 'PPRC'),
@@ -104,10 +113,10 @@ class SiteSettings extends Page
                 'smtp_username' => (string) SiteSetting::get('mail.smtp.username', ''),
                 'smtp_password' => (string) SiteSetting::get('mail.smtp.password', ''),
                 'smtp_encryption' => (string) SiteSetting::get('mail.smtp.encryption', 'tls'),
-            ],
+            ];
 
             // S3 / MinIO
-            'storage' => [
+            $state['storage'] = [
                 'endpoint' => (string) SiteSetting::get('storage.s3.endpoint', ''),
                 'region' => (string) SiteSetting::get('storage.s3.region', 'us-east-1'),
                 'bucket' => (string) SiteSetting::get('storage.s3.bucket', ''),
@@ -115,28 +124,53 @@ class SiteSettings extends Page
                 'secret_key' => (string) SiteSetting::get('storage.s3.secret_key', ''),
                 'url' => (string) SiteSetting::get('storage.s3.url', ''),
                 'use_path_style' => (bool) SiteSetting::get('storage.s3.use_path_style', true),
-            ],
+            ];
 
             // Paystack
-            'paystack' => [
+            $state['paystack'] = [
                 'public_key' => (string) SiteSetting::get('payments.paystack.public_key', ''),
                 'secret_key' => (string) SiteSetting::get('payments.paystack.secret_key', ''),
                 'webhook_secret' => (string) SiteSetting::get('payments.paystack.webhook_secret', ''),
                 'currency' => (string) SiteSetting::get('payments.paystack.currency', 'ZAR'),
-            ],
+            ];
 
             // Turnstile (anti-bot)
-            'turnstile' => [
+            $state['turnstile'] = [
                 'site_key' => (string) SiteSetting::get('security.turnstile.site_key', ''),
                 'secret_key' => (string) SiteSetting::get('security.turnstile.secret_key', ''),
-            ],
-        ]);
+            ];
+        }
+
+        $this->form->fill($state);
+    }
+
+    /**
+     * Whether the current user may view/edit the integration tabs and their
+     * secrets. Kept as a single method so mount(), form() and save() agree.
+     */
+    protected function canManageIntegrations(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user?->can('settings.integrations.manage')
+            || $user?->hasRole('developer'));
+    }
+
+    /**
+     * Setting keys that belong to the integration tabs. Writing any of these
+     * requires `settings.integrations.manage`.
+     */
+    protected function isIntegrationSettingKey(string $key): bool
+    {
+        return str_starts_with($key, 'mail.')
+            || str_starts_with($key, 'storage.')
+            || str_starts_with($key, 'payments.paystack.')
+            || str_starts_with($key, 'security.turnstile.');
     }
 
     public function form(Schema $schema): Schema
     {
-        $canManageIntegrations = auth()->user()?->can('settings.integrations.manage')
-            || auth()->user()?->hasRole('developer');
+        $canManageIntegrations = $this->canManageIntegrations();
 
         return $schema
             ->components([
@@ -640,7 +674,15 @@ class SiteSettings extends Page
             ['turnstile.secret_key', 'security.turnstile.secret_key', 'security', 'Turnstile secret key', true,  true],
         ];
 
+        $canManageIntegrations = $this->canManageIntegrations();
+
         foreach ($map as [$path, $key, $group, $label, $isSecret, $skipWhenEmpty]) {
+            // Write-side guard: never let a site-only editor persist (or blank)
+            // integration secrets/config, even if crafted form state arrives.
+            if (! $canManageIntegrations && $this->isIntegrationSettingKey($key)) {
+                continue;
+            }
+
             $value = data_get($data, $path);
 
             if ($skipWhenEmpty && (is_string($value) && $value === '')) {
