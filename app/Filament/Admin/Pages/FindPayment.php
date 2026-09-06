@@ -33,11 +33,21 @@ class FindPayment extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-magnifying-glass-circle';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Members';
+    protected static string|UnitEnum|null $navigationGroup = 'Money';
 
-    protected static ?int $navigationSort = 17;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $navigationLabel = 'Find payment';
+
+    /**
+     * Merged into the Reconciliation page as its "Find one line" tab; this
+     * page is kept only so the old `/admin/find-payment` URL still resolves.
+     * Nav registration is off so it does not appear twice in the sidebar.
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     protected static ?string $title = 'Find payment';
 

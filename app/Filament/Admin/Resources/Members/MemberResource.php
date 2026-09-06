@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Members;
 use App\Filament\Admin\Resources\Members\Pages\CreateMember;
 use App\Filament\Admin\Resources\Members\Pages\EditMember;
 use App\Filament\Admin\Resources\Members\Pages\ListMembers;
+use App\Filament\Admin\Resources\Members\Pages\ViewMember;
 use App\Filament\Admin\Resources\Members\RelationManagers\ClubBadgesRelationManager;
 use App\Filament\Admin\Resources\Members\RelationManagers\MembershipsRelationManager;
 use App\Filament\Admin\Resources\Members\RelationManagers\SubMembersRelationManager;
@@ -113,6 +114,10 @@ class MemberResource extends Resource
         return [
             'index' => ListMembers::route('/'),
             'create' => CreateMember::route('/create'),
+            // Record page. Row-click and dashboard deep-links land here; the
+            // legacy /edit URL still resolves for existing bookmarks and now
+            // appears as the "Edit details" tab from this page.
+            'view' => ViewMember::route('/{record}'),
             'edit' => EditMember::route('/{record}/edit'),
         ];
     }

@@ -23,9 +23,11 @@ class ExcoMemberResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Website';
+    protected static string|UnitEnum|null $navigationGroup = 'Club';
 
     protected static ?int $navigationSort = 40;
+
+    protected static ?string $navigationLabel = 'Committee';
 
     protected static ?string $recordTitleAttribute = 'full_name';
 

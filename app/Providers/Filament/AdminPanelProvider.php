@@ -46,13 +46,14 @@ class AdminPanelProvider extends PanelProvider
             // Custom CSS layer for premium SaaS chrome (typography, shadows,
             // dark active nav item, table polish, etc.).
             ->viteTheme('resources/css/filament/admin/theme.css')
+            // Five job-based groups. Every resource sets its $navigationGroup
+            // to exactly one of these — items are grouped by what an admin
+            // sits down to do, not by which model they belong to.
             ->navigationGroups([
-                NavigationGroup::make('Communications'),
                 NavigationGroup::make('Matches'),
                 NavigationGroup::make('Members'),
-                NavigationGroup::make('Shop'),
-                NavigationGroup::make('Website'),
-                NavigationGroup::make('System'),
+                NavigationGroup::make('Money'),
+                NavigationGroup::make('Club'),
             ])
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\Filament\Admin\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\Filament\Admin\Pages')

@@ -48,6 +48,7 @@ class Member extends Model
         'expiry_date',
         'last_renewal_reminder_at',
         'signup_reminder_sent_at',
+        'stage_entered_at',
         'resigned_at',
         'resignation_reason',
         'linked_adult_member_id',
@@ -63,6 +64,7 @@ class Member extends Model
         'expiry_date' => 'date',
         'last_renewal_reminder_at' => 'datetime',
         'signup_reminder_sent_at' => 'datetime',
+        'stage_entered_at' => 'datetime',
         'resigned_at' => 'datetime',
         'saprf_verified_at' => 'datetime',
         'suspended_at' => 'datetime',
@@ -325,6 +327,43 @@ class Member extends Model
     public function scopeSuspended(Builder $query): Builder
     {
         return $query->whereNotNull('suspended_at');
+    }
+
+    /**
+     * The **Current** roster segment used by the admin Members list.
+     *
+     * Paid-up members plus anyone currently under suspension, whatever their
+     * underlying lifecycle — a suspended member is still on the books, they
+     * just cannot enter matches. The status pill in the row carries the
+     * distinction, so the segment reads correctly as "people we consider
+     * ours right now".
+     *
+     * Together with onboarding / awaitingEmail / lapsedRoster / abandoned
+     * this covers every member exactly once. See MembersSegmentSumTest for
+     * the guarantee.
+     */
+    public function scopeCurrent(Builder $query): Builder
+    {
+        return $query->where(function (Builder $q) {
+            $q->where('lifecycle', MemberLifecycle::Active->value)
+                ->orWhereNotNull('suspended_at');
+        });
+    }
+
+    /**
+     * The **Lapsed** roster segment: expired or resigned members who are
+     * not suspended and not abandoned. Broader than recentlyLapsed(), which
+     * exists for chase-back campaigns.
+     */
+    public function scopeLapsedRoster(Builder $query): Builder
+    {
+        return $query
+            ->whereIn('lifecycle', [
+                MemberLifecycle::Expired->value,
+                MemberLifecycle::Resigned->value,
+            ])
+            ->whereNull('suspended_at')
+            ->whereNull('abandoned_at');
     }
 
     /**
@@ -599,6 +638,85 @@ class Member extends Model
         }
 
         return mb_strtoupper(trim($name));
+    }
+
+    /**
+     * The current onboarding pipeline stage for a Pending member. Returns
+     * null for members who aren't in the pipeline (Active, Expired, etc.).
+     *
+     * Stage keys are used by the admin Onboarding pipeline view, the
+     * "Next step" column and stage-dependent actions.
+     */
+    public function currentOnboardingStage(): ?string
+    {
+        if ($this->lifecycle !== MemberLifecycle::Pending) {
+            return null;
+        }
+
+        if ($this->isAbandoned()) {
+            return 'abandoned';
+        }
+
+        if (! $this->hasVerifiedEmail()) {
+            return 'email_unconfirmed';
+        }
+
+        if (! $this->hasStartedApplication()) {
+            return 'choosing_plan';
+        }
+
+        // Once a membership exists, the pipeline waits on payment then
+        // approval before the record can be activated.
+        $membership = $this->currentMembership();
+        if ($membership?->status?->value === 'pending_payment') {
+            return 'awaiting_payment';
+        }
+
+        return 'ready_to_activate';
+    }
+
+    /**
+     * Human label for the current stage — used in the pipeline bar and
+     * the "Stuck for" column tooltip.
+     */
+    public function currentOnboardingStageLabel(): ?string
+    {
+        return match ($this->currentOnboardingStage()) {
+            'email_unconfirmed' => 'Email unconfirmed',
+            'choosing_plan' => 'Choosing plan',
+            'awaiting_payment' => 'Awaiting payment',
+            'ready_to_activate' => 'Ready to activate',
+            'abandoned' => 'Abandoned',
+            default => null,
+        };
+    }
+
+    /**
+     * Days this member has spent in the current stage. Backed by
+     * stage_entered_at, so it stops moving when the member goes stale and
+     * jumps forward when they finally act — which is the whole point of
+     * having a per-stage timestamp instead of `created_at`.
+     */
+    public function daysInStage(): ?int
+    {
+        $anchor = $this->stage_entered_at ?? $this->created_at;
+
+        return $anchor ? (int) $anchor->diffInDays(now()) : null;
+    }
+
+    /**
+     * True when the member's login uses a `@members.pretoriaprc.co.za`
+     * placeholder — the domain we mint for juniors and spouses who have
+     * no real email of their own. The admin roster hides the ugly
+     * `junior-{uuid}@…` address behind a "linked to {parent}" line
+     * instead of blowing out the layout.
+     */
+    public function hasPlaceholderEmail(): bool
+    {
+        $email = (string) ($this->user?->email ?? '');
+
+        return $email !== ''
+            && str_ends_with(strtolower($email), '@members.pretoriaprc.co.za');
     }
 
     public function isSaprfVerified(): bool

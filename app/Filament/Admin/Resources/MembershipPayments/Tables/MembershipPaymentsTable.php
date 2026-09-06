@@ -28,6 +28,10 @@ class MembershipPaymentsTable
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            // A first-run/empty-segment prompt beats a bare "No records" line.
+            ->emptyStateIcon('heroicon-o-banknotes')
+            ->emptyStateHeading('Nothing to chase')
+            ->emptyStateDescription('When members owe fees or upload proof, they will show up in this list.')
             ->modifyQueryUsing(fn (Builder $query) => $query->with([
                 'membership.member.user',
                 'membership.memberWithTrashed.user',
@@ -64,6 +68,17 @@ class MembershipPaymentsTable
                         );
                     })
                     ->description(fn (MembershipPayment $r) => $r->payerSubtitle()),
+
+                // What the money is for — the treasurer's first question.
+                TextColumn::make('purpose')
+                    ->label('For')
+                    ->state(fn (MembershipPayment $r) => $r->purposeLabel())
+                    ->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'Renewal' => 'info',
+                        'Joining fee' => 'success',
+                        default => 'gray',
+                    }),
 
                 TextColumn::make('amount_cents')
                     ->label('Amount')
@@ -103,6 +118,24 @@ class MembershipPaymentsTable
                     ->placeholder('—')
                     ->toggleable(),
 
+                // How long the club has been waiting on someone. Positive for
+                // pending (waiting on member) and submitted (waiting on us);
+                // silent for the terminal statuses.
+                TextColumn::make('waiting_days')
+                    ->label('Waiting')
+                    ->state(fn (MembershipPayment $r) => $r->waitingDays())
+                    ->badge()
+                    ->formatStateUsing(fn (?int $state): ?string => $state === null
+                        ? null
+                        : $state.' '.\Illuminate\Support\Str::plural('day', $state))
+                    ->color(fn (?int $state): string => match (true) {
+                        $state === null => 'gray',
+                        $state > 14 => 'danger',
+                        $state > 7 => 'warning',
+                        default => 'gray',
+                    })
+                    ->placeholder('—'),
+
                 TextColumn::make('confirmed_at')
                     ->dateTime('d M Y H:i')
                     ->label('Confirmed')
@@ -118,12 +151,14 @@ class MembershipPaymentsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Status is now driven by the segment tabs — one filter system
+                // per page. Kept as a filter without a default so it does not
+                // fight the segment.
                 SelectFilter::make('status')
                     ->options(collect(PaymentStatus::cases())
                         ->mapWithKeys(fn ($c) => [$c->value => $c->label()])
                         ->all())
-                    ->multiple()
-                    ->default([PaymentStatus::Submitted->value, PaymentStatus::Pending->value]),
+                    ->multiple(),
 
                 SelectFilter::make('provider')
                     ->options(collect(PaymentProvider::cases())
@@ -229,6 +264,41 @@ class MembershipPaymentsTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    // Chase = resend the payment request email to every
+                    // selected member who has not yet paid. The default
+                    // "Needs chasing" segment lands the treasurer straight
+                    // into a working set they can chase in one action.
+                    BulkAction::make('chase')
+                        ->label('Chase selected')
+                        ->icon('heroicon-o-envelope')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Resend payment request')
+                        ->modalDescription('Sends the payment reminder email — with reference and banking details — to every selected member who has not yet paid.')
+                        ->action(function (Collection $records) {
+                            $sent = 0;
+                            $skipped = 0;
+                            foreach ($records as $payment) {
+                                if (! $payment->membership || $payment->status !== PaymentStatus::Pending) {
+                                    $skipped++;
+
+                                    continue;
+                                }
+                                try {
+                                    app(\App\Services\Membership\MembershipPaymentRequestService::class)
+                                        ->send($payment->membership);
+                                    $sent++;
+                                } catch (\Throwable) {
+                                    $skipped++;
+                                }
+                            }
+
+                            Notification::make()->success()
+                                ->title("Chased {$sent} payment(s)".($skipped ? ", skipped {$skipped}" : ''))
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
                     BulkAction::make('bulkConfirm')
                         ->label('Confirm + activate selected')
                         ->icon('heroicon-o-check-circle')

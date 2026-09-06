@@ -3,58 +3,69 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Services\Payments\BankStatementParser;
+use App\Services\Payments\PaymentMatch;
+use App\Services\Payments\PaymentReferenceResolver;
 use App\Services\Payments\PaymentSettler;
 use App\Services\Payments\StatementLine;
 use App\Services\Payments\StatementReconciliation;
+use App\Filament\Admin\Resources\Events\EventResource;
+use App\Filament\Admin\Resources\Members\MemberResource;
+use App\Filament\Admin\Resources\MembershipPayments\MembershipPaymentResource;
+use App\Filament\Admin\Resources\ShopOrders\ShopOrderResource;
+use App\Models\EventRegistration;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Livewire\WithFileUploads;
 use UnitEnum;
 
 /**
- * Upload a bank statement export and reconcile the whole month at once.
+ * Reconciliation desk — one screen, two tabs.
  *
- * Each money-in line goes past the same resolver the single-line lookup uses.
- * Lines that resolve to exactly one certain, still-owing item for exactly the
- * amount received can be settled in a batch; everything else is listed for
- * someone to decide, because a wrongly settled entry costs far more to unpick
- * than one done by hand.
+ * Old routes /admin/find-payment and /admin/reconcile-statement redirect here
+ * so anyone with a bookmark or an email link still lands somewhere sensible.
  *
- * Nothing about the uploaded file is stored. It is parsed in memory, reviewed,
- * and forgotten when the page is left.
+ * "Find one line" is what the treasurer reaches for after a single WhatsApp
+ * screenshot from a member. "Reconcile statement" is the same resolver run
+ * against a whole CSV. Both used to be two pages that did the same job at
+ * different scales, so consolidating them removes the "which tool do I
+ * want?" moment.
  */
-class ReconcileStatement extends Page
+class Reconciliation extends Page
 {
     use WithFileUploads;
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-check';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-scale';
 
     protected static string|UnitEnum|null $navigationGroup = 'Money';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 20;
 
-    protected static ?string $navigationLabel = 'Reconcile statement';
+    protected static ?string $navigationLabel = 'Reconciliation';
 
-    /**
-     * Merged into the Reconciliation page as its "Reconcile statement" tab;
-     * this page is retained only so the old `/admin/reconcile-statement` URL
-     * still resolves.
-     */
-    public static function shouldRegisterNavigation(): bool
-    {
-        return false;
-    }
+    protected static ?string $title = 'Reconciliation';
 
-    protected static ?string $title = 'Reconcile statement';
+    protected static ?string $slug = 'reconciliation';
 
-    protected static ?string $slug = 'reconcile-statement';
+    protected string $view = 'filament.admin.pages.reconciliation';
 
-    protected string $view = 'filament.admin.pages.reconcile-statement';
+    /** Which side of the desk is open. */
+    public string $tab = 'find';
 
-    /** The uploaded CSV. */
+    // ---- Find one line ---------------------------------------------------
+    public string $line = '';
+
+    public string $amount = '';
+
+    /** @var array<int, array<string, mixed>> */
+    public array $results = [];
+
+    public bool $searched = false;
+
+    // ---- Reconcile statement --------------------------------------------
     public $file = null;
 
     /** @var array<int, array<string, mixed>> */
@@ -63,21 +74,14 @@ class ReconcileStatement extends Page
     /** @var array<string, int> */
     public array $summary = [];
 
-    /** @var array<string, int> Money-out and unusable rows we skipped. */
+    /** @var array<string, int> */
     public array $skipped = [];
 
     public bool $parsed = false;
 
-    /** Statuses currently shown, so a long statement can be worked through. */
     public string $filter = 'all';
 
-    /**
-     * Row numbers the admin has set aside — old allocations they recognise by
-     * name, one-off deposits, anything that will never resolve. Kept only for
-     * this session, like the rest of the parsed statement.
-     *
-     * @var array<int, int>
-     */
+    /** @var array<int, int> */
     public array $ignored = [];
 
     public static function canAccess(): bool
@@ -92,7 +96,143 @@ class ReconcileStatement extends Page
     public function mount(): void
     {
         abort_unless(static::canAccess(), 403);
+
+        // Accept ?tab=find|statement so the two legacy pages can redirect
+        // straight to the right side of the desk. Anything else silently falls
+        // back to "find" (the more common day-to-day tool).
+        $requested = request()->query('tab');
+        if (is_string($requested) && in_array($requested, ['find', 'statement'], true)) {
+            $this->tab = $requested;
+        }
     }
+
+    public function setTab(string $tab): void
+    {
+        $this->tab = in_array($tab, ['find', 'statement'], true) ? $tab : 'find';
+    }
+
+    // ---- Find one line ---------------------------------------------------
+
+    public function find(): void
+    {
+        $this->searched = true;
+
+        if (trim($this->line) === '') {
+            $this->results = [];
+
+            return;
+        }
+
+        $matches = app(PaymentReferenceResolver::class)->resolve($this->line);
+        $eventIds = $this->eventIdsFor($matches);
+
+        $this->results = array_map(
+            fn (PaymentMatch $match) => $match->withUrl($this->urlFor($match, $eventIds))->toArray(),
+            $matches,
+        );
+    }
+
+    public function clearFind(): void
+    {
+        $this->line = '';
+        $this->amount = '';
+        $this->results = [];
+        $this->searched = false;
+    }
+
+    public function amountCents(): ?int
+    {
+        $digits = preg_replace('/[^0-9.]/', '', $this->amount);
+
+        if ($digits === null || $digits === '' || $digits === '.') {
+            return null;
+        }
+
+        return (int) round(((float) $digits) * 100);
+    }
+
+    public function markEntryPaid(int $id): void
+    {
+        $this->settle(PaymentMatch::MATCH_ENTRY.':'.$id);
+    }
+
+    public function confirmMembershipPayment(int $id): void
+    {
+        $this->settle(PaymentMatch::MEMBERSHIP_PAYMENT.':'.$id);
+    }
+
+    protected function settle(string $key): void
+    {
+        try {
+            $message = app(PaymentSettler::class)->settle($key, auth()->user());
+        } catch (AuthorizationException $e) {
+            abort(403, $e->getMessage());
+        } catch (\RuntimeException $e) {
+            Notification::make()->warning()
+                ->title('Nothing settled')
+                ->body($e->getMessage())
+                ->send();
+
+            $this->find();
+
+            return;
+        }
+
+        Notification::make()->success()
+            ->title('Payment recorded')
+            ->body($message)
+            ->send();
+
+        $this->find();
+    }
+
+    protected function urlFor(PaymentMatch $match, Collection $eventIds): ?string
+    {
+        return match ($match->kind) {
+            PaymentMatch::MATCH_ENTRY => ($eventId = $eventIds->get($match->id))
+                ? EventResource::getUrl('report', ['record' => $eventId])
+                : null,
+            PaymentMatch::MEMBERSHIP_PAYMENT => $match->reference
+                ? MembershipPaymentResource::getUrl('index', ['tableSearch' => $match->reference])
+                : MembershipPaymentResource::getUrl('index'),
+            PaymentMatch::SHOP_ORDER => ShopOrderResource::getUrl('index'),
+            default => $match->memberId
+                ? MemberResource::getUrl('view', ['record' => $match->memberId])
+                : null,
+        };
+    }
+
+    /**
+     * @param  array<int, PaymentMatch>  $matches
+     * @return Collection<int, int>
+     */
+    protected function eventIdsFor(array $matches): Collection
+    {
+        $entryIds = collect($matches)
+            ->filter(fn (PaymentMatch $match) => $match->kind === PaymentMatch::MATCH_ENTRY)
+            ->map(fn (PaymentMatch $match) => $match->id)
+            ->all();
+
+        if ($entryIds === []) {
+            return new Collection;
+        }
+
+        return EventRegistration::query()
+            ->whereIn('id', $entryIds)
+            ->pluck('event_id', 'id');
+    }
+
+    public function canMarkEntries(): bool
+    {
+        return (bool) auth()->user()?->can('events.registrations.manage');
+    }
+
+    public function canConfirmMemberships(): bool
+    {
+        return (bool) auth()->user()?->can('payments.eft.confirm');
+    }
+
+    // ---- Reconcile statement --------------------------------------------
 
     public function updatedFile(): void
     {
@@ -137,12 +277,11 @@ class ReconcileStatement extends Page
             ->send();
     }
 
-    public function clear(): void
+    public function clearStatement(): void
     {
         $this->reset(['file', 'reviews', 'summary', 'skipped', 'parsed', 'filter', 'ignored']);
     }
 
-    /** Set a line aside so it drops out of the working list. */
     public function ignore(int $row): void
     {
         if (! in_array($row, $this->ignored, true)) {
@@ -150,16 +289,11 @@ class ReconcileStatement extends Page
         }
     }
 
-    /** Bring an ignored line back into play. */
     public function restore(int $row): void
     {
         $this->ignored = array_values(array_filter($this->ignored, fn (int $r) => $r !== $row));
     }
 
-    /**
-     * Set aside every line currently on screen — the quick way to clear a batch
-     * of old, recognised deposits once they've been filtered down.
-     */
     public function ignoreAllVisible(): void
     {
         foreach ($this->visibleReviews() as $review) {
@@ -177,9 +311,6 @@ class ReconcileStatement extends Page
         return count($this->ignored);
     }
 
-    /**
-     * Settle one candidate against one statement line.
-     */
     public function apply(int $row, string $key): void
     {
         $settler = app(PaymentSettler::class);
@@ -207,10 +338,6 @@ class ReconcileStatement extends Page
         $this->refreshRow($row);
     }
 
-    /**
-     * Settle every line the resolver was certain about. Each one still had to
-     * resolve to a single item owing exactly what the bank received.
-     */
     public function applyAllReady(): void
     {
         $settler = app(PaymentSettler::class);
@@ -223,12 +350,9 @@ class ReconcileStatement extends Page
             if ($review['status'] !== StatementReconciliation::READY || $review['apply'] === null) {
                 continue;
             }
-
-            // An admin who set a ready line aside meant it — don't sweep it up.
             if ($this->isIgnored((int) $review['row'])) {
                 continue;
             }
-
             if (! $settler->canSettle(explode(':', $review['apply'])[0], $actor)) {
                 $failed++;
 
@@ -268,8 +392,6 @@ class ReconcileStatement extends Page
      */
     public function visibleReviews(): array
     {
-        // The ignored pile is its own view; every other filter hides ignored
-        // lines so they stop cluttering the work still to be done.
         if ($this->filter === 'ignored') {
             return array_values(array_filter(
                 $this->reviews,
@@ -289,10 +411,6 @@ class ReconcileStatement extends Page
         return app(PaymentSettler::class)->canSettle($kind, auth()->user());
     }
 
-    /**
-     * Re-resolve a single line after acting on it, so its status and remaining
-     * candidates reflect what just happened without re-reading the whole file.
-     */
     protected function refreshRow(int $row): void
     {
         foreach ($this->reviews as $index => $review) {

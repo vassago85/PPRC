@@ -48,6 +48,37 @@ class MembershipPayment extends Model
     }
 
     /**
+     * Plain-English purpose of this payment. Used in the admin Payments list
+     * "For" column — the treasurer usually wants to know *what* the money
+     * is for before who it's from.
+     *
+     *   Renewal / Joining fee / Match entry / Membership
+     */
+    public function purposeLabel(): string
+    {
+        $membership = $this->membership;
+        if ($membership === null) {
+            return 'Match entry';
+        }
+
+        return $membership->isRenewal() ? 'Renewal' : 'Joining fee';
+    }
+
+    /**
+     * How long this payment has been waiting on someone. Positive for
+     * pending (waiting on the member to pay + upload) and submitted
+     * (waiting on the club to review); null once confirmed or failed.
+     */
+    public function waitingDays(): ?int
+    {
+        return match ($this->status) {
+            PaymentStatus::Pending => (int) $this->created_at?->diffInDays(now()),
+            PaymentStatus::Submitted => (int) $this->submitted_at?->diffInDays(now()),
+            default => null,
+        };
+    }
+
+    /**
      * The member this payment is for, including soft-deleted members so a
      * removed member's payment still resolves rather than showing blank.
      */

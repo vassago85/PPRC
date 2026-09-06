@@ -26,7 +26,7 @@ class ClubBadgeResource extends Resource
 
     protected static ?int $navigationSort = 35;
 
-    protected static ?string $navigationLabel = 'Club badges';
+    protected static ?string $navigationLabel = 'Badges & endorsements';
 
     protected static ?string $recordTitleAttribute = 'name';
 

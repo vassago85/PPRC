@@ -29,9 +29,9 @@ class MembershipPaymentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Members';
+    protected static string|UnitEnum|null $navigationGroup = 'Money';
 
-    protected static ?int $navigationSort = 16;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $modelLabel = 'payment';
 
@@ -49,6 +49,11 @@ class MembershipPaymentResource extends Resource
         return static::canViewAny();
     }
 
+    /**
+     * Nav badge = payments that need the club to act. Submitted proofs
+     * need admin verification; that is the actionable queue. Pending (no
+     * proof) is a chase-the-member queue and has its own segment.
+     */
     public static function getNavigationBadge(): ?string
     {
         $count = MembershipPayment::query()
@@ -65,7 +70,7 @@ class MembershipPaymentResource extends Resource
 
     public static function getNavigationBadgeTooltip(): ?string
     {
-        return 'Payments awaiting verification';
+        return 'Proofs awaiting verification';
     }
 
     public static function getGloballySearchableAttributes(): array

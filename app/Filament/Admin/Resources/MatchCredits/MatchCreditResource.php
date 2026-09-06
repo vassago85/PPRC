@@ -27,6 +27,8 @@ class MatchCreditResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Matches';
 
+    protected static ?string $navigationLabel = 'Match credits';
+
     protected static ?int $navigationSort = 30;
 
     protected static ?string $modelLabel = 'match credit';

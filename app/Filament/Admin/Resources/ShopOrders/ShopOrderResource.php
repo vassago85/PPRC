@@ -21,9 +21,9 @@ class ShopOrderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Shop';
+    protected static string|UnitEnum|null $navigationGroup = 'Club';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 35;
 
     protected static ?string $modelLabel = 'shop order';
 

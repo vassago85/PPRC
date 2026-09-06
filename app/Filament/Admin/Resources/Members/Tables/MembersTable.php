@@ -9,15 +9,16 @@ use App\Filament\Admin\Support\SearchTerm;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\Member;
-use App\Support\MediaDisk;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
-use Filament\Tables\Columns\ImageColumn;
+use Filament\Support\Enums\Size;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -29,11 +30,16 @@ class MembersTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('last_name')
+            ->paginated([25, 50, 100])
+            ->defaultPaginationPageOption(50)
+            // Row click opens the record page; the legacy Edit URL is one
+            // tab away.
+            ->recordUrl(fn (Member $record) => route('filament.admin.resources.members.view', ['record' => $record]))
             // The derived status badge needs to know about the user account and
             // whether an application was ever started; without these it would
             // be two queries per row.
-            ->modifyQueryUsing(fn (Builder $query) => $query->with('user')->withExists('memberships'))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('user', 'linkedAdult')->withExists('memberships'))
             ->searchable([
                 'membership_number',
                 'first_name',
@@ -42,19 +48,37 @@ class MembersTable
                 'user.email',
             ])
             ->searchPlaceholder('Search name, email, or member #')
+            // The default Filament "No records found" is fine when a filter
+            // hides everyone, but a truly empty club — or a fresh install —
+            // reads better with a first-run prompt than an X.
+            ->emptyStateIcon('heroicon-o-user-group')
+            ->emptyStateHeading('No members in this segment')
+            ->emptyStateDescription('Once someone signs up or a segment applies, they will appear here.')
             ->columns([
-                ImageColumn::make('profile_photo_path')
-                    ->label('')
-                    ->disk(MediaDisk::name())
-                    ->circular()
-                    ->defaultImageUrl(fn () => 'https://ui-avatars.com/api/?name=PPRC&background=64748b&color=fff'),
-                TextColumn::make('membership_number')->label('Number')->badge()->sortable()->searchable(),
-                TextColumn::make('first_name')->label('Name')
-                    ->formatStateUsing(fn ($record) => $record->fullName())
-                    ->sortable(['last_name', 'first_name'])
-                    ->searchable(['first_name', 'last_name', 'known_as']),
-                TextColumn::make('user.email')->label('Email')->copyable(),
-                TextColumn::make('phone_number')->label('Phone')->toggleable(isToggledHiddenByDefault: true),
+                // Membership number: mono, aligned.
+                TextColumn::make('membership_number')
+                    ->label('No.')
+                    ->fontFamily('mono')
+                    ->state(fn (Member $r) => $r->formattedMembershipNumber() ?? '—')
+                    ->sortable()
+                    ->searchable(),
+
+                // Name column with the email underneath. Placeholder addresses
+                // (junior-{uuid}@members.pretoriaprc.co.za) are hidden — the
+                // linked-adult line takes their place.
+                ViewColumn::make('name')
+                    ->label('Name')
+                    ->sortable(query: fn (Builder $query, string $direction) => $query
+                        ->orderBy('last_name', $direction)
+                        ->orderBy('first_name', $direction))
+                    ->searchable(['first_name', 'last_name', 'known_as'])
+                    ->view('filament.admin.resources.members.columns.name'),
+
+                TextColumn::make('current_membership_type')
+                    ->label('Membership')
+                    ->state(fn (Member $r) => $r->currentMembership()?->membershipType?->name ?? '—')
+                    ->color('gray'),
+
                 // Derived rather than the stored lifecycle, so the badge says
                 // what the member is actually waiting on instead of just
                 // "Pending".
@@ -64,13 +88,32 @@ class MembersTable
                     ->state(fn (Member $record) => $record->standing())
                     ->formatStateUsing(fn (MemberStanding $state) => $state->label())
                     ->color(fn (MemberStanding $state) => $state->color())
-                    ->icon(fn (MemberStanding $state) => $state->icon())
                     ->tooltip(fn (MemberStanding $state) => $state->description()),
-                TextColumn::make('join_date')->date('d M Y')->toggleable(),
-                TextColumn::make('expiry_date')->date('d M Y')
+
+                TextColumn::make('shooting_disciplines')
+                    ->label('Discipline')
+                    ->badge()
+                    ->separator(',')
+                    ->color('info')
+                    ->toggleable(),
+
+                TextColumn::make('join_date')
+                    ->label('Joined')
+                    ->date('d M Y')
+                    ->sortable()
+                    ->color('gray')
+                    ->placeholder('—')
+                    ->toggleable(),
+
+                TextColumn::make('expiry_date')
+                    ->label('Expires')
+                    ->date('d M Y')
                     ->color(fn ($record) => $record->expiry_date && $record->expiry_date->isPast() ? 'danger' : null)
+                    ->placeholder('—')
                     ->sortable(),
 
+                // The following two are hidden by default — they inflate the
+                // roster width unless a treasurer needs them.
                 TextColumn::make('latest_payment_reference')
                     ->label('Latest payment ref')
                     ->state(fn (Member $r) => $r->latestPayment()?->reference)
@@ -94,22 +137,33 @@ class MembersTable
                     ->color(fn (?PaymentStatus $state) => $state?->color() ?? 'gray')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('saprf_membership_number')->label('SAPRF #')->toggleable(isToggledHiddenByDefault: true)->placeholder('—'),
+                TextColumn::make('saprf_membership_number')
+                    ->label('SAPRF #')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->placeholder('—'),
             ])
             ->recordActions([
-                ResendMembershipPaymentRequestAction::forMember(),
-                Action::make('send_welcome')
-                    ->icon('heroicon-o-envelope')
-                    ->color('info')
-                    ->requiresConfirmation()
-                    ->modalHeading('Send welcome email')
-                    ->modalDescription(fn (Member $record) => "Send the account-claim invite to {$record->user?->email}?")
-                    ->visible(fn (Member $record) => $record->user !== null)
-                    ->action(function (Member $record) {
-                        self::sendWelcomeTo($record);
-                        Notification::make()->success()->title('Welcome email sent')->send();
-                    }),
-                EditAction::make(),
+                // One primary action per row, chosen from the member's state.
+                // Everything else lives behind the ⋯ group.
+                self::primaryAction(),
+                ActionGroup::make([
+                    ResendMembershipPaymentRequestAction::forMember(),
+                    Action::make('send_welcome')
+                        ->icon('heroicon-o-envelope')
+                        ->requiresConfirmation()
+                        ->modalHeading('Send welcome email')
+                        ->modalDescription(fn (Member $record) => "Send the account-claim invite to {$record->user?->email}?")
+                        ->visible(fn (Member $record) => $record->user !== null && ! $record->hasPlaceholderEmail())
+                        ->action(function (Member $record) {
+                            self::sendWelcomeTo($record);
+                            Notification::make()->success()->title('Welcome email sent')->send();
+                        }),
+                    EditAction::make(),
+                ])
+                    ->label('More')
+                    ->icon('heroicon-o-ellipsis-horizontal')
+                    ->size(Size::Small)
+                    ->color('gray'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -125,7 +179,7 @@ class MembersTable
                             $sent = 0;
                             $skipped = 0;
                             foreach ($records as $member) {
-                                if (! $member->user) {
+                                if (! $member->user || $member->hasPlaceholderEmail()) {
                                     $skipped++;
 
                                     continue;
@@ -145,6 +199,28 @@ class MembersTable
                     DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * The single primary action per row, chosen from the member's derived
+     * standing. Everything else moves into the ⋯ group above.
+     */
+    protected static function primaryAction(): Action
+    {
+        return Action::make('member_primary_action')
+            ->label(fn (Member $record) => match ($record->standing()) {
+                MemberStanding::Active => 'Open',
+                MemberStanding::AwaitingEmail => 'Resend welcome',
+                MemberStanding::AwaitingChoice => 'Open',
+                MemberStanding::AwaitingPayment => 'Resend payment',
+                MemberStanding::Abandoned, MemberStanding::LongLapsed, MemberStanding::Resigned => 'Open',
+                MemberStanding::Expired => 'Renew',
+                MemberStanding::Suspended => 'Open',
+            })
+            ->icon('heroicon-o-arrow-right')
+            ->size(Size::Small)
+            ->color('gray')
+            ->url(fn (Member $record) => route('filament.admin.resources.members.view', ['record' => $record]));
     }
 
     private static function sendWelcomeTo(Member $member): void

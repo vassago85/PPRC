@@ -25,11 +25,11 @@ class SendClubBroadcast extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPaperAirplane;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Communications';
+    protected static string|UnitEnum|null $navigationGroup = 'Club';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 10;
 
-    protected static ?string $navigationLabel = 'Send broadcast';
+    protected static ?string $navigationLabel = 'Email members';
 
     protected static ?string $title = 'Send club broadcast';
 

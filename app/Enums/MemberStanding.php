@@ -38,11 +38,14 @@ enum MemberStanding: string
 
     public function label(): string
     {
+        // Copy pass: labels here match the onboarding pipeline vocabulary,
+        // so a member's status pill reads the same word an admin uses to
+        // describe them ("Email unconfirmed", "Choosing plan").
         return match ($this) {
-            self::AwaitingEmail => 'Awaiting email confirmation',
-            self::AwaitingChoice => 'Awaiting membership choice',
+            self::AwaitingEmail => 'Email unconfirmed',
+            self::AwaitingChoice => 'Choosing plan',
             self::AwaitingPayment => 'Awaiting payment',
-            self::Abandoned => 'Abandoned signup',
+            self::Abandoned => 'Abandoned',
             self::Active => 'Active',
             self::Suspended => 'Suspended',
             self::Expired => 'Expired',

@@ -26,6 +26,12 @@ use App\Livewire\Portal\ProfileEdit;
 use App\Livewire\Portal\ShopCheckout;
 use Illuminate\Support\Facades\Route;
 
+// Legacy Filament admin URLs — the money desk was two pages and is now one
+// page with two tabs. These redirects keep every bookmark, dashboard link,
+// and pasted URL working. Declared before Filament's own routes so they win.
+Route::redirect('/admin/find-payment', '/admin/reconciliation?tab=find');
+Route::redirect('/admin/reconcile-statement', '/admin/reconciliation?tab=statement');
+
 Route::get('/', HomeController::class)->name('home');
 
 Route::get('/about', AboutController::class)->name('about');

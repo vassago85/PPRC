@@ -49,55 +49,38 @@ class EventResource extends Resource
         return static::canViewAny();
     }
 
-    protected static function needsActionCount(): int
+    /**
+     * Badge count = "you must act". Only unpublished results qualify; drafts
+     * and new signups exist but do not compel action, so they were dropping
+     * the badge into ambient-number territory.
+     */
+    protected static function unpublishedResultsCount(): int
     {
         return Event::query()
-            ->where('status', EventStatus::Draft->value)
-            ->count()
-            + Event::query()
-                ->where('status', EventStatus::Completed->value)
-                ->whereNull('results_published_at')
-                ->count();
-    }
-
-    protected static function newEntryCount(): int
-    {
-        return \App\Models\EventRegistration::query()->newSignups()->count();
+            ->where('status', EventStatus::Completed->value)
+            ->whereNull('results_published_at')
+            ->count();
     }
 
     public static function getNavigationBadge(): ?string
     {
-        $count = static::needsActionCount() + static::newEntryCount();
+        $count = static::unpublishedResultsCount();
 
         return $count > 0 ? (string) $count : null;
     }
 
     public static function getNavigationBadgeColor(): ?string
     {
-        // Lean towards "success" when the only outstanding thing is fresh
-        // signups, so a new-entry notification reads as good news rather
-        // than an overdue task.
-        if (static::newEntryCount() > 0 && static::needsActionCount() === 0) {
-            return 'success';
-        }
-
         return 'warning';
     }
 
     public static function getNavigationBadgeTooltip(): ?string
     {
-        $parts = [];
+        $count = static::unpublishedResultsCount();
 
-        if (($new = static::newEntryCount()) > 0) {
-            $parts[] = $new.' new '.str('entry')->plural($new)
-                .' (last '.\App\Models\EventRegistration::NEW_SIGNUP_WINDOW_DAYS.' days)';
-        }
-
-        if (($action = static::needsActionCount()) > 0) {
-            $parts[] = $action.' needing action';
-        }
-
-        return $parts === [] ? null : implode(' · ', $parts);
+        return $count > 0
+            ? $count.' '.str('match')->plural($count).' waiting for results to be published'
+            : null;
     }
 
     public static function getGloballySearchableAttributes(): array

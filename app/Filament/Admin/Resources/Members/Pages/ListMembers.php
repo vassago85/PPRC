@@ -7,6 +7,7 @@ use App\Models\Member;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListMembers extends ListRecords
@@ -21,60 +22,88 @@ class ListMembers extends ListRecords
     }
 
     /**
-     * Every tab is a lifecycle scope from the Member model, so these counts are
-     * the same numbers the dashboard, the nav badges and the scheduled reminders
-     * use. They used to be hand-written here and drift from everywhere else.
+     * A live count sentence — never decoration. The subtitle is the same
+     * numbers the segments below carry, so an admin can see at a glance
+     * where the roster stands.
+     */
+    public function getSubheading(): string|Htmlable|null
+    {
+        $total = Member::query()->count();
+        $current = Member::query()->current()->count();
+        $onboarding = Member::query()->needsOnboarding()->count();
+
+        return "{$total} people on the books · {$current} current · {$onboarding} mid-onboarding";
+    }
+
+    /**
+     * Five mutually exclusive segments summing to All.
+     *
+     *   Current         — lifecycle=Active OR suspended (regardless of underlying)
+     *   Onboarding      — pending + email verified + not abandoned + not suspended
+     *   Awaiting email  — pending + email unverified + not abandoned + not suspended
+     *   Lapsed          — expired/resigned + not suspended + not abandoned
+     *   Abandoned       — abandoned_at set + not suspended
+     *
+     * Their union covers every member exactly once — asserted in
+     * tests/Feature/MembersSegmentSumTest.php.
      */
     public function getTabs(): array
     {
-        $counts = [
-            'active' => Member::query()->active()->count(),
-            'onboard' => Member::query()->needsOnboarding()->count(),
-            'awaiting_email' => Member::query()->awaitingEmail()->count(),
-            'renewal_due' => Member::query()->renewalDue()->count(),
-            'lapsed' => Member::query()->recentlyLapsed()->count(),
-            'suspended' => Member::query()->suspended()->count(),
-            'abandoned' => Member::query()->abandoned()->count(),
-        ];
+        $current = Member::query()->current()->count();
+        $onboarding = Member::query()->needsOnboarding()->count();
+        $awaitingEmail = Member::query()->awaitingEmail()->count();
+        $lapsed = Member::query()->lapsedRoster()->count();
+        $abandoned = Member::query()->abandoned()->count();
 
         return [
-            'all' => Tab::make('All'),
+            'all' => Tab::make('All')
+                ->badge(number_format(Member::query()->count())),
 
-            'active' => Tab::make('Active')
-                ->modifyQueryUsing(fn (Builder $query) => $query->active())
-                ->badge($counts['active']),
+            'current' => Tab::make('Current')
+                ->modifyQueryUsing(fn (Builder $query) => $query->current())
+                ->badge($current)
+                ->badgeColor($current > 0 ? 'success' : 'gray'),
 
-            'pending_onboard' => Tab::make('Pending onboard')
+            'onboarding' => Tab::make('Onboarding')
                 ->modifyQueryUsing(fn (Builder $query) => $query->needsOnboarding())
-                ->badge($counts['onboard'])
-                ->badgeColor($counts['onboard'] > 0 ? 'warning' : 'gray'),
+                ->badge($onboarding)
+                ->badgeColor($onboarding > 0 ? 'warning' : 'gray'),
 
-            // Kept out of the onboarding queue on purpose: nobody at the club can
-            // move these along, only the member can, by clicking the link.
             'awaiting_email' => Tab::make('Awaiting email')
                 ->modifyQueryUsing(fn (Builder $query) => $query->awaitingEmail())
-                ->badge($counts['awaiting_email'])
+                ->badge($awaitingEmail)
                 ->badgeColor('gray'),
 
-            'renewal_due' => Tab::make('Renewal due')
-                ->modifyQueryUsing(fn (Builder $query) => $query->renewalDue())
-                ->badge($counts['renewal_due'])
-                ->badgeColor('info'),
-
             'lapsed' => Tab::make('Lapsed')
-                ->modifyQueryUsing(fn (Builder $query) => $query->recentlyLapsed())
-                ->badge($counts['lapsed'])
-                ->badgeColor('danger'),
-
-            'suspended' => Tab::make('Suspended')
-                ->modifyQueryUsing(fn (Builder $query) => $query->suspended())
-                ->badge($counts['suspended'])
-                ->badgeColor($counts['suspended'] > 0 ? 'danger' : 'gray'),
+                ->modifyQueryUsing(fn (Builder $query) => $query->lapsedRoster())
+                ->badge($lapsed)
+                ->badgeColor($lapsed > 0 ? 'danger' : 'gray'),
 
             'abandoned' => Tab::make('Abandoned')
                 ->modifyQueryUsing(fn (Builder $query) => $query->abandoned())
-                ->badge($counts['abandoned'])
+                ->badge($abandoned)
                 ->badgeColor('gray'),
         ];
+    }
+
+    /**
+     * Old deep-links from the dashboard / emails aimed at seven-tab keys
+     * that no longer exist. Remap them so bookmarks still land on
+     * something sensible instead of silently switching to "All".
+     */
+    public function mount(): void
+    {
+        parent::mount();
+
+        $legacy = [
+            'pending_onboard' => 'onboarding',
+            'active' => 'current',
+            'renewal_due' => 'current',
+            'suspended' => 'current',
+        ];
+
+        if (isset($legacy[$this->activeTab])) {
+            $this->activeTab = $legacy[$this->activeTab];
+        }
     }
 }

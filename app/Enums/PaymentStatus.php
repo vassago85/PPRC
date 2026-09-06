@@ -13,9 +13,12 @@ enum PaymentStatus: string
 
     public function label(): string
     {
+        // "No proof uploaded" is the accurate name for the pending bucket —
+        // "Pending" was ambiguous with an admin's own to-do queue and made
+        // the treasurer chase the wrong records.
         return match ($this) {
-            self::Pending => 'Pending',
-            self::Submitted => 'Awaiting verification',
+            self::Pending => 'No proof uploaded',
+            self::Submitted => 'Awaiting review',
             self::Confirmed => 'Confirmed',
             self::Failed => 'Failed',
             self::Refunded => 'Refunded',

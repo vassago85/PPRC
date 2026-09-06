@@ -24,9 +24,9 @@ class EmailLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInbox;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Communications';
+    protected static string|UnitEnum|null $navigationGroup = 'Club';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 80;
 
     protected static ?string $navigationLabel = 'Email log';
 
