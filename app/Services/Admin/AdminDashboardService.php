@@ -8,6 +8,7 @@ use App\Enums\MemberLifecycle;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\RenewalSource;
+use App\Filament\Admin\Pages\OnboardingPipeline;
 use App\Filament\Admin\Resources\EndorsementRequests\EndorsementRequestResource;
 use App\Filament\Admin\Resources\Events\EventResource;
 use App\Filament\Admin\Resources\Members\MemberResource;
@@ -388,7 +389,10 @@ class AdminDashboardService
                 'count' => $onboardCount,
                 'context' => 'grouped by stage in the onboarding pipeline',
                 'action_label' => 'Open pipeline',
-                'action_url' => route('filament.admin.pages.onboarding-pipeline'),
+                // Resolve via the Page class so the slug on OnboardingPipeline
+                // is the single source of truth — the route name derives from
+                // it and this cannot drift out of sync again.
+                'action_url' => OnboardingPipeline::getUrl(),
             ];
         }
 
