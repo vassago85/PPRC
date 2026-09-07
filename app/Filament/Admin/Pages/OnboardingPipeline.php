@@ -3,10 +3,12 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Enums\MemberLifecycle;
+use App\Enums\PaymentStatus;
 use App\Filament\Admin\Resources\Members\MemberResource;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\Member;
+use App\Models\MembershipPayment;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -15,6 +17,7 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\HtmlString;
 use UnitEnum;
 
 /**
@@ -40,7 +43,13 @@ class OnboardingPipeline extends Page
     protected string $view = 'filament.admin.pages.onboarding-pipeline';
 
     /** Currently selected stage filter — 'all' or a stage key. */
-    public string $stage = 'all';
+    public string $stage = 'choosing_plan';
+
+    /** Currently ticked member IDs for the bulk bar. */
+    public array $selected = [];
+
+    /** Sort toggle for the pipeline table (longest-waiting first when true). */
+    public bool $longestFirst = true;
 
     public static function canAccess(): bool
     {
@@ -50,6 +59,27 @@ class OnboardingPipeline extends Page
     public function mount(): void
     {
         abort_unless(static::canAccess(), 403);
+
+        // Deep-link support: /admin/onboarding?stage=awaiting_payment lands the
+        // reader on the right stage. The queue row on the dashboard uses this
+        // to jump straight to the sub-set it's counting.
+        $requested = request()->query('stage');
+        $allowed = ['all', 'email_unconfirmed', 'choosing_plan', 'awaiting_payment', 'ready_to_activate', 'abandoned'];
+        if (is_string($requested) && in_array($requested, $allowed, true)) {
+            $this->stage = $requested;
+        }
+    }
+
+    public function getHeading(): string|Htmlable
+    {
+        // Custom page-head lives inside the Blade view (.pp-phead) — hide the
+        // built-in Filament page header so the two do not stack.
+        return '';
+    }
+
+    public function getSubheading(): string|Htmlable|null
+    {
+        return null;
     }
 
     public function getTitle(): string|Htmlable
@@ -57,12 +87,17 @@ class OnboardingPipeline extends Page
         return 'Onboarding';
     }
 
-    public function getSubheading(): string|Htmlable|null
+    /**
+     * Live subtitle rendered into the custom `.pp-phead`.
+     */
+    public function pipelineSubtitle(): HtmlString
     {
         $count = Member::query()->needsOnboarding()->count();
-        $awaiting = Member::query()->awaitingEmail()->count();
+        $noun = $count === 1 ? 'person' : 'people';
 
-        return "{$count} members mid-onboarding · {$awaiting} still to confirm email";
+        return new HtmlString(
+            "{$count} {$noun} between signing up and being a member"
+        );
     }
 
     public static function getNavigationBadge(): ?string
@@ -113,6 +148,119 @@ class OnboardingPipeline extends Page
     }
 
     /**
+     * The fine-print label under each stage number in the pipe. Explains at
+     * a glance what the club can (and can't) do about that stage.
+     *
+     * @return array<string, string>
+     */
+    public function stageFineprint(): array
+    {
+        $counts = $this->stageCounts();
+
+        // "stuck" = been in the current stage for more than 7 days.
+        $stuckByStage = $this->countStuckByStage();
+
+        $paymentTotal = (int) MembershipPayment::query()
+            ->whereIn('status', [PaymentStatus::Pending->value, PaymentStatus::Submitted->value])
+            ->whereHas('membership.member', fn ($q) => $q
+                ->where('lifecycle', MemberLifecycle::Pending->value)
+                ->whereNull('suspended_at')
+                ->whereNull('abandoned_at'))
+            ->sum('amount_cents');
+
+        $noMovementCount = Member::query()
+            ->where('lifecycle', MemberLifecycle::Pending->value)
+            ->whereNotNull('abandoned_at')
+            ->where(function ($q) {
+                $q->where('abandoned_at', '<=', now()->subDays(60))
+                    ->orWhere('updated_at', '<=', now()->subDays(60));
+            })
+            ->count();
+
+        return [
+            'email_unconfirmed' => 'no action possible yet',
+            'choosing_plan' => ($stuckByStage['choosing_plan'] ?? 0) > 0
+                ? "{$stuckByStage['choosing_plan']} stuck > 7 days"
+                : 'moving through',
+            'awaiting_payment' => $paymentTotal > 0
+                ? 'R '.number_format($paymentTotal / 100, 0).' pending'
+                : 'no payments due',
+            'ready_to_activate' => ($counts['ready_to_activate'] ?? 0) > 0
+                ? 'needs your approval'
+                : 'nothing to approve',
+            'abandoned' => $noMovementCount > 0
+                ? "no movement in 60 days ({$noMovementCount})"
+                : 'no movement in 60 days',
+        ];
+    }
+
+    /**
+     * Per-stage stuck counts (in stage > 7 days). Powers both the fine-print
+     * line above and the "stuck" pill inside the table header.
+     *
+     * @return array<string, int>
+     */
+    public function countStuckByStage(): array
+    {
+        $stuck = [
+            'email_unconfirmed' => 0,
+            'choosing_plan' => 0,
+            'awaiting_payment' => 0,
+            'ready_to_activate' => 0,
+            'abandoned' => 0,
+        ];
+
+        $pending = Member::query()
+            ->where('lifecycle', MemberLifecycle::Pending->value)
+            ->whereNull('suspended_at')
+            ->whereNull('abandoned_at')
+            ->with('user', 'memberships')
+            ->get();
+
+        foreach ($pending as $member) {
+            $days = $member->daysInStage();
+            if ($days !== null && $days > 7) {
+                $stage = $member->currentOnboardingStage();
+                if ($stage !== null && isset($stuck[$stage])) {
+                    $stuck[$stage]++;
+                }
+            }
+        }
+
+        return $stuck;
+    }
+
+    /**
+     * Numbered label for the selected stage — the toolbar reads
+     * "Stage 2 — Choosing plan". `all` and `abandoned` get sensible fallbacks.
+     */
+    public function stageIndexLabel(): string
+    {
+        $indexes = [
+            'email_unconfirmed' => 'Stage 1',
+            'choosing_plan' => 'Stage 2',
+            'awaiting_payment' => 'Stage 3',
+            'ready_to_activate' => 'Stage 4',
+            'abandoned' => 'Abandoned',
+            'all' => 'All stages',
+        ];
+        $labels = [
+            'email_unconfirmed' => 'Email unconfirmed',
+            'choosing_plan' => 'Choosing plan',
+            'awaiting_payment' => 'Awaiting payment',
+            'ready_to_activate' => 'Ready to activate',
+            'abandoned' => 'Abandoned',
+            'all' => 'All pending',
+        ];
+        $idx = $indexes[$this->stage] ?? 'Stage';
+        $lab = $labels[$this->stage] ?? '';
+
+        return in_array($this->stage, ['abandoned', 'all'], true)
+            ? $lab
+            : "{$idx} — {$lab}";
+    }
+
+    /**
      * Filtered pipeline rows for the current stage selection.
      *
      * @return \Illuminate\Support\Collection<int, Member>
@@ -129,16 +277,140 @@ class OnboardingPipeline extends Page
 
         $members = $query->latest('created_at')->limit(200)->get();
 
-        if ($this->stage === 'all' || $this->stage === 'abandoned') {
-            return $members;
+        if ($this->stage !== 'all' && $this->stage !== 'abandoned') {
+            $members = $members->filter(fn (Member $m) => $m->currentOnboardingStage() === $this->stage)->values();
         }
 
-        return $members->filter(fn (Member $m) => $m->currentOnboardingStage() === $this->stage)->values();
+        // Prototype sort: longest-waiting first — the row that has been sat
+        // in this stage the longest is the one that needs a nudge first.
+        if ($this->longestFirst) {
+            $members = $members->sortByDesc(fn (Member $m) => $m->daysInStage() ?? -1)->values();
+        }
+
+        return $members;
     }
 
     public function setStage(string $stage): void
     {
         $this->stage = $stage;
+        $this->selected = [];
+    }
+
+    public function toggleSort(): void
+    {
+        $this->longestFirst = ! $this->longestFirst;
+    }
+
+    /** Member IDs that are stuck in the currently viewed stage. */
+    public function stuckIdsInCurrentStage(): array
+    {
+        return $this->rows()
+            ->filter(fn (Member $m) => ($m->daysInStage() ?? 0) > 7)
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * Bulk-bar action — nudge every currently ticked member with the
+     * stage-appropriate reminder (welcome / plan / payment).
+     */
+    public function emailSelected(): void
+    {
+        $ids = array_values(array_filter(array_map('intval', $this->selected ?? [])));
+
+        if (empty($ids)) {
+            Notification::make()->warning()->title('Nobody selected')->send();
+
+            return;
+        }
+
+        $sent = 0;
+        foreach ($ids as $id) {
+            $member = Member::find($id);
+            if (! $member) {
+                continue;
+            }
+            $stage = $member->currentOnboardingStage();
+            match ($stage) {
+                'email_unconfirmed' => $this->resendWelcome($id),
+                'choosing_plan' => $this->sendPlanReminder($id),
+                'awaiting_payment' => $this->resendPaymentRequest($id),
+                default => null,
+            };
+            $sent++;
+        }
+
+        $this->selected = [];
+
+        Notification::make()->success()
+            ->title("Nudged {$sent} selected ".\Illuminate\Support\Str::plural('member', $sent))
+            ->send();
+    }
+
+    /**
+     * Header action — "Email everyone stuck".
+     *
+     * Uses the stage-appropriate reminder for each stuck member (plan
+     * reminder, payment resend, welcome resend) so a single click chases
+     * everyone currently over the 7-day line. This is not a mailing list;
+     * it is an ordinary batch of the same one-off emails the row buttons
+     * already send.
+     */
+    public function emailEveryoneStuck(): void
+    {
+        $ids = $this->stuckIdsInCurrentStage();
+
+        if (empty($ids)) {
+            Notification::make()->info()
+                ->title('Nobody is stuck right now')
+                ->body('Nobody in this stage has been waiting more than 7 days.')
+                ->send();
+
+            return;
+        }
+
+        $sent = 0;
+        foreach ($ids as $id) {
+            $member = Member::find($id);
+            if (! $member) {
+                continue;
+            }
+            $stage = $member->currentOnboardingStage();
+            match ($stage) {
+                'email_unconfirmed' => $this->resendWelcome($id),
+                'choosing_plan' => $this->sendPlanReminder($id),
+                'awaiting_payment' => $this->resendPaymentRequest($id),
+                default => null,
+            };
+            $sent++;
+        }
+
+        Notification::make()->success()
+            ->title("Nudged {$sent} stuck ".\Illuminate\Support\Str::plural('member', $sent))
+            ->send();
+    }
+
+    /** @return array<int, Action> */
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('email_stuck')
+                ->label('Email everyone stuck')
+                ->icon('heroicon-o-envelope')
+                ->color('gray')
+                ->visible(fn () => ! empty($this->stuckIdsInCurrentStage()))
+                ->requiresConfirmation()
+                ->modalHeading('Nudge everyone stuck?')
+                ->modalDescription(fn () => 'This sends the stage-appropriate reminder to the '
+                    .count($this->stuckIdsInCurrentStage())
+                    .' member(s) who have been waiting more than 7 days in this stage.')
+                ->action(fn () => $this->emailEveryoneStuck()),
+            Action::make('add_member')
+                ->label('Add member')
+                ->icon('heroicon-o-plus')
+                ->color('primary')
+                ->url(fn () => MemberResource::getUrl('create')),
+        ];
     }
 
     /**

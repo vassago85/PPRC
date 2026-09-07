@@ -3,9 +3,6 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Admin\Pages\Dashboard;
-use App\Filament\Admin\Widgets\MatchesOverviewWidget;
-use App\Filament\Admin\Widgets\NeedsAttentionWidget;
-use App\Filament\Admin\Widgets\RecentActivityWidget;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -16,6 +13,8 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -36,9 +35,10 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Slate,
             ])
-            // 230px sidebar — Linear/Stripe-style narrow nav. The custom
-            // theme tightens internal spacing so this still reads well.
-            ->sidebarWidth('230px')
+            // 236px dark rail — matches the prototype exactly. The custom
+            // theme paints the rail dark and pins the user block at the
+            // bottom via the SIDEBAR_NAV_END render hook below.
+            ->sidebarWidth('236px')
             ->collapsedSidebarWidth('4.5rem')
             ->sidebarCollapsibleOnDesktop()
             // Let the content area breathe full-width across modern monitors.
@@ -60,12 +60,18 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Admin/Widgets'), for: 'App\Filament\Admin\Widgets')
-            ->widgets([
-                NeedsAttentionWidget::class,
-                MatchesOverviewWidget::class,
-                RecentActivityWidget::class,
-            ])
+            // Auto-discovery of Filament stat/table widgets is intentionally
+            // off: the rebuilt Dashboard renders its own queue / money strip
+            // / activity feed via the custom Blade view. Leaving discovery on
+            // would double up the same numbers underneath.
+            ->widgets([])
+            // User block pinned to the bottom of the dark rail (avatar,
+            // name + role). Uses `SIDEBAR_NAV_END` so it sits below the last
+            // nav group but inside the sidebar column.
+            ->renderHook(
+                PanelsRenderHook::SIDEBAR_NAV_END,
+                fn (): View => view('filament.admin.partials.sidebar-footer'),
+            )
             ->userMenuItems([
                 'profile' => MenuItem::make()
                     ->label('Account & password')

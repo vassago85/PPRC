@@ -20,6 +20,8 @@ use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class AdminDashboardService
 {
@@ -335,110 +337,283 @@ class AdminDashboardService
     }
 
     /**
+     * Live subtitle for the /admin overview: weekday date + days until the
+     * next scheduled match. Empty tail when there is no upcoming match.
+     */
+    public function overviewSubtitle(): string
+    {
+        $today = now()->locale(app()->getLocale());
+        $prefix = $today->isoFormat('dddd D MMMM Y');
+
+        /** @var Event|null $next */
+        $next = Event::query()->upcoming()->first();
+
+        if (! $next?->start_date) {
+            return $prefix;
+        }
+
+        $days = (int) $today->startOfDay()->diffInDays($next->start_date->copy()->startOfDay(), false);
+
+        if ($days < 0) {
+            return $prefix;
+        }
+
+        $tail = match ($days) {
+            0 => "today &middot; {$next->title}",
+            1 => "one day to {$next->title}",
+            default => "{$days} days to {$next->title}",
+        };
+
+        return $prefix.' · '.$tail;
+    }
+
+    /**
      * The **Needs you** rows for the rebuilt dashboard.
      *
-     * Each row = count · sentence · consequence/age · one primary action.
-     * Rows with a value of 0 are dropped by the view so the panel never
-     * looks broken. Rows are ordered urgent → informational.
+     * Each row is a sentence with a count, meta line, optional chips, and
+     * one or two verb buttons. Rows with a value of 0 are omitted; the
+     * view falls back to a muted "all clear" note when everything is done.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array{
+     *     urgency: 'crit'|'warn'|'info'|'ok',
+     *     count: int,
+     *     label: string,
+     *     meta: ?string,
+     *     chips?: array<int, array{label: string, url: string, count: int}>,
+     *     actions: array<int, array{label: string, url: string, style?: 'pri'|'ghost'|'default'}>,
+     * }>
      */
     public function needsYou(): array
     {
         $rows = [];
 
+        // ------------------------------------------------------------------
         // 1. Payments the club must chase — pending, no proof yet.
-        $chaseCount = MembershipPayment::query()
+        //    The prototype's meta is "R X outstanding · oldest N days ago ·
+        //    K past the 14-day cut-off". Missing pieces get elided.
+        // ------------------------------------------------------------------
+        $pendingPayments = MembershipPayment::query()
             ->where('status', PaymentStatus::Pending->value)
-            ->count();
-        if ($chaseCount > 0) {
-            $totalCents = (int) MembershipPayment::query()
-                ->where('status', PaymentStatus::Pending->value)
-                ->sum('amount_cents');
+            ->get(['id', 'amount_cents', 'created_at']);
+
+        if ($pendingPayments->isNotEmpty()) {
+            $totalCents = (int) $pendingPayments->sum('amount_cents');
+            $oldest = $pendingPayments->min('created_at');
+            $oldestDays = $oldest ? (int) Carbon::parse($oldest)->diffInDays(now()) : 0;
+            $pastCutoff = $pendingPayments
+                ->filter(fn ($p) => $p->created_at && Carbon::parse($p->created_at)->diffInDays(now()) >= 14)
+                ->count();
+
+            $metaParts = ['R '.number_format($totalCents / 100, 0).' outstanding'];
+            if ($oldestDays > 0) {
+                $metaParts[] = "oldest {$oldestDays} days ago";
+            }
+            if ($pastCutoff > 0) {
+                $metaParts[] = "{$pastCutoff} past the 14-day cut-off";
+            }
+
             $rows[] = [
                 'urgency' => 'crit',
-                'label' => \Illuminate\Support\Str::plural('payment', $chaseCount).' with no proof uploaded',
-                'count' => $chaseCount,
-                'context' => 'R '.number_format($totalCents / 100, 2).' outstanding',
-                'action_label' => 'Chase all',
-                'action_url' => MembershipPaymentResource::getUrl('index', ['activeTab' => 'pending']),
+                'count' => $pendingPayments->count(),
+                'label' => Str::plural('Payment', $pendingPayments->count()).' with no proof uploaded',
+                'meta' => implode(' · ', $metaParts),
+                'actions' => [
+                    ['label' => 'Review', 'url' => MembershipPaymentResource::getUrl('index', ['activeTab' => 'pending'])],
+                    ['label' => 'Chase all', 'url' => MembershipPaymentResource::getUrl('index', ['activeTab' => 'pending']), 'style' => 'pri'],
+                ],
             ];
         }
 
-        // 2. Payments awaiting the club's review.
+        // ------------------------------------------------------------------
+        // 2. Members mid-onboarding — chips break the count out by stage
+        //    so the queue row matches the funnel below at a glance.
+        // ------------------------------------------------------------------
+        $stageCounts = app(OnboardingPipeline::class)->stageCounts();
+        $onboardCount = (int) ($stageCounts['choosing_plan'] ?? 0)
+            + (int) ($stageCounts['awaiting_payment'] ?? 0)
+            + (int) ($stageCounts['ready_to_activate'] ?? 0)
+            + (int) ($stageCounts['email_unconfirmed'] ?? 0);
+
+        if ($onboardCount > 0) {
+            $stuckCount = Member::query()
+                ->where('lifecycle', MemberLifecycle::Pending->value)
+                ->whereNull('suspended_at')
+                ->whereNull('abandoned_at')
+                ->where(function ($q) {
+                    $q->where('stage_entered_at', '<=', now()->subDays(7))
+                        ->orWhere(function ($qq) {
+                            $qq->whereNull('stage_entered_at')
+                                ->where('created_at', '<=', now()->subDays(7));
+                        });
+                })
+                ->count();
+
+            $meta = 'Sitting in three different stages';
+            if ($stuckCount > 0) {
+                $meta .= " — {$stuckCount} have not moved in over a week";
+            }
+
+            $chips = [];
+            $chipMap = [
+                'choosing_plan' => 'Choosing plan',
+                'awaiting_payment' => 'Awaiting payment',
+                'ready_to_activate' => 'Ready to activate',
+            ];
+            foreach ($chipMap as $stage => $label) {
+                $c = (int) ($stageCounts[$stage] ?? 0);
+                if ($c > 0) {
+                    $chips[] = [
+                        'label' => $label,
+                        'count' => $c,
+                        'url' => OnboardingPipeline::getUrl(['stage' => $stage]),
+                    ];
+                }
+            }
+
+            $rows[] = [
+                'urgency' => 'warn',
+                'count' => $onboardCount,
+                'label' => 'Members part-way through onboarding',
+                'meta' => $meta,
+                'chips' => $chips,
+                'actions' => [
+                    ['label' => 'Open pipeline', 'url' => OnboardingPipeline::getUrl()],
+                ],
+            ];
+        }
+
+        // ------------------------------------------------------------------
+        // 3. Payments awaiting review — the moment the member has done their
+        //    bit and it's on the club to confirm.
+        // ------------------------------------------------------------------
         $reviewCount = MembershipPayment::query()
             ->where('status', PaymentStatus::Submitted->value)
             ->count();
         if ($reviewCount > 0) {
             $rows[] = [
                 'urgency' => 'warn',
-                'label' => \Illuminate\Support\Str::plural('proof', $reviewCount).' awaiting your review',
                 'count' => $reviewCount,
-                'context' => null,
-                'action_label' => 'Review',
-                'action_url' => MembershipPaymentResource::getUrl('index', ['activeTab' => 'awaiting']),
+                'label' => Str::plural('Proof', $reviewCount).' awaiting your review',
+                'meta' => Str::plural('member', $reviewCount).' uploaded proof and is waiting on the club to confirm',
+                'actions' => [
+                    ['label' => 'Review', 'url' => MembershipPaymentResource::getUrl('index', ['activeTab' => 'awaiting']), 'style' => 'pri'],
+                ],
             ];
         }
 
-        // 3. Members mid-onboarding — link to the pipeline.
-        $onboardCount = Member::query()->needsOnboarding()->count();
-        if ($onboardCount > 0) {
-            $rows[] = [
-                'urgency' => 'warn',
-                'label' => 'members mid-onboarding',
-                'count' => $onboardCount,
-                'context' => 'grouped by stage in the onboarding pipeline',
-                'action_label' => 'Open pipeline',
-                // Resolve via the Page class so the slug on OnboardingPipeline
-                // is the single source of truth — the route name derives from
-                // it and this cannot drift out of sync again.
-                'action_url' => OnboardingPipeline::getUrl(),
-            ];
-        }
-
-        // 4. Renewals started but never paid.
+        // ------------------------------------------------------------------
+        // 4. Renewals started but never paid — old members who clicked
+        //    renew and never followed through.
+        // ------------------------------------------------------------------
         $renewalsPending = Membership::query()
             ->where('status', MembershipStatus::PendingPayment->value)
-            ->count();
-        if ($renewalsPending > 0) {
+            ->with('member')
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        if ($renewalsPending->count() > 0) {
+            $named = $renewalsPending
+                ->take(2)
+                ->map(fn ($m) => $m->member?->fullName())
+                ->filter()
+                ->all();
+            $remainder = $renewalsPending->count() - count($named);
+            $meta = 'renewal '.Str::plural('request', $renewalsPending->count()).' outstanding';
+            if (! empty($named)) {
+                $meta .= ' · '.implode(', ', $named);
+                if ($remainder > 0) {
+                    $meta .= " · +{$remainder} more";
+                }
+            }
+
             $rows[] = [
                 'urgency' => 'warn',
-                'label' => 'renewals started but never paid',
-                'count' => $renewalsPending,
-                'context' => null,
-                'action_label' => 'Send reminder',
-                'action_url' => MembershipResource::getUrl('index', [
-                    'tableFilters' => ['status' => ['value' => MembershipStatus::PendingPayment->value]],
-                ]),
+                'count' => $renewalsPending->count(),
+                'label' => 'Renewals started but never paid',
+                'meta' => $meta,
+                'actions' => [
+                    ['label' => 'Send reminder', 'url' => MembershipResource::getUrl('index', [
+                        'tableFilters' => ['status' => ['value' => MembershipStatus::PendingPayment->value]],
+                    ])],
+                ],
             ];
         }
 
-        // 5. Match closed without published results.
-        $unpublishedResults = Event::query()
+        // ------------------------------------------------------------------
+        // 5. Matches closed without results — the club owes members a scoresheet.
+        // ------------------------------------------------------------------
+        $unpublished = Event::query()
             ->where('status', EventStatus::Completed->value)
             ->whereNull('results_published_at')
-            ->count();
-        if ($unpublishedResults > 0) {
+            ->orderBy('start_date', 'desc')
+            ->get();
+
+        if ($unpublished->count() > 0) {
+            $newest = $unpublished->first();
+            $daysAgo = $newest?->start_date ? (int) $newest->start_date->diffInDays(now()) : null;
+            $meta = $newest?->title;
+            if ($meta && $daysAgo !== null) {
+                $meta .= " — closed {$daysAgo} days ago";
+            }
+            if ($unpublished->count() > 1) {
+                $meta = ($meta ? $meta.' · ' : '')
+                    .'+'.($unpublished->count() - 1).' more';
+            }
+
             $rows[] = [
                 'urgency' => 'warn',
-                'label' => \Illuminate\Support\Str::plural('match', $unpublishedResults).' closed without published results',
-                'count' => $unpublishedResults,
-                'context' => null,
-                'action_label' => 'Publish results',
-                'action_url' => EventResource::getUrl('index'),
+                'count' => $unpublished->count(),
+                'label' => Str::plural('Match', $unpublished->count()).' closed without published results',
+                'meta' => $meta,
+                'actions' => [
+                    ['label' => 'Publish results', 'url' => EventResource::getUrl('edit', ['record' => $newest]), 'style' => 'pri'],
+                ],
             ];
         }
 
-        // 6. New match entries needing squadding.
+        // ------------------------------------------------------------------
+        // 6. New match entries — informational, ordered last.
+        // ------------------------------------------------------------------
         $newEntries = EventRegistration::query()->newSignups()->count();
         if ($newEntries > 0) {
+            $eventTitles = EventRegistration::query()
+                ->newSignups()
+                ->with('event:id,title')
+                ->get()
+                ->groupBy(fn ($r) => $r->event?->title ?: 'Unknown')
+                ->map->count();
+            $topTitle = $eventTitles->keys()->first();
+
+            $meta = 'signed up in the last '.EventRegistration::NEW_SIGNUP_WINDOW_DAYS.' days';
+            if ($topTitle) {
+                $meta .= " · mostly {$topTitle}";
+            }
+
             $rows[] = [
                 'urgency' => 'info',
-                'label' => 'new match entries in the last week',
                 'count' => $newEntries,
-                'context' => null,
-                'action_label' => 'Squad',
-                'action_url' => EventResource::getUrl('index'),
+                'label' => 'New match entries needing squadding',
+                'meta' => $meta,
+                'actions' => [
+                    ['label' => 'Squad', 'url' => EventResource::getUrl('index')],
+                ],
+            ];
+        }
+
+        // ------------------------------------------------------------------
+        // 7. Endorsements — quick-pass informational row.
+        // ------------------------------------------------------------------
+        $endorsements = EndorsementRequest::where('status', EndorsementStatus::Pending)->count();
+        if ($endorsements > 0) {
+            $rows[] = [
+                'urgency' => 'info',
+                'count' => $endorsements,
+                'label' => Str::plural('Endorsement', $endorsements).' awaiting review',
+                'meta' => 'members waiting on a signed letter',
+                'actions' => [
+                    ['label' => 'Review', 'url' => EndorsementRequestResource::getUrl('index')],
+                ],
             ];
         }
 
@@ -448,7 +623,14 @@ class AdminDashboardService
     /**
      * Money strip: three cells with comparison / cause copy.
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<int, array{
+     *     label: string,
+     *     amount: string,
+     *     context: ?string,
+     *     delta: ?string,
+     *     delta_dir: ?'up'|'down',
+     *     crit?: bool,
+     * }>
      */
     public function moneyStrip(): array
     {
@@ -465,34 +647,52 @@ class AdminDashboardService
             ->where('confirmed_at', '>=', now()->startOfYear())
             ->sum('amount_cents');
 
+        $lastYearYtdCents = (int) MembershipPayment::where('status', PaymentStatus::Confirmed)
+            ->where('confirmed_at', '>=', now()->subYearNoOverflow()->startOfYear())
+            ->where('confirmed_at', '<=', now()->subYearNoOverflow())
+            ->sum('amount_cents');
+
         $outstandingCount = MembershipPayment::where('status', PaymentStatus::Pending)->count();
         $outstandingCents = (int) MembershipPayment::where('status', PaymentStatus::Pending)->sum('amount_cents');
 
-        $delta = $mtdCents - $lastMonthCents;
-        $comparison = $lastMonthCents > 0
-            ? ($delta >= 0 ? '+' : '−').'R '.number_format(abs($delta) / 100, 0).' vs '.now()->subMonthNoOverflow()->format('M Y')
-            : 'first tracked month';
+        $mtdDelta = $mtdCents - $lastMonthCents;
+        $ytdDelta = $ytdCents - $lastYearYtdCents;
+
+        $formatCurrency = static fn (int $cents) => 'R '.number_format($cents / 100, 0);
+        $formatDelta = static function (int $cents): string {
+            $sign = $cents >= 0 ? '+' : '−';
+
+            return $sign.'R '.number_format(abs($cents) / 100, 0);
+        };
 
         return [
             [
                 'label' => 'Confirmed this month',
-                'value' => $mtdCents,
-                'formatted' => 'R '.number_format($mtdCents / 100, 2),
-                'context' => $comparison,
+                'amount' => $formatCurrency($mtdCents),
+                'context' => $lastMonthCents > 0
+                    ? 'vs '.now()->subMonthNoOverflow()->isoFormat('MMM YYYY')
+                    : 'first tracked month',
+                'delta' => $lastMonthCents > 0 ? $formatDelta($mtdDelta) : null,
+                'delta_dir' => $lastMonthCents > 0 ? ($mtdDelta >= 0 ? 'up' : 'down') : null,
             ],
             [
                 'label' => 'Confirmed YTD',
-                'value' => $ytdCents,
-                'formatted' => 'R '.number_format($ytdCents / 100, 2),
-                'context' => 'since '.now()->startOfYear()->format('j M Y'),
+                'amount' => $formatCurrency($ytdCents),
+                'context' => $lastYearYtdCents > 0
+                    ? 'vs '.now()->subYearNoOverflow()->isoFormat('YYYY').' to date'
+                    : 'since '.now()->startOfYear()->isoFormat('D MMM YYYY'),
+                'delta' => $lastYearYtdCents > 0 ? $formatDelta($ytdDelta) : null,
+                'delta_dir' => $lastYearYtdCents > 0 ? ($ytdDelta >= 0 ? 'up' : 'down') : null,
             ],
             [
                 'label' => 'Outstanding',
-                'value' => $outstandingCents,
-                'formatted' => 'R '.number_format($outstandingCents / 100, 2),
+                'amount' => $formatCurrency($outstandingCents),
                 'context' => $outstandingCount > 0
-                    ? $outstandingCount.' payments awaiting proof'
+                    ? $outstandingCount.' '.Str::plural('payment', $outstandingCount).' awaiting proof'
                     : 'nothing outstanding',
+                'delta' => null,
+                'delta_dir' => null,
+                'crit' => $outstandingCents > 0,
             ],
         ];
     }
@@ -575,7 +775,7 @@ class AdminDashboardService
         $newMembers = Member::latest()->take(5)->get();
         foreach ($newMembers as $member) {
             $activities->push([
-                'icon' => 'heroicon-o-user-plus',
+                'bucket' => 'mem',
                 'description' => $member->fullName().' joined',
                 'timestamp' => $member->created_at,
                 'url' => MemberResource::getUrl('view', ['record' => $member]),
@@ -590,7 +790,7 @@ class AdminDashboardService
         foreach ($confirmedPayments as $payment) {
             $name = $payment->membership?->member?->fullName() ?? 'Unknown';
             $activities->push([
-                'icon' => 'heroicon-o-banknotes',
+                'bucket' => 'pay',
                 'description' => "Payment confirmed for {$name}",
                 'timestamp' => $payment->confirmed_at,
                 'url' => MembershipPaymentResource::getUrl('edit', ['record' => $payment]),
@@ -605,7 +805,7 @@ class AdminDashboardService
         foreach ($newMemberships as $membership) {
             $name = $membership->member?->fullName() ?? 'Unknown';
             $activities->push([
-                'icon' => 'heroicon-o-identification',
+                'bucket' => 'mem',
                 'description' => "{$name} membership activated",
                 'timestamp' => $membership->created_at,
                 'url' => MembershipResource::getUrl('edit', ['record' => $membership]),
@@ -620,7 +820,7 @@ class AdminDashboardService
             $title = $registration->event?->title ?? 'Unknown event';
             $name = $registration->shooterName() ?: 'Someone';
             $activities->push([
-                'icon' => 'heroicon-o-clipboard-document-list',
+                'bucket' => 'mat',
                 'description' => "{$name} registered for {$title}",
                 'timestamp' => $registration->created_at,
                 'url' => EventResource::getUrl('edit', ['record' => $registration->event_id]),
@@ -633,7 +833,7 @@ class AdminDashboardService
             ->get();
         foreach ($publishedResults as $event) {
             $activities->push([
-                'icon' => 'heroicon-o-trophy',
+                'bucket' => 'mat',
                 'description' => "Results published for {$event->title}",
                 'timestamp' => $event->results_published_at,
                 'url' => EventResource::getUrl('edit', ['record' => $event]),

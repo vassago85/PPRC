@@ -7,6 +7,7 @@ use App\Enums\MemberStanding;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Filament\Admin\Resources\Members\MemberResource;
+use App\Filament\Admin\Resources\Memberships\MembershipResource;
 use App\Mail\MemberWelcomeInvite;
 use App\Models\EmailLog;
 use App\Models\EventRegistration;
@@ -19,6 +20,8 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 /**
  * Member record page — /admin/members/{record}
@@ -46,7 +49,22 @@ class ViewMember extends Page
     public function mount(int|string $record): void
     {
         $this->record = MemberResource::getEloquentQuery()->findOrFail($record);
-        $this->record->load(['user', 'linkedAdult', 'memberships.membershipType', 'memberships.payments']);
+        $this->record->load([
+            'user',
+            'linkedAdult',
+            'memberships.membershipType',
+            'memberships.payments',
+            'clubBadges',
+        ]);
+
+        // Deep-link support: /admin/members/{id}?tab=payments lands the
+        // reader on the payments tab. Falls through to the default when
+        // the requested value is unknown.
+        $requested = request()->query('tab');
+        $allowed = ['overview', 'memberships', 'payments', 'matches', 'badges', 'notes'];
+        if (is_string($requested) && in_array($requested, $allowed, true)) {
+            $this->tab = $requested;
+        }
     }
 
     public function getTitle(): string|Htmlable
@@ -54,18 +72,45 @@ class ViewMember extends Page
         return $this->record->fullName();
     }
 
+    /**
+     * Hide the built-in Filament page header — the custom Blade view paints
+     * its own `.pp-rec-head` (title + pill + meta + state actions + tabs)
+     * so a second Filament-managed header would double up the top of the
+     * page.
+     */
+    public function getHeading(): string|Htmlable
+    {
+        return '';
+    }
+
+    public function getSubheading(): string|Htmlable|null
+    {
+        return null;
+    }
+
     public function getBreadcrumbs(): array
     {
-        return [
+        // "Members / Onboarding / {name}" only while the member is still in
+        // the pipeline; once they are a full member the middle breadcrumb
+        // adds noise.
+        $trail = [
             MemberResource::getUrl('index') => 'Members',
-            $this->record->fullName(),
         ];
+
+        if ($this->record->currentOnboardingStage() !== null) {
+            $trail[route('filament.admin.pages.onboarding')] = 'Onboarding';
+        }
+
+        $trail[] = $this->record->fullName();
+
+        return $trail;
     }
 
     /**
-     * State-aware header actions. Reads what the member is currently waiting
-     * on and offers the two or three things that make sense for that state,
-     * with everything else demoted to the ⋯ group in the view.
+     * State-aware header actions. Kept as Filament Actions so the modals
+     * / notifications / permission checks stay consistent with the rest
+     * of the admin, but rendered inside the custom `.pp-rec-acts` slot of
+     * the record head (see the Blade view).
      */
     protected function getHeaderActions(): array
     {
@@ -73,7 +118,16 @@ class ViewMember extends Page
 
         $standing = $this->record->standing();
 
-        if (in_array($standing, [MemberStanding::AwaitingChoice, MemberStanding::AwaitingPayment], true)) {
+        // Primary state action — one line, one verb.
+        if ($standing === MemberStanding::AwaitingChoice) {
+            $actions[] = Action::make('assign_membership')
+                ->label('Assign membership')
+                ->icon('heroicon-o-identification')
+                ->color('primary')
+                ->url(fn () => MembershipResource::getUrl('create', ['member_id' => $this->record->id]));
+        }
+
+        if ($standing === MemberStanding::AwaitingPayment) {
             $actions[] = ResendMembershipPaymentRequestAction::forMember();
         }
 
@@ -81,6 +135,7 @@ class ViewMember extends Page
             $actions[] = Action::make('resend_welcome')
                 ->label('Resend welcome')
                 ->icon('heroicon-o-envelope')
+                ->color('primary')
                 ->requiresConfirmation()
                 ->modalHeading('Resend welcome email')
                 ->modalDescription(fn () => "Resend the account-claim invite to {$this->record->user->email}?")
@@ -94,6 +149,148 @@ class ViewMember extends Page
             ->url(fn () => MemberResource::getUrl('edit', ['record' => $this->record]));
 
         return $actions;
+    }
+
+    /**
+     * The status pill rendered next to the member's name in the record
+     * head. Displays the standing label plus a day-N counter while the
+     * record is still in an onboarding stage — that way an admin reads
+     * "Choosing plan · day 3" at a glance without opening the Overview
+     * tab.
+     *
+     * @return array{label: string, variant: string, day: ?int}
+     */
+    public function recordPill(): array
+    {
+        $standing = $this->record->standing();
+        $variantMap = [
+            'success' => 'ok',
+            'warning' => 'wa',
+            'danger' => 'cr',
+            'info' => 'in',
+            'gray' => 'mu',
+        ];
+        $variant = $variantMap[$standing->color()] ?? 'mu';
+
+        // day-N counter only applies while the person is mid-onboarding.
+        $day = $this->record->currentOnboardingStage() !== null
+            ? $this->record->daysInStage()
+            : null;
+
+        return [
+            'label' => $standing->label(),
+            'variant' => $variant,
+            'day' => $day,
+        ];
+    }
+
+    /**
+     * Rows for the right-hand "At a glance" card on the record overview.
+     * Kept as (label, value, mono?) tuples so the Blade template is a
+     * dumb loop and every field paints identically.
+     *
+     * @return array<int, array{label: string, value: string, mono?: bool, dim?: bool}>
+     */
+    public function atAGlance(): array
+    {
+        $membership = $this->record->currentMembership();
+        $disciplines = is_array($this->record->shooting_disciplines)
+            ? implode(', ', $this->record->shooting_disciplines)
+            : null;
+
+        $matchesShot = EventRegistration::query()
+            ->where('member_id', $this->record->id)
+            ->whereIn('status', [
+                EventRegistrationStatus::Registered->value,
+                EventRegistrationStatus::Confirmed->value,
+            ])
+            ->count();
+
+        // "Lifetime paid" is every membership payment we ever confirmed
+        // for this person. Cheap because they typically only have a
+        // handful over their lifetime.
+        $lifetimeCents = (int) MembershipPayment::query()
+            ->whereIn('membership_id', $this->record->memberships->pluck('id'))
+            ->where('status', PaymentStatus::Confirmed->value)
+            ->sum('amount_cents');
+
+        return [
+            [
+                'label' => 'Membership',
+                'value' => $membership?->membershipType?->name ?? 'not chosen yet',
+                'dim' => $membership === null,
+            ],
+            [
+                'label' => 'Discipline',
+                'value' => $disciplines ?: 'not on file',
+                'dim' => ! $disciplines,
+            ],
+            [
+                'label' => 'SAPRF #',
+                'value' => $this->record->saprf_membership_number ?? 'not on file',
+                'mono' => true,
+                'dim' => ! $this->record->saprf_membership_number,
+            ],
+            [
+                'label' => 'SA ID',
+                'value' => $this->record->id_number ? Str::mask($this->record->id_number, '·', 4, 7) : 'not on file',
+                'mono' => true,
+                'dim' => ! $this->record->id_number,
+            ],
+            [
+                'label' => 'Matches shot',
+                'value' => (string) $matchesShot,
+                'mono' => true,
+                'dim' => $matchesShot === 0,
+            ],
+            [
+                'label' => 'Badges',
+                'value' => (string) $this->record->clubBadges()->count(),
+                'mono' => true,
+                'dim' => $this->record->clubBadges()->count() === 0,
+            ],
+            [
+                'label' => 'Lifetime paid',
+                'value' => $lifetimeCents > 0
+                    ? 'R '.number_format($lifetimeCents / 100, 0)
+                    : 'R 0',
+                'mono' => true,
+                'dim' => $lifetimeCents === 0,
+            ],
+        ];
+    }
+
+    /**
+     * Small helper used in the header meta line so the Blade template
+     * doesn't have to do its own presence-checks.
+     */
+    public function contactMetaLine(): HtmlString
+    {
+        $parts = [];
+
+        if ($num = $this->record->formattedMembershipNumber()) {
+            $parts[] = '<span><i>Member no.</i> '.e($num).'</span>';
+        } else {
+            $parts[] = '<span><i>Member no.</i> not issued yet</span>';
+        }
+
+        if ($this->record->join_date) {
+            $parts[] = '<span><i>Joined</i> '.e($this->record->join_date->format('d M Y')).'</span>';
+        }
+
+        if ($this->record->user?->email && ! $this->record->hasPlaceholderEmail()) {
+            $verified = $this->record->user->email_verified_at !== null;
+            $pill = $verified
+                ? '<span class="pp-pill pp-pill--ok pp-pill--plain" style="margin-left:0.375rem">verified</span>'
+                : '<span class="pp-pill pp-pill--wa pp-pill--plain" style="margin-left:0.375rem">unverified</span>';
+            $parts[] = '<span><i>Email</i> '.e($this->record->user->email).$pill.'</span>';
+        }
+
+        if ($this->record->phone_number) {
+            $parts[] = '<span><i>Phone</i> '.e($this->record->phone_country_code.' '.$this->record->phone_number).'</span>';
+        }
+
+        return new HtmlString(implode('', $parts));
     }
 
     /**

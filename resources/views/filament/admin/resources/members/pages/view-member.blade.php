@@ -1,260 +1,306 @@
 @php
     /** @var \App\Models\Member $record */
     $record = $this->record;
-    $standing = $record->standing();
+    $pill = $this->recordPill();
+    $glance = $this->atAGlance();
     $blocking = $this->blockingReason();
     $checklist = $this->onboardingChecklist();
     $timeline = $this->timeline();
     $payments = $this->payments();
     $matches = $this->matchEntries();
+    $editUrl = \App\Filament\Admin\Resources\Members\MemberResource::getUrl('edit', ['record' => $record]);
+
+    $tabs = [
+        ['key' => 'overview',    'label' => 'Overview'],
+        ['key' => 'memberships', 'label' => 'Memberships', 'count' => $record->memberships->count()],
+        ['key' => 'payments',    'label' => 'Payments',    'count' => count($payments)],
+        ['key' => 'matches',     'label' => 'Matches',     'count' => count($matches)],
+        ['key' => 'badges',      'label' => 'Badges & endorsements'],
+        ['key' => 'notes',       'label' => 'Notes'],
+    ];
 @endphp
 
 <x-filament-panels::page>
-    <x-ui.page>
-        {{-- Header row: status pill, member number, joined + verified line --}}
-        <x-ui.panel>
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="flex flex-col gap-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <x-ui.pill
-                            :variant="match($standing->color()) { 'success'=>'ok','warning'=>'warn','danger'=>'crit','info'=>'info', default=>'muted' }"
-                        >
-                            {{ $standing->label() }}
-                        </x-ui.pill>
-
-                        @if ($record->membership_number)
-                            <span class="ui-cell--mono text-[--ui-ink-2]">{{ $record->formattedMembershipNumber() }}</span>
-                        @endif
-
+    <div class="pp-page">
+        {{-- ============ RECORD HEAD ============ --}}
+        <div class="pp-rec-head">
+            <div class="pp-rec-top">
+                <div class="pp-rec-id">
+                    <h1>
+                        {{ $record->fullName() }}
+                        <span class="pp-pill pp-pill--{{ $pill['variant'] }}">
+                            {{ $pill['label'] }}@if ($pill['day'] !== null) &middot; day {{ $pill['day'] }} @endif
+                        </span>
                         @if ($record->isJunior())
-                            <span class="ui-chip">Junior</span>
+                            <span class="pp-pill pp-pill--in pp-pill--plain">Junior</span>
                         @endif
-
                         @if ($record->user?->isCommittee())
-                            <span class="ui-chip">Committee</span>
+                            <span class="pp-pill pp-pill--in pp-pill--plain">Committee</span>
                         @endif
+                    </h1>
+                    <div class="pp-rec-meta">
+                        {!! $this->contactMetaLine() !!}
                     </div>
+                </div>
 
-                    <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[color:var(--ui-ink-2)]">
-                        @if ($record->join_date)
-                            <span>Joined {{ $record->join_date->format('d M Y') }}</span>
-                        @endif
-                        @if ($record->expiry_date)
-                            <span>Expires {{ $record->expiry_date->format('d M Y') }}</span>
-                        @endif
-                        @if ($record->user?->email && ! $record->hasPlaceholderEmail())
-                            <span>{{ $record->user->email }}</span>
-                        @endif
-                        @if ($record->phone_number)
-                            <span>{{ $record->phone_country_code }} {{ $record->phone_number }}</span>
-                        @endif
-                    </div>
+                <div class="pp-rec-acts">
+                    {{-- State-aware header actions defined in getHeaderActions(). --}}
+                    @foreach ($this->getCachedHeaderActions() as $action)
+                        {{ $action }}
+                    @endforeach
                 </div>
             </div>
-        </x-ui.panel>
 
-        {{-- Blocking callout when the record cannot progress --}}
-        @if ($blocking)
-            <x-ui.panel>
-                <div class="flex items-start gap-3">
-                    <x-heroicon-o-exclamation-triangle class="w-5 h-5 text-[color:var(--ui-warn)] mt-0.5" />
+            {{-- Tabs, integrated in the head like the prototype --}}
+            <div class="pp-rec-tabs" role="tablist" aria-label="Record sections">
+                @foreach ($tabs as $t)
+                    <a href="?tab={{ $t['key'] }}"
+                       wire:click.prevent="$set('tab', '{{ $t['key'] }}')"
+                       role="tab"
+                       aria-selected="{{ $tab === $t['key'] ? 'true' : 'false' }}"
+                       class="pp-rtab{{ $tab === $t['key'] ? ' pp-rtab--on' : '' }}">
+                        {{ $t['label'] }}
+                        @if (! empty($t['count']))
+                            <em>{{ $t['count'] }}</em>
+                        @endif
+                    </a>
+                @endforeach
+
+                <a href="{{ $editUrl }}" class="pp-rtab pp-rtab--edit">Edit details</a>
+            </div>
+        </div>
+
+        {{-- ============ RECORD BODY ============ --}}
+        <div class="pp-rec-body">
+            @if ($tab === 'overview')
+                <div class="pp-rec-grid">
+                    {{-- LEFT: history timeline --}}
                     <div>
-                        <div class="text-sm font-semibold text-[color:var(--ui-ink)]">Blocking progress</div>
-                        <p class="mt-1 text-sm text-[color:var(--ui-ink-2)]">{{ $blocking }}</p>
-                    </div>
-                </div>
-            </x-ui.panel>
-        @endif
-
-        {{-- Segments (tabs) --}}
-        <x-ui.segments
-            name="tab"
-            :active="$tab"
-            :segments="[
-                ['key' => 'overview',   'label' => 'Overview'],
-                ['key' => 'memberships','label' => 'Memberships'],
-                ['key' => 'payments',   'label' => 'Payments', 'count' => count($payments)],
-                ['key' => 'matches',    'label' => 'Matches', 'count' => count($matches)],
-                ['key' => 'notes',      'label' => 'Notes'],
-            ]"
-        />
-
-        @if ($tab === 'overview')
-            <div class="grid gap-4 lg:grid-cols-3">
-                <div class="lg:col-span-2">
-                    <x-ui.panel title="Timeline">
+                        <div class="pp-lab">History</div>
                         @if (empty($timeline))
-                            <x-ui.empty
-                                icon="heroicon-o-clock"
-                                title="Nothing has happened yet"
-                                description="Once this member confirms their email, chooses a membership or makes a payment, those events will show up here."
-                            />
+                            <div class="pp-card">
+                                <div class="pp-card__body">
+                                    Nothing has happened for this record yet — signup, email confirmation and payments will land here as they happen.
+                                </div>
+                            </div>
                         @else
-                            <ol class="space-y-3">
+                            <ul class="pp-tl">
+                                {{-- Current wait as the first pending item when the record is mid-onboarding --}}
+                                @if ($blocking && $pill['day'] !== null)
+                                    <li class="pp-tl--pend">
+                                        <div class="pp-tl__t">Waiting on {{ strtolower($pill['label']) }}</div>
+                                        <div class="pp-tl__m">day {{ $pill['day'] }} in this stage</div>
+                                    </li>
+                                @endif
                                 @foreach ($timeline as $item)
-                                    <li class="flex items-start gap-3">
-                                        <span class="mt-0.5 inline-flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[color:var(--ui-surface-2)] text-[color:var(--ui-ink-2)]">
-                                            <x-dynamic-component :component="$item['icon']" class="w-4 h-4" />
-                                        </span>
-                                        <div class="min-w-0">
-                                            <div class="text-sm text-[color:var(--ui-ink)]">{{ $item['title'] }}</div>
-                                            <div class="text-xs text-[color:var(--ui-ink-3)] ui-cell--mono">{{ $item['detail'] }}</div>
-                                        </div>
+                                    @php
+                                        $liClass = '';
+                                        // Highlight the most-recent event.
+                                        if ($loop->first && ! ($blocking && $pill['day'] !== null)) {
+                                            $liClass = 'pp-tl--hi';
+                                        }
+                                    @endphp
+                                    <li class="{{ $liClass }}">
+                                        <div class="pp-tl__t">{{ $item['title'] }}</div>
+                                        <div class="pp-tl__m">{{ $item['detail'] }}</div>
                                     </li>
                                 @endforeach
-                            </ol>
+                            </ul>
                         @endif
-                    </x-ui.panel>
-                </div>
+                    </div>
 
-                <div class="space-y-4">
-                    <x-ui.panel title="At a glance">
-                        <dl class="grid grid-cols-1 gap-3 text-sm">
-                            <div>
-                                <dt class="text-xs uppercase tracking-wide text-[color:var(--ui-ink-3)]">Member number</dt>
-                                <dd class="ui-cell--mono">{{ $record->formattedMembershipNumber() ?? '—' }}</dd>
+                    {{-- RIGHT: at-a-glance, checklist, blocking --}}
+                    <div>
+                        <div class="pp-card">
+                            <h3>At a glance</h3>
+                            <div class="pp-kvl">
+                                @foreach ($glance as $row)
+                                    <div>
+                                        <span>{{ $row['label'] }}</span>
+                                        <b class="{{ ! empty($row['mono']) ? 'pp-mono ' : '' }}{{ ! empty($row['dim']) ? 'pp-dim' : '' }}">{{ $row['value'] }}</b>
+                                    </div>
+                                @endforeach
                             </div>
-                            <div>
-                                <dt class="text-xs uppercase tracking-wide text-[color:var(--ui-ink-3)]">Membership</dt>
-                                <dd>{{ $record->currentMembership()?->membershipType?->name ?? '—' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs uppercase tracking-wide text-[color:var(--ui-ink-3)]">Discipline(s)</dt>
-                                <dd>{{ is_array($record->shooting_disciplines) ? implode(', ', $record->shooting_disciplines) : '—' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs uppercase tracking-wide text-[color:var(--ui-ink-3)]">SAPRF #</dt>
-                                <dd class="ui-cell--mono">{{ $record->saprf_membership_number ?? '—' }}</dd>
-                            </div>
-                        </dl>
-                    </x-ui.panel>
+                        </div>
 
-                    <x-ui.panel title="Onboarding checklist">
-                        <ul class="space-y-2 text-sm">
+                        <div class="pp-card">
+                            <h3>Onboarding checklist</h3>
                             @foreach ($checklist as $item)
-                                <li class="flex items-center gap-2">
-                                    @if ($item['done'])
-                                        <x-heroicon-o-check-circle class="w-4 h-4 text-[color:var(--ui-good)]" />
-                                    @else
-                                        <x-heroicon-o-minus-circle class="w-4 h-4 text-[color:var(--ui-ink-3)]" />
-                                    @endif
-                                    <span @class(['text-[color:var(--ui-ink-3)] line-through' => $item['done']])>{{ $item['label'] }}</span>
-                                </li>
+                                <div class="pp-check {{ $item['done'] ? 'pp-check--done' : '' }}">
+                                    <div class="pp-check__bx">{!! $item['done'] ? '✓' : '' !!}</div>
+                                    <div class="pp-check__ct">{{ $item['label'] }}</div>
+                                </div>
                             @endforeach
-                        </ul>
-                    </x-ui.panel>
+                        </div>
+
+                        @if ($blocking)
+                            <div class="pp-card pp-card--crit">
+                                <h3>Blocking</h3>
+                                <div class="pp-card__body">{{ $blocking }}</div>
+                            </div>
+                        @endif
+                    </div>
                 </div>
-            </div>
-        @elseif ($tab === 'memberships')
-            <x-ui.panel title="Memberships" flush>
+
+            @elseif ($tab === 'memberships')
                 @if ($record->memberships->isEmpty())
-                    <x-ui.empty
-                        icon="heroicon-o-identification"
-                        title="No memberships yet"
-                        description="This member hasn't started a membership application yet."
-                    />
+                    <div class="pp-card">
+                        <div class="pp-card__body">No memberships on file yet.</div>
+                    </div>
                 @else
-                    <x-ui.table :columns="[
-                        ['label' => 'Type'],
-                        ['label' => 'Status'],
-                        ['label' => 'Period'],
-                        ['label' => 'Created', 'align' => 'right'],
-                    ]">
-                        @foreach ($record->memberships as $membership)
-                            <tr>
-                                <td>{{ $membership->membershipType?->name ?? '—' }}</td>
-                                <td>
-                                    <x-ui.pill variant="{{ $membership->status?->value === 'active' ? 'ok' : 'warn' }}">
-                                        {{ ucfirst(str_replace('_', ' ', (string) $membership->status?->value)) }}
-                                    </x-ui.pill>
-                                </td>
-                                <td class="ui-cell--mono text-sm">
-                                    {{ $membership->period_start?->format('d M Y') ?? '—' }}
-                                    →
-                                    {{ $membership->period_end?->format('d M Y') ?? '—' }}
-                                </td>
-                                <td class="ui-cell--right ui-cell--mono">{{ $membership->created_at?->format('d M Y') }}</td>
-                            </tr>
-                        @endforeach
-                    </x-ui.table>
+                    <div class="pp-tw">
+                        <table class="pp-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Period</th>
+                                    <th style="text-align:right">Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($record->memberships as $membership)
+                                    <tr>
+                                        <td>{{ $membership->membershipType?->name ?? '—' }}</td>
+                                        <td>
+                                            <span class="pp-pill {{ $membership->status?->value === 'active' ? 'pp-pill--ok' : 'pp-pill--wa' }}">
+                                                {{ ucfirst(str_replace('_', ' ', (string) $membership->status?->value)) }}
+                                            </span>
+                                        </td>
+                                        <td class="pp-td--mono">
+                                            {{ $membership->period_start?->format('d M Y') ?? '—' }}
+                                            → {{ $membership->period_end?->format('d M Y') ?? '—' }}
+                                        </td>
+                                        <td class="pp-td--right pp-td--mono">{{ $membership->created_at?->format('d M Y') }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
-            </x-ui.panel>
-        @elseif ($tab === 'payments')
-            <x-ui.panel title="Payments" flush>
+
+            @elseif ($tab === 'payments')
                 @if (empty($payments))
-                    <x-ui.empty
-                        icon="heroicon-o-banknotes"
-                        title="No payments recorded"
-                        description="Any membership or match payments this member makes will show up here."
-                    />
+                    <div class="pp-card">
+                        <div class="pp-card__body">No payments on file for this member.</div>
+                    </div>
                 @else
-                    <x-ui.table :columns="[
-                        ['label' => 'Reference'],
-                        ['label' => 'Amount', 'align' => 'right'],
-                        ['label' => 'Status'],
-                        ['label' => 'Submitted', 'align' => 'right'],
-                        ['label' => 'Confirmed', 'align' => 'right'],
-                    ]">
-                        @foreach ($payments as $payment)
-                            <tr>
-                                <td class="ui-cell--mono">{{ $payment->reference }}</td>
-                                <td><x-ui.money :cents="$payment->amount_cents" /></td>
-                                <td>
-                                    <x-ui.pill variant="{{ match($payment->status?->value) { 'confirmed' => 'ok', 'submitted' => 'warn', 'failed', 'cancelled' => 'crit', default => 'muted' } }}">
-                                        {{ $payment->status?->label() ?? '—' }}
-                                    </x-ui.pill>
-                                </td>
-                                <td class="ui-cell--right ui-cell--mono">{{ $payment->submitted_at?->format('d M Y') ?? '—' }}</td>
-                                <td class="ui-cell--right ui-cell--mono">{{ $payment->confirmed_at?->format('d M Y') ?? '—' }}</td>
-                            </tr>
-                        @endforeach
-                    </x-ui.table>
+                    <div class="pp-tw">
+                        <table class="pp-table">
+                            <thead>
+                                <tr>
+                                    <th>Reference</th>
+                                    <th style="text-align:right">Amount</th>
+                                    <th>Status</th>
+                                    <th style="text-align:right">Submitted</th>
+                                    <th style="text-align:right">Confirmed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($payments as $payment)
+                                    @php
+                                        $variant = match ($payment->status?->value) {
+                                            'confirmed' => 'pp-pill--ok',
+                                            'submitted' => 'pp-pill--wa',
+                                            'failed', 'cancelled' => 'pp-pill--cr',
+                                            default => 'pp-pill--mu',
+                                        };
+                                    @endphp
+                                    <tr>
+                                        <td class="pp-td--mono">{{ $payment->reference }}</td>
+                                        <td class="pp-td--right pp-td--mono">R {{ number_format(($payment->amount_cents ?? 0) / 100, 2) }}</td>
+                                        <td>
+                                            <span class="pp-pill {{ $variant }}">{{ $payment->status?->label() ?? '—' }}</span>
+                                        </td>
+                                        <td class="pp-td--right pp-td--mono">{{ $payment->submitted_at?->format('d M Y') ?? '—' }}</td>
+                                        <td class="pp-td--right pp-td--mono">{{ $payment->confirmed_at?->format('d M Y') ?? '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
-            </x-ui.panel>
-        @elseif ($tab === 'matches')
-            <x-ui.panel title="Match entries" flush>
+
+            @elseif ($tab === 'matches')
                 @if (empty($matches))
-                    <x-ui.empty
-                        icon="heroicon-o-flag"
-                        title="Not entered in any matches"
-                        description="Match entries this member makes through the portal or admin will show up here."
-                    />
+                    <div class="pp-card">
+                        <div class="pp-card__body">This member hasn't entered a match yet.</div>
+                    </div>
                 @else
-                    <x-ui.table :columns="[
-                        ['label' => 'Match'],
-                        ['label' => 'Date'],
-                        ['label' => 'Division'],
-                        ['label' => 'Status'],
-                    ]">
-                        @foreach ($matches as $entry)
-                            <tr>
-                                <td>{{ $entry->event?->title ?? '—' }}</td>
-                                <td class="ui-cell--mono">{{ $entry->event?->start_date?->format('d M Y') ?? '—' }}</td>
-                                <td>{{ $entry->division ?? '—' }}</td>
-                                <td>{{ $entry->status?->value ?? '—' }}</td>
-                            </tr>
-                        @endforeach
-                    </x-ui.table>
+                    <div class="pp-tw">
+                        <table class="pp-table">
+                            <thead>
+                                <tr>
+                                    <th>Match</th>
+                                    <th>Date</th>
+                                    <th>Division</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($matches as $entry)
+                                    <tr>
+                                        <td>{{ $entry->event?->title ?? '—' }}</td>
+                                        <td class="pp-td--mono">{{ $entry->event?->start_date?->format('d M Y') ?? '—' }}</td>
+                                        <td>{{ $entry->division ?? '—' }}</td>
+                                        <td class="pp-td--dim">{{ $entry->status?->value ?? '—' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
-            </x-ui.panel>
-        @elseif ($tab === 'notes')
-            <x-ui.panel title="Committee notes">
-                @if (filled($record->notes))
-                    <p class="whitespace-pre-wrap text-sm">{{ $record->notes }}</p>
+
+            @elseif ($tab === 'badges')
+                @if ($record->clubBadges->isEmpty())
+                    <div class="pp-card">
+                        <div class="pp-card__body">No badges awarded yet.</div>
+                    </div>
                 @else
-                    <x-ui.empty
-                        icon="heroicon-o-pencil-square"
-                        title="No notes yet"
-                        description="Notes are visible to the committee only."
-                    >
-                        <x-slot:action>
-                            <x-ui.btn :href="\App\Filament\Admin\Resources\Members\MemberResource::getUrl('edit', ['record' => $record])" variant="primary">
-                                Add a note
-                            </x-ui.btn>
-                        </x-slot:action>
-                    </x-ui.empty>
+                    <div class="pp-tw">
+                        <table class="pp-table">
+                            <thead>
+                                <tr>
+                                    <th>Badge</th>
+                                    <th>Awarded</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($record->clubBadges as $badge)
+                                    <tr>
+                                        <td>{{ $badge->name }}</td>
+                                        <td class="pp-td--mono">
+                                            @php
+                                                $awardedAt = $badge->pivot?->awarded_at;
+                                                $formatted = null;
+                                                if ($awardedAt) {
+                                                    $formatted = \Illuminate\Support\Carbon::parse($awardedAt)->format('d M Y');
+                                                }
+                                            @endphp
+                                            {{ $formatted ?? '—' }}
+                                        </td>
+                                        <td class="pp-td--dim">{{ $badge->pivot?->notes ?? '' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @endif
-            </x-ui.panel>
-        @endif
-    </x-ui.page>
+
+            @elseif ($tab === 'notes')
+                <div class="pp-card">
+                    <h3>Committee notes</h3>
+                    @if (filled($record->notes))
+                        <div class="pp-card__body" style="white-space:pre-wrap">{{ $record->notes }}</div>
+                    @else
+                        <div class="pp-card__body">
+                            No notes yet. Notes are visible to the committee only —
+                            <a href="{{ $editUrl }}" style="color:var(--ui-accent)">add one on the edit page</a>.
+                        </div>
+                    @endif
+                </div>
+            @endif
+        </div>
+    </div>
 </x-filament-panels::page>
