@@ -3,17 +3,21 @@
 namespace App\Filament\Admin\Resources\Events\RelationManagers;
 
 use App\Enums\EventRegistrationStatus;
+use App\Enums\InvoiceType;
 use App\Enums\MatchEntryAudience;
 use App\Filament\Admin\Actions\ApplyMatchCreditAction;
 use App\Filament\Admin\Actions\TransferMatchEntryAction;
 use App\Filament\Admin\Support\MemberSearch;
 use App\Filament\Admin\Support\SearchTerm;
+use App\Invoices\InvoiceFactory;
+use App\Invoices\InvoiceUrl;
 use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Services\Events\MatchEntrantBroadcastService;
 use App\Services\Events\MatchEntryDeadCenterExporter;
 use App\Services\Events\MatchEntryPaymentRequestService;
 use App\Support\MailThrottle;
+use App\Support\ProofDisk;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -332,6 +336,12 @@ class RegistrationsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
+                Action::make('view_invoice')
+                    ->label('Invoice')
+                    ->icon('heroicon-o-document-text')
+                    ->color('gray')
+                    ->visible(fn (EventRegistration $r) => app(InvoiceFactory::class)->canGenerate($r))
+                    ->url(fn (EventRegistration $r) => InvoiceUrl::signed(InvoiceType::Match, $r->id), shouldOpenInNewTab: true),
                 Action::make('send_payment_email')
                     ->label('Send payment email')
                     ->icon('heroicon-o-envelope')
@@ -567,6 +577,6 @@ class RegistrationsRelationManager extends RelationManager
     protected static function proofUrl(EventRegistration $r): ?string
     {
         // Proofs live on the private disk; hand back a short-lived signed URL.
-        return \App\Support\ProofDisk::url($r->payment_proof_path);
+        return ProofDisk::url($r->payment_proof_path);
     }
 }

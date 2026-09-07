@@ -28,6 +28,13 @@
     <div class="text-center">
         <p class="text-sm text-slate-400">Amount to pay</p>
         <p class="text-2xl font-bold text-white">R {{ number_format($payment->amount_cents / 100, 2) }}</p>
+        @if (app(\App\Invoices\InvoiceFactory::class)->canGenerate($payment))
+            <a href="{{ \App\Invoices\InvoiceUrl::portal(\App\Enums\InvoiceType::Membership, $payment->id) }}"
+               target="_blank" rel="noopener"
+               class="mt-2 inline-block text-xs font-medium text-amber-300 hover:text-amber-200">
+                View / print invoice
+            </a>
+        @endif
     </div>
 
     {{-- Bank details grid --}}

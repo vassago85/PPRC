@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Pages;
 
 use App\Mail\SiteConfigTestMail;
 use App\Models\SiteSetting;
+use App\Providers\RuntimeConfigServiceProvider;
 use App\Support\MediaDisk;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -96,6 +97,12 @@ class SiteSettings extends Page
                 'reference_prefix' => (string) SiteSetting::get('payments.bank.reference_prefix', 'PPRC'),
                 'reference_format' => (string) SiteSetting::get('payments.bank.reference_format', 'PPRC-MEM-{id}'),
                 'notes' => (string) SiteSetting::get('payments.bank.notes', ''),
+            ],
+
+            'invoice' => [
+                'legal_name' => (string) SiteSetting::get('invoice.legal_name', ''),
+                'vat_number' => (string) SiteSetting::get('invoice.vat_number', ''),
+                'company_reg' => (string) SiteSetting::get('invoice.company_reg', ''),
             ],
         ];
 
@@ -194,6 +201,22 @@ class SiteSettings extends Page
                                             ->label('Physical address')
                                             ->columnSpanFull()
                                             ->maxLength(255),
+                                    ]),
+
+                                Section::make('Invoice letterhead')
+                                    ->description('Optional details printed on invoices a shooter generates. Leave blank if the club is not VAT-registered — the invoice will still print club name and address.')
+                                    ->columns(2)
+                                    ->schema([
+                                        TextInput::make('invoice.legal_name')
+                                            ->label('Legal name')
+                                            ->placeholder('Pretoria Precision Rifle Club')
+                                            ->maxLength(255),
+                                        TextInput::make('invoice.vat_number')
+                                            ->label('VAT number')
+                                            ->maxLength(64),
+                                        TextInput::make('invoice.company_reg')
+                                            ->label('Company / NPC registration')
+                                            ->maxLength(64),
                                     ]),
 
                                 Section::make('Social links')
@@ -630,6 +653,9 @@ class SiteSettings extends Page
             ['contact.social.facebook',   'contact.social.facebook',   'contact', 'Facebook URL',     false, false],
             ['contact.social.instagram',  'contact.social.instagram',  'contact', 'Instagram URL',    false, false],
             ['contact.social.whatsapp',   'contact.social.whatsapp',   'contact', 'WhatsApp link',    false, false],
+            ['invoice.legal_name',        'invoice.legal_name',        'invoice', 'Invoice legal name', false, false],
+            ['invoice.vat_number',        'invoice.vat_number',        'invoice', 'Invoice VAT number', false, false],
+            ['invoice.company_reg',       'invoice.company_reg',       'invoice', 'Invoice company registration', false, false],
 
             // --- Bank --------------------------------------------------------
             ['bank.account_name',     'payments.bank.account_name',     'payments', 'Bank account name', false, false],
@@ -700,7 +726,7 @@ class SiteSettings extends Page
         // admin (e.g. "Test storage") uses the values we just saved instead of
         // whatever was cached at boot.
         try {
-            (new \App\Providers\RuntimeConfigServiceProvider($this->app ?? app()))->boot();
+            (new RuntimeConfigServiceProvider($this->app ?? app()))->boot();
         } catch (\Throwable) {
             // Boot failures here are non-fatal — the next request will pick up the new settings.
         }

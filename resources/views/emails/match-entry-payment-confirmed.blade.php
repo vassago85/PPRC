@@ -75,6 +75,11 @@
                                     </td>
                                 </tr>
                             </table>
+                            @if (! empty($invoiceUrl))
+                                <p style="margin:16px 0 0;font-size:13px;color:#64748b;">
+                                    <a href="{{ $invoiceUrl }}" target="_blank" style="color:#1d8ac0;text-decoration:none;font-weight:600;">View or print the invoice</a>
+                                </p>
+                            @endif
                         </td>
                     </tr>
 

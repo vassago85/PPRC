@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Enums\InvoiceType;
+use App\Invoices\InvoiceUrl;
 use App\Models\EventRegistration;
 use App\Models\SiteSetting;
 use Illuminate\Bus\Queueable;
@@ -59,6 +61,7 @@ class MatchEntryPaymentMail extends Mailable
                 'accountType' => (string) SiteSetting::get('payments.bank.account_type', 'cheque'),
                 'bankNotes' => (string) SiteSetting::get('payments.bank.notes', ''),
                 'isReminder' => $this->isReminder,
+                'invoiceUrl' => InvoiceUrl::signed(InvoiceType::Match, $registration->id),
             ],
         );
     }

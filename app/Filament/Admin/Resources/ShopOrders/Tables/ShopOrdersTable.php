@@ -2,8 +2,13 @@
 
 namespace App\Filament\Admin\Resources\ShopOrders\Tables;
 
+use App\Enums\InvoiceType;
 use App\Enums\ShopOrderStatus;
+use App\Invoices\InvoiceFactory;
+use App\Invoices\InvoiceUrl;
+use App\Models\ShopOrder;
 use App\Models\ShopRun;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -40,6 +45,12 @@ class ShopOrdersTable
                     ->options(collect(ShopOrderStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all()),
             ])
             ->recordActions([
+                Action::make('viewInvoice')
+                    ->label('Invoice')
+                    ->icon('heroicon-o-document-text')
+                    ->color('gray')
+                    ->visible(fn (ShopOrder $r) => app(InvoiceFactory::class)->canGenerate($r))
+                    ->url(fn (ShopOrder $r) => InvoiceUrl::signed(InvoiceType::Shop, $r->id), shouldOpenInNewTab: true),
                 EditAction::make()->visible(fn () => auth()->user()?->can('shop.orders.manage')),
             ])
             ->defaultSort('id', 'desc');

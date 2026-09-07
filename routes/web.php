@@ -1,24 +1,26 @@
 <?php
 
 use App\Http\Controllers\Auth\EmailVerificationPinController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\Portal\EndorsementLetterController;
+use App\Http\Controllers\Portal\ParticipationLetterController;
 use App\Http\Controllers\Site\AboutController;
 use App\Http\Controllers\Site\AnnouncementController;
 use App\Http\Controllers\Site\CertificateController;
 use App\Http\Controllers\Site\ContactController;
 use App\Http\Controllers\Site\FaqController;
-use App\Http\Controllers\Portal\EndorsementLetterController;
-use App\Http\Controllers\Portal\ParticipationLetterController;
+use App\Http\Controllers\Site\GalleryController;
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Site\MatchController;
 use App\Http\Controllers\Site\MembershipCancellationController;
 use App\Http\Controllers\Site\MembershipController;
 use App\Http\Controllers\Site\ResultController;
 use App\Http\Controllers\Site\ShopController;
-use App\Http\Controllers\Site\GalleryController;
 use App\Http\Controllers\Site\ShopWaitlistController;
 use App\Http\Controllers\Webhooks\PaystackWebhookController;
 use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\Documents;
+use App\Livewire\Portal\EndorsementApply;
 use App\Livewire\Portal\Membership;
 use App\Livewire\Portal\MyRegistrations;
 use App\Livewire\Portal\MyResults;
@@ -91,6 +93,11 @@ Route::get('/endorsement/verify/{token}', [EndorsementLetterController::class, '
     ->where('token', '[a-zA-Z0-9]+')
     ->name('portal.documents.endorsement.verify');
 
+Route::get('/invoices/{type}/{id}', [InvoiceController::class, 'signed'])
+    ->middleware('signed')
+    ->where(['type' => 'membership|match|shop', 'id' => '[0-9]+'])
+    ->name('invoices.show');
+
 // Admin endorsement letter preview (committee only)
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/admin/endorsements/{endorsement}/preview-letter', [EndorsementLetterController::class, 'preview'])
@@ -116,8 +123,11 @@ Route::middleware(['web', 'auth', 'verified'])->prefix('portal')->name('portal.'
     Route::get('/registrations', MyRegistrations::class)->name('registrations');
     Route::get('/profile/edit', ProfileEdit::class)->name('profile.edit');
     Route::get('/documents', Documents::class)->name('documents');
+    Route::get('/invoices/{type}/{id}', [InvoiceController::class, 'portal'])
+        ->where(['type' => 'membership|match|shop', 'id' => '[0-9]+'])
+        ->name('invoices.show');
     Route::get('/documents/participation', ParticipationLetterController::class)->name('documents.participation');
-    Route::get('/documents/endorsement/apply', \App\Livewire\Portal\EndorsementApply::class)
+    Route::get('/documents/endorsement/apply', EndorsementApply::class)
         ->name('documents.endorsement.apply');
     Route::get('/documents/endorsement/{token}', EndorsementLetterController::class)
         ->where('token', '[a-zA-Z0-9]+')

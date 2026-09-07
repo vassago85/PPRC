@@ -52,6 +52,13 @@
                         <div class="text-right">
                             <p class="text-xs text-slate-400">Entry fee</p>
                             <p class="text-xl font-bold text-white">R {{ number_format((int) ($reg->effectiveFeeCents() ?? 0) / 100, 2) }}</p>
+                            @if (app(\App\Invoices\InvoiceFactory::class)->canGenerate($reg))
+                                <a href="{{ \App\Invoices\InvoiceUrl::portal(\App\Enums\InvoiceType::Match, $reg->id) }}"
+                                   target="_blank" rel="noopener"
+                                   class="mt-1 inline-block text-xs font-medium text-amber-300 hover:text-amber-200">
+                                    View / print invoice
+                                </a>
+                            @endif
                         </div>
                     </div>
 
@@ -135,9 +142,7 @@
                                     <th class="px-6 py-3 font-medium">Date</th>
                                     <th class="px-6 py-3 font-medium">Location</th>
                                     <th class="px-6 py-3 font-medium">Status</th>
-                                    @if ($label === 'Upcoming')
-                                        <th class="px-6 py-3 font-medium"></th>
-                                    @endif
+                                    <th class="px-6 py-3 font-medium"></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/5">
@@ -161,9 +166,14 @@
                                                 {{ $reg->status->label() }}
                                             </span>
                                         </td>
-                                        @if ($label === 'Upcoming')
-                                            <td class="px-6 py-4 text-right">
-                                                @if ($reg->status !== App\Enums\EventRegistrationStatus::Cancelled)
+                                        <td class="px-6 py-4 text-right">
+                                            <div class="flex items-center justify-end gap-3">
+                                                @if (app(\App\Invoices\InvoiceFactory::class)->canGenerate($reg))
+                                                    <a href="{{ \App\Invoices\InvoiceUrl::portal(\App\Enums\InvoiceType::Match, $reg->id) }}"
+                                                       target="_blank" rel="noopener"
+                                                       class="text-xs font-medium text-slate-300 hover:text-white">Invoice</a>
+                                                @endif
+                                                @if ($label === 'Upcoming' && $reg->status !== App\Enums\EventRegistrationStatus::Cancelled)
                                                     <button
                                                         type="button"
                                                         wire:click="withdraw({{ $reg->id }})"
@@ -172,8 +182,8 @@
                                                         class="text-xs font-medium text-red-400 transition hover:text-red-300 disabled:opacity-50"
                                                     >Withdraw</button>
                                                 @endif
-                                            </td>
-                                        @endif
+                                            </div>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -197,14 +207,21 @@
                                             · <span class="text-slate-300">{{ $reg->member?->fullName() }}</span>
                                         @endif
                                     </p>
-                                    @if ($label === 'Upcoming' && $reg->status !== App\Enums\EventRegistrationStatus::Cancelled)
-                                        <button
-                                            type="button"
-                                            wire:click="withdraw({{ $reg->id }})"
-                                            wire:confirm="Withdraw {{ $shooterIsSelf ? 'you' : $reg->member?->fullName() }} from {{ $reg->event->title }}?"
-                                            class="text-xs font-medium text-red-400 hover:text-red-300"
-                                        >Withdraw</button>
-                                    @endif
+                                    <div class="flex items-center gap-3">
+                                        @if (app(\App\Invoices\InvoiceFactory::class)->canGenerate($reg))
+                                            <a href="{{ \App\Invoices\InvoiceUrl::portal(\App\Enums\InvoiceType::Match, $reg->id) }}"
+                                               target="_blank" rel="noopener"
+                                               class="text-xs font-medium text-slate-300 hover:text-white">Invoice</a>
+                                        @endif
+                                        @if ($label === 'Upcoming' && $reg->status !== App\Enums\EventRegistrationStatus::Cancelled)
+                                            <button
+                                                type="button"
+                                                wire:click="withdraw({{ $reg->id }})"
+                                                wire:confirm="Withdraw {{ $shooterIsSelf ? 'you' : $reg->member?->fullName() }} from {{ $reg->event->title }}?"
+                                                class="text-xs font-medium text-red-400 hover:text-red-300"
+                                            >Withdraw</button>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         @endforeach

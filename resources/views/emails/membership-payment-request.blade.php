@@ -145,6 +145,17 @@
                         </td>
                     </tr>
 
+                    @if (! empty($invoiceUrl))
+                        <tr>
+                            <td align="center" style="padding:0 36px 20px;">
+                                <p style="margin:0;font-size:13px;color:#64748b;">
+                                    Need a copy for your records?
+                                    <a href="{{ $invoiceUrl }}" target="_blank" style="color:#1d8ac0;text-decoration:none;font-weight:600;">View or print the invoice</a>
+                                </p>
+                            </td>
+                        </tr>
+                    @endif
+
                     <tr>
                         <td style="padding:0 36px 28px;">
                             <p style="margin:0;font-size:13px;color:#64748b;line-height:1.55;">

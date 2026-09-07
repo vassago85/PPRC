@@ -20,6 +20,15 @@
         @if (in_array($o->status, [\App\Enums\ShopOrderStatus::Paid, \App\Enums\ShopOrderStatus::Fulfilled], true))
             <div class="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-700">
                 This order is marked <strong>{{ $o->status->label() }}</strong>. Thank you.
+                @if (app(\App\Invoices\InvoiceFactory::class)->canGenerate($o))
+                    <p class="mt-2">
+                        <a href="{{ \App\Invoices\InvoiceUrl::portal(\App\Enums\InvoiceType::Shop, $o->id) }}"
+                           target="_blank" rel="noopener"
+                           class="font-medium text-slate-800 underline hover:text-slate-600">
+                            View / print invoice
+                        </a>
+                    </p>
+                @endif
             </div>
         @else
             <section class="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
@@ -110,6 +119,15 @@
                     <h2 class="text-lg font-medium text-slate-900">Payment (EFT)</h2>
                     <p class="text-slate-700">Reference: <span class="font-mono font-semibold">{{ $o->eft_reference }}</span></p>
                     <p class="text-slate-700">Amount due: <strong>R {{ number_format($o->total_cents / 100, 2) }}</strong></p>
+                    @if (app(\App\Invoices\InvoiceFactory::class)->canGenerate($o))
+                        <p>
+                            <a href="{{ \App\Invoices\InvoiceUrl::portal(\App\Enums\InvoiceType::Shop, $o->id) }}"
+                               target="_blank" rel="noopener"
+                               class="text-sm font-medium text-slate-800 underline hover:text-slate-600">
+                                View / print invoice
+                            </a>
+                        </p>
+                    @endif
                     @if ($bank['account_name'])
                         <dl class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-700">
                             <div><dt class="text-slate-500">Account name</dt><dd>{{ $bank['account_name'] }}</dd></div>

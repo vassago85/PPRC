@@ -1,7 +1,7 @@
 <div class="space-y-8">
     <div>
         <h1 class="text-2xl font-bold tracking-tight text-white">Documents</h1>
-        <p class="mt-1 text-sm text-slate-400">Certificates, letters, and endorsements.</p>
+        <p class="mt-1 text-sm text-slate-400">Certificates, letters, endorsements, and invoices.</p>
     </div>
 
     @if (session('flash'))
@@ -14,6 +14,37 @@
             {{ session('flash_error') }}
         </div>
     @endif
+
+    {{-- Invoices --}}
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Invoices</h2>
+                <p class="mt-1 text-sm text-slate-400">Print or save a PDF for any membership, match, or shop charge — paid or still outstanding.</p>
+            </div>
+            <div class="shrink-0">
+                <svg class="h-8 w-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+            </div>
+        </div>
+        @if ($this->invoices->isNotEmpty())
+            <ul class="mt-4 space-y-2">
+                @foreach ($this->invoices as $row)
+                    <li class="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-white">{{ $row['label'] }}</p>
+                            <p class="text-xs text-slate-500">{{ $row['type']->label() }} · {{ $row['number'] }} · {{ $row['date'] }} · {{ $row['amount'] }}</p>
+                        </div>
+                        <a href="{{ $row['url'] }}" target="_blank" rel="noopener"
+                           class="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/15">
+                            View invoice
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        @else
+            <p class="mt-4 text-sm text-slate-500">Invoices appear here once you have a membership, match, or shop charge.</p>
+        @endif
+    </section>
 
     {{-- Membership certificate --}}
     <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-6">

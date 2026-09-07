@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Enums\InvoiceType;
+use App\Invoices\InvoiceUrl;
 use App\Models\Member;
 use App\Models\Membership;
 use App\Models\MembershipPayment;
@@ -60,6 +62,7 @@ class MembershipPaymentRequestMail extends Mailable
                 'accountType' => (string) SiteSetting::get('payments.bank.account_type', 'cheque'),
                 'bankNotes' => (string) SiteSetting::get('payments.bank.notes', ''),
                 'isReminder' => $this->isReminder,
+                'invoiceUrl' => InvoiceUrl::signed(InvoiceType::Membership, $this->payment->id),
             ],
         );
     }

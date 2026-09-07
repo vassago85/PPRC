@@ -326,6 +326,7 @@
                                 <th class="px-6 py-3 font-medium">Period</th>
                                 <th class="px-6 py-3 font-medium">Status</th>
                                 <th class="px-6 py-3 font-medium text-right">Price</th>
+                                <th class="px-6 py-3 font-medium"></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/5">
@@ -339,6 +340,18 @@
                                             R {{ number_format($h->price_cents_snapshot / 100, 2) }}
                                         @else
                                             <span class="text-slate-500">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-3 text-right">
+                                        @php
+                                            $historyInvoice = $h->payments->first(
+                                                fn ($p) => app(\App\Invoices\InvoiceFactory::class)->canGenerate($p)
+                                            );
+                                        @endphp
+                                        @if ($historyInvoice)
+                                            <a href="{{ \App\Invoices\InvoiceUrl::portal(\App\Enums\InvoiceType::Membership, $historyInvoice->id) }}"
+                                               target="_blank" rel="noopener"
+                                               class="text-xs font-medium text-slate-300 hover:text-white">Invoice</a>
                                         @endif
                                     </td>
                                 </tr>

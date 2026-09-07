@@ -2,13 +2,18 @@
 
 namespace App\Filament\Admin\Resources\MembershipPayments\Tables;
 
+use App\Enums\InvoiceType;
 use App\Enums\MembershipStatus;
 use App\Enums\PaymentProvider;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Actions\ResendMembershipPaymentRequestAction;
 use App\Filament\Admin\Support\MemberSearch;
+use App\Invoices\InvoiceFactory;
+use App\Invoices\InvoiceUrl;
 use App\Models\MembershipPayment;
 use App\Services\Membership\MemberService;
+use App\Services\Membership\MembershipPaymentRequestService;
+use App\Support\ProofDisk;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -22,6 +27,8 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
+
 class MembershipPaymentsTable
 {
     public static function configure(Table $table): Table
@@ -127,7 +134,7 @@ class MembershipPaymentsTable
                     ->badge()
                     ->formatStateUsing(fn (?int $state): ?string => $state === null
                         ? null
-                        : $state.' '.\Illuminate\Support\Str::plural('day', $state))
+                        : $state.' '.Str::plural('day', $state))
                     ->color(fn (?int $state): string => match (true) {
                         $state === null => 'gray',
                         $state > 14 => 'danger',
@@ -185,6 +192,12 @@ class MembershipPaymentsTable
                         ->where('confirmed_at', '>=', now()->startOfMonth())),
             ])
             ->recordActions([
+                Action::make('viewInvoice')
+                    ->label('Invoice')
+                    ->icon('heroicon-o-document-text')
+                    ->color('gray')
+                    ->visible(fn (MembershipPayment $r) => app(InvoiceFactory::class)->canGenerate($r))
+                    ->url(fn (MembershipPayment $r) => InvoiceUrl::signed(InvoiceType::Membership, $r->id), shouldOpenInNewTab: true),
                 ResendMembershipPaymentRequestAction::forPayment(),
                 Action::make('viewProof')
                     ->label('Proof')
@@ -285,7 +298,7 @@ class MembershipPaymentsTable
                                     continue;
                                 }
                                 try {
-                                    app(\App\Services\Membership\MembershipPaymentRequestService::class)
+                                    app(MembershipPaymentRequestService::class)
                                         ->send($payment->membership);
                                     $sent++;
                                 } catch (\Throwable) {
@@ -336,6 +349,6 @@ class MembershipPaymentsTable
     private static function proofUrl(MembershipPayment $payment): ?string
     {
         // Proofs live on the private disk; hand back a short-lived signed URL.
-        return \App\Support\ProofDisk::url($payment->proof_path);
+        return ProofDisk::url($payment->proof_path);
     }
 }

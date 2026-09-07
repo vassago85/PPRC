@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Enums\InvoiceType;
+use App\Invoices\InvoiceUrl;
 use App\Models\EventRegistration;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -40,6 +42,7 @@ class MatchEntryPaymentConfirmedMail extends Mailable
                 'reference' => $registration->paymentReference(),
                 'paidOn' => $registration->paid_at,
                 'matchUrl' => $event ? route('matches.show', ['event' => $event->slug]) : url('/matches'),
+                'invoiceUrl' => InvoiceUrl::signed(InvoiceType::Match, $registration->id),
             ],
         );
     }
