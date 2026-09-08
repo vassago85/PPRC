@@ -3,13 +3,16 @@
 use App\Enums\MatchPaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Pages\ReconcileStatement;
+use App\Models\EmailLog;
 use App\Models\User;
+use App\Services\Payments\StatementLine;
 use App\Services\Payments\StatementReconciliation as Recon;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Carbon;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
@@ -253,6 +256,31 @@ it('leaves an ignored ready line out of the bulk settle', function () {
     // The ignored ready line is untouched; the other ready line still settles.
     expect($fixtures['clean']->refresh()->paid_at)->toBeNull()
         ->and($fixtures['mangled']->refresh()->paid_at)->not->toBeNull();
+});
+
+it('keeps an email-log-only identification in review rather than sweeping it into settled or ready', function () {
+    // A very old reference — the entry itself is long gone, but we mailed
+    // the shooter about it once. The recon must identify who it belongs to
+    // *and* park it in review, because there is nothing to settle against
+    // automatically and it must not be silently marked as done.
+    EmailLog::create([
+        'to_email' => 'jaco@example.com',
+        'to_name' => 'Jaco Smit',
+        'subject' => 'PPRC match entry — reference PPRC-M12-52',
+        'status' => EmailLog::STATUS_SENT,
+        'sent_at' => now()->subYear(),
+    ]);
+
+    $review = app(Recon::class)->reviewLine(new StatementLine(
+        row: 1,
+        date: Carbon::parse('2024-05-11'),
+        amountCents: 45000,
+        description: 'FNB APP PAYMENT FROM PPRC-M12-52',
+    ));
+
+    expect($review['status'])->toBe(Recon::REVIEW)
+        ->and($review['apply'])->toBeNull()
+        ->and(collect($review['candidates'])->pluck('who'))->toContain('Jaco Smit');
 });
 
 it('will not settle entries for someone without registration rights', function () {

@@ -16,12 +16,17 @@
                 'label' => 'Possible',
                 'class' => 'bg-gray-100 text-gray-600 ring-gray-500/20 dark:bg-white/5 dark:text-gray-400',
             ],
+            \App\Services\Payments\PaymentMatch::INFO => [
+                'label' => 'Identified only',
+                'class' => 'bg-gray-100 text-gray-600 ring-gray-500/20 dark:bg-white/5 dark:text-gray-400',
+            ],
         ];
 
         $kindLabel = [
             \App\Services\Payments\PaymentMatch::MATCH_ENTRY => 'Match entry',
             \App\Services\Payments\PaymentMatch::MEMBERSHIP_PAYMENT => 'Membership',
             \App\Services\Payments\PaymentMatch::SHOP_ORDER => 'Shop order',
+            \App\Services\Payments\PaymentMatch::IDENTIFICATION => 'Reference trace',
         ];
     @endphp
 

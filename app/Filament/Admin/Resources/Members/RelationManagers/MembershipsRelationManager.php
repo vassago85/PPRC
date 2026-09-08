@@ -122,6 +122,9 @@ class MembershipsRelationManager extends RelationManager
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                // Visible by default: the treasurer opens a member's
+                // memberships tab specifically to match a bank deposit to
+                // whichever period the reference belongs to.
                 TextColumn::make('payment_reference')
                     ->label('Payment ref')
                     ->state(fn (Membership $record) => $record->payments->first()?->reference)
@@ -129,7 +132,7 @@ class MembershipsRelationManager extends RelationManager
                     ->copyMessage('Reference copied')
                     ->fontFamily('mono')
                     ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(),
 
                 TextColumn::make('payment_status')
                     ->label('Payment')

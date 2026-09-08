@@ -7,12 +7,14 @@
             \App\Services\Payments\PaymentMatch::EXACT => ['label' => 'Confident', 'variant' => 'ok'],
             \App\Services\Payments\PaymentMatch::LIKELY => ['label' => 'Likely', 'variant' => 'warn'],
             \App\Services\Payments\PaymentMatch::POSSIBLE => ['label' => 'Possible', 'variant' => 'muted'],
+            \App\Services\Payments\PaymentMatch::INFO => ['label' => 'Identified only', 'variant' => 'muted'],
         ];
 
         $kindLabel = [
             \App\Services\Payments\PaymentMatch::MATCH_ENTRY => 'Match entry',
             \App\Services\Payments\PaymentMatch::MEMBERSHIP_PAYMENT => 'Membership',
             \App\Services\Payments\PaymentMatch::SHOP_ORDER => 'Shop order',
+            \App\Services\Payments\PaymentMatch::IDENTIFICATION => 'Reference trace',
         ];
     @endphp
 

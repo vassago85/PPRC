@@ -155,11 +155,30 @@
                                     <th>Type</th>
                                     <th>Status</th>
                                     <th>Period</th>
+                                    <th>Reference</th>
                                     <th style="text-align:right">Created</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($record->memberships as $membership)
+                                    @php
+                                        // Reference lives on the linked payment, not the membership
+                                        // itself. Prefer the still-open one — that is the reference
+                                        // the treasurer needs to spot on the statement. Fall back to
+                                        // the most recent so a confirmed membership still shows what
+                                        // the money came in as.
+                                        $openPayment = $membership->payments
+                                            ->whereIn('status', [
+                                                App\Enums\PaymentStatus::Pending,
+                                                App\Enums\PaymentStatus::Submitted,
+                                            ])
+                                            ->sortByDesc('created_at')
+                                            ->first();
+                                        $displayPayment = $openPayment
+                                            ?? $membership->payments->sortByDesc('created_at')->first();
+                                        $reference = $displayPayment?->reference;
+                                        $awaiting = $membership->status === App\Enums\MembershipStatus::PendingPayment;
+                                    @endphp
                                     <tr>
                                         <td>{{ $membership->membershipType?->name ?? '—' }}</td>
                                         <td>
@@ -170,6 +189,16 @@
                                         <td class="pp-td--mono">
                                             {{ $membership->period_start?->format('d M Y') ?? '—' }}
                                             → {{ $membership->period_end?->format('d M Y') ?? '—' }}
+                                        </td>
+                                        <td class="pp-td--mono">
+                                            @if ($reference)
+                                                <span class="pp-pill {{ $awaiting ? 'pp-pill--wa' : 'pp-pill--mu' }} pp-pill--plain"
+                                                      title="{{ $awaiting ? 'Awaiting payment against this reference' : 'Historical payment reference' }}">
+                                                    {{ $reference }}
+                                                </span>
+                                            @else
+                                                <span class="pp-td--dim">—</span>
+                                            @endif
                                         </td>
                                         <td class="pp-td--right pp-td--mono">{{ $membership->created_at?->format('d M Y') }}</td>
                                     </tr>
@@ -235,15 +264,50 @@
                                     <th>Date</th>
                                     <th>Division</th>
                                     <th>Status</th>
+                                    <th>Payment</th>
+                                    <th>Reference</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($matches as $entry)
+                                    @php
+                                        // Only entries that actually cost money quote a reference —
+                                        // SAPRF entries are paid externally, waived / free entries
+                                        // owe nothing. The reference is what the treasurer needs to
+                                        // spot on the bank statement, so make it prominent for the
+                                        // still-awaiting rows and muted (but still visible) once paid.
+                                        $isPaid = $entry->paid_at !== null;
+                                        $awaiting = $entry->awaitingPayment();
+                                        $hasFee = ! $entry->is_saprf_entry
+                                            && (int) ($entry->effectiveFeeCents() ?? 0) > 0;
+                                        $reference = $hasFee ? $entry->paymentReference() : null;
+
+                                        [$paymentLabel, $paymentPill] = match (true) {
+                                            $isPaid => ['Paid', 'pp-pill--ok'],
+                                            $awaiting => ['Awaiting', 'pp-pill--wa'],
+                                            $entry->is_saprf_entry => ['SAPRF', 'pp-pill--in'],
+                                            $entry->isWaived() => ['Waived', 'pp-pill--mu'],
+                                            default => ['No fee', 'pp-pill--mu'],
+                                        };
+                                    @endphp
                                     <tr>
                                         <td>{{ $entry->event?->title ?? '—' }}</td>
                                         <td class="pp-td--mono">{{ $entry->event?->start_date?->format('d M Y') ?? '—' }}</td>
                                         <td>{{ $entry->division ?? '—' }}</td>
                                         <td class="pp-td--dim">{{ $entry->status?->value ?? '—' }}</td>
+                                        <td>
+                                            <span class="pp-pill {{ $paymentPill }}">{{ $paymentLabel }}</span>
+                                        </td>
+                                        <td class="pp-td--mono">
+                                            @if ($reference)
+                                                <span class="pp-pill {{ $awaiting ? 'pp-pill--wa' : 'pp-pill--mu' }} pp-pill--plain"
+                                                      title="{{ $awaiting ? 'Awaiting payment against this reference' : 'Reference the entry was billed under' }}">
+                                                    {{ $reference }}
+                                                </span>
+                                            @else
+                                                <span class="pp-td--dim">—</span>
+                                            @endif
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>

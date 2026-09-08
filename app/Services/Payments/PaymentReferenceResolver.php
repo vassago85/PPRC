@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Enums\EventRegistrationStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ShopOrderStatus;
+use App\Models\EmailLog;
 use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Models\MembershipPayment;
@@ -14,6 +15,7 @@ use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Works out what a deposit in the club account was actually paying for.
@@ -68,6 +70,14 @@ class PaymentReferenceResolver
                 $this->collect($matches, $match);
             }
 
+            // Direct string lookup on the stored payment_reference column,
+            // for the rare case where the id-based parse cannot reconstruct
+            // what the bank actually saw (imported legacy data, hand-edited
+            // references, format changes older than the current parser).
+            foreach ($this->fromMatchEntryReferenceColumn($token, $prefix) as $match) {
+                $this->collect($matches, $match);
+            }
+
             foreach ($this->fromMembershipToken($token, $prefix) as $match) {
                 $this->collect($matches, $match);
             }
@@ -112,7 +122,31 @@ class PaymentReferenceResolver
             $this->collect($matches, $match);
         }
 
+        // Last resort: the reference resolved to nothing in the database at
+        // all, but we may have emailed it to somebody once. That email is
+        // proof of ownership even when the record it was about is gone —
+        // the whole reason `payments:trace` reads the email log.
+        if ($this->hasActionable($matches) === false) {
+            foreach ($this->fromEmailLog($tokens, $prefix) as $match) {
+                $this->collect($matches, $match);
+            }
+        }
+
         return $this->rank($matches);
+    }
+
+    /**
+     * @param  array<string, PaymentMatch>  $matches
+     */
+    protected function hasActionable(array $matches): bool
+    {
+        foreach ($matches as $match) {
+            if ($match->kind !== PaymentMatch::IDENTIFICATION) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // -----------------------------------------------------------------
@@ -206,11 +240,75 @@ class PaymentReferenceResolver
     }
 
     /**
+     * Direct string lookup on `event_registrations.payment_reference`.
+     *
+     * Belt to `fromMatchEntryToken`'s braces: the id-based parse is the
+     * common case, this handles the awkward cases the parser cannot reach —
+     * imported entries where the stored reference doesn't derive from the
+     * entry's own id, hand-edited references, and any historical format the
+     * current parser has since forgotten. Cheap: one indexed lookup per
+     * canonicalised reference.
+     *
+     * @return array<int, PaymentMatch>
+     */
+    protected function fromMatchEntryReferenceColumn(string $token, string $prefix): array
+    {
+        if (! Schema::hasColumn('event_registrations', 'payment_reference')) {
+            return [];
+        }
+
+        $entries = EventRegistration::query()
+            ->with(['event', 'member.user'])
+            ->whereIn('payment_reference', $this->matchEntryReferenceCandidates($token, $prefix))
+            ->limit(self::LOOKUP_LIMIT)
+            ->get();
+
+        return $entries
+            ->map(fn (EventRegistration $entry) => $this->describeEntry(
+                $entry,
+                PaymentMatch::EXACT,
+                'Match entry reference '.$entry->paymentReference(),
+            ))
+            ->all();
+    }
+
+    /**
+     * Every canonicalised reference string a match-entry token could stand
+     * for. Includes the raw dash form and — when the bank ate the M's dash —
+     * a version with it restored, so `PPRC-M1252` still hits an entry stored
+     * as `PPRC-M12-52`.
+     *
+     * @return array<int, string>
+     */
+    protected function matchEntryReferenceCandidates(string $token, string $prefix): array
+    {
+        $candidates = [$prefix.'-'.$token];
+
+        // "M1252" — legacy match-and-entry glued together. Offer every split
+        // as a candidate reference; the query throws out the misses.
+        if (preg_match('/^M(\d+)$/', $token, $found) === 1) {
+            $digits = $found[1];
+
+            for ($at = 1; $at < strlen($digits); $at++) {
+                $candidates[] = sprintf(
+                    '%s-M%s-%s',
+                    $prefix,
+                    substr($digits, 0, $at),
+                    substr($digits, $at),
+                );
+            }
+        }
+
+        return array_values(array_unique($candidates));
+    }
+
+    /**
      * @return array<int, PaymentMatch>
      */
     protected function fromMembershipToken(string $token, string $prefix): array
     {
         $payments = MembershipPayment::query()
+            ->withTrashed()
             ->with([
                 'membership.member.user',
                 'membership.memberWithTrashed.user',
@@ -221,11 +319,21 @@ class PaymentReferenceResolver
             ->get();
 
         return $payments
-            ->map(fn (MembershipPayment $payment) => $this->describeMembershipPayment(
-                $payment,
-                PaymentMatch::EXACT,
-                'Membership payment reference '.$payment->reference,
-            ))
+            ->map(function (MembershipPayment $payment) {
+                // A soft-deleted payment predates its removal — the bank
+                // deposit against it is real, but there is no live row for
+                // the recon to settle against. Identify the payer and step
+                // aside; the admin decides what to do.
+                if ($payment->trashed()) {
+                    return $this->describeRemovedMembershipPayment($payment);
+                }
+
+                return $this->describeMembershipPayment(
+                    $payment,
+                    PaymentMatch::EXACT,
+                    'Membership payment reference '.$payment->reference,
+                );
+            })
             ->all();
     }
 
@@ -287,6 +395,130 @@ class PaymentReferenceResolver
                 email: $order->user?->email,
             ))
             ->all();
+    }
+
+    /**
+     * Last-resort identification via the email log.
+     *
+     * Every reference we mint gets emailed to somebody — as a payment
+     * request, an entry confirmation, or a receipt — so the email log is a
+     * durable record of who a reference belongs to. When the underlying row
+     * has been deleted (hard-deleted match entry, cleaned-up import, moved
+     * on) the email is often the only trace left, and it is exactly what the
+     * `payments:trace` command has always used. The recon needs it too.
+     *
+     * Returns one identification hit per distinct recipient, so a reference
+     * that was mailed to a member and cc'd to admin surfaces as the member,
+     * not four times over.
+     *
+     * @param  array<int, string>  $tokens
+     * @return array<int, PaymentMatch>
+     */
+    protected function fromEmailLog(array $tokens, string $prefix): array
+    {
+        if ($tokens === [] || ! Schema::hasTable('email_logs')) {
+            return [];
+        }
+
+        $references = [];
+        foreach ($tokens as $token) {
+            foreach ($this->matchEntryReferenceCandidates($token, $prefix) as $reference) {
+                $references[$reference] = true;
+            }
+            foreach ($this->membershipReferences($token, $prefix) as $reference) {
+                $references[$reference] = true;
+            }
+            $references[$prefix.'-'.$token] = true;
+        }
+
+        $references = array_keys($references);
+        if ($references === []) {
+            return [];
+        }
+
+        $hasBody = Schema::hasColumn('email_logs', 'body_html');
+
+        $rows = EmailLog::query()
+            ->where(function (Builder $query) use ($references, $hasBody) {
+                foreach ($references as $reference) {
+                    $query->orWhere('subject', 'like', '%'.$reference.'%');
+
+                    if ($hasBody) {
+                        $query->orWhere('body_html', 'like', '%'.$reference.'%');
+                    }
+                }
+            })
+            ->orderByDesc('sent_at')
+            ->limit(self::LOOKUP_LIMIT * 2)
+            ->get(['id', 'to_email', 'to_name', 'subject', 'body_html', 'sent_at']);
+
+        /** @var array<string, PaymentMatch> $byRecipient */
+        $byRecipient = [];
+
+        foreach ($rows as $row) {
+            $reference = $this->firstReferenceFound($row, $references);
+
+            if ($reference === null) {
+                continue;
+            }
+
+            $email = trim((string) $row->to_email);
+            $name = trim((string) ($row->to_name ?? '')) ?: $email;
+
+            if ($email === '') {
+                continue;
+            }
+
+            $key = strtolower($email).'|'.$reference;
+
+            if (isset($byRecipient[$key])) {
+                continue;
+            }
+
+            $sentOn = $row->sent_at?->format('d M Y') ?? 'an unknown date';
+
+            $byRecipient[$key] = new PaymentMatch(
+                kind: PaymentMatch::IDENTIFICATION,
+                id: (int) $row->id,
+                confidence: PaymentMatch::INFO,
+                reason: 'Reference '.$reference.' was emailed to '.$name.' on '.$sentOn,
+                who: $name,
+                what: 'Reference emailed — no live record to settle',
+                amountCents: 0,
+                settled: true,
+                reference: $reference,
+                settledNote: 'The record this reference was minted for is no longer in the system. '
+                    .'Identify the payer by hand and settle against whatever they now owe.',
+                email: $email,
+            );
+        }
+
+        return array_values($byRecipient);
+    }
+
+    /**
+     * The first of our reference candidates that appears in the email's
+     * subject or (optionally) body. Deals with the mail template quoting the
+     * reference in different forms across different mailables.
+     *
+     * @param  array<int, string>  $references
+     */
+    protected function firstReferenceFound(EmailLog $row, array $references): ?string
+    {
+        $subject = (string) ($row->subject ?? '');
+        $body = (string) ($row->body_html ?? '');
+
+        foreach ($references as $reference) {
+            if ($reference === '') {
+                continue;
+            }
+
+            if (stripos($subject, $reference) !== false || stripos($body, $reference) !== false) {
+                return $reference;
+            }
+        }
+
+        return null;
     }
 
     // -----------------------------------------------------------------
@@ -453,6 +685,31 @@ class PaymentReferenceResolver
             settledNote: $note,
             email: $entry->payerEmail(),
             memberId: $entry->member_id !== null ? (int) $entry->member_id : null,
+        );
+    }
+
+    /**
+     * A membership payment that has been soft-deleted. Kept as an
+     * identification hit so the treasurer can see whose reference this was
+     * even though there is no live payment row to reopen and settle.
+     */
+    protected function describeRemovedMembershipPayment(MembershipPayment $payment): PaymentMatch
+    {
+        return new PaymentMatch(
+            kind: PaymentMatch::IDENTIFICATION,
+            id: (int) $payment->id,
+            confidence: PaymentMatch::INFO,
+            reason: 'Membership payment reference '.$payment->reference,
+            who: $payment->payerName(),
+            what: 'Membership payment (removed)',
+            amountCents: (int) ($payment->amount_cents ?? 0),
+            settled: true,
+            reference: $payment->reference,
+            settledNote: 'This membership payment was removed on '
+                .$payment->deleted_at?->format('d M Y')
+                .' — the deposit needs recording against something else.',
+            email: $payment->payerMember()?->user?->email,
+            memberId: $payment->payerMember()?->id,
         );
     }
 

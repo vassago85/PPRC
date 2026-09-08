@@ -46,8 +46,19 @@ class StatementReconciliation
     {
         $candidates = $this->resolver->resolve($line->description);
 
-        $open = array_values(array_filter(
+        // Identification-only hits (soft-deleted rows, email-log fallback) are
+        // never a "settled" outcome — they say who paid, not that the money
+        // has been recorded — so they must not collapse into the SETTLED
+        // bucket, and they can never be READY because there is nothing to
+        // settle against. They keep the line in REVIEW where a human can
+        // decide what to do.
+        $actionable = array_values(array_filter(
             $candidates,
+            fn (PaymentMatch $match) => ! $match->isIdentification(),
+        ));
+
+        $open = array_values(array_filter(
+            $actionable,
             fn (PaymentMatch $match) => ! $match->settled,
         ));
 
@@ -58,6 +69,7 @@ class StatementReconciliation
 
         $status = match (true) {
             $candidates === [] => self::UNMATCHED,
+            $actionable === [] => self::REVIEW,
             $open === [] => self::SETTLED,
             count($certain) === 1 => self::READY,
             default => self::REVIEW,

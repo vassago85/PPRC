@@ -17,6 +17,15 @@ final class PaymentMatch
 
     public const SHOP_ORDER = 'shop_order';
 
+    /**
+     * A reference we can *identify* but not act on — a match entry that was
+     * deleted, a membership payment that was removed, or a reference that only
+     * survives in the email log. Surfaced so the treasurer knows whose deposit
+     * they are looking at even when the underlying record is gone, but never
+     * settle-able because there is nothing left to settle against.
+     */
+    public const IDENTIFICATION = 'identification';
+
     /** The reference resolved to exactly one real record. */
     public const EXACT = 'exact';
 
@@ -25,6 +34,12 @@ final class PaymentMatch
 
     /** Reached by name, or by a reference we had to guess the shape of. */
     public const POSSIBLE = 'possible';
+
+    /**
+     * An identification-only hit: the reference belongs to somebody, but the
+     * record it belongs to is no longer available to settle against.
+     */
+    public const INFO = 'info';
 
     public function __construct(
         public readonly string $kind,
@@ -58,8 +73,20 @@ final class PaymentMatch
         return match ($this->confidence) {
             self::EXACT => 3,
             self::LIKELY => 2,
+            self::POSSIBLE => 1,
+            self::INFO => 0,
             default => 1,
         };
+    }
+
+    /**
+     * Whether this hit is informational only — surfaced so the admin knows
+     * whose reference it is, but not actionable because there is no live
+     * record left to settle against.
+     */
+    public function isIdentification(): bool
+    {
+        return $this->kind === self::IDENTIFICATION;
     }
 
     public function withConfidence(string $confidence, ?string $reason = null): self

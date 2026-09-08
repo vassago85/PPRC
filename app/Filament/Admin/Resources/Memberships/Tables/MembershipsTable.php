@@ -84,6 +84,10 @@ class MembershipsTable
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                // Shown by default because the whole point of scanning this
+                // list is usually "who owes what and by what reference?" — a
+                // treasurer matching a bank deposit needs to see the ref
+                // without hunting through the column toggler.
                 TextColumn::make('payment_reference')
                     ->label('Payment ref')
                     ->state(fn ($record) => $record->payments->first()?->reference)
@@ -91,7 +95,7 @@ class MembershipsTable
                     ->copyMessage('Reference copied')
                     ->fontFamily('mono')
                     ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->toggleable()
                     ->searchable(query: function ($query, string $search) {
                         $term = SearchTerm::make($query, $search);
 

@@ -2,9 +2,12 @@
 
 use App\Enums\EventRegistrationStatus;
 use App\Enums\PaymentStatus;
+use App\Models\EmailLog;
+use App\Models\EventRegistration;
 use App\Services\Payments\PaymentMatch;
 use App\Services\Payments\PaymentReferenceResolver;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     // The prefix is read through SiteSetting, which caches forever. Clear it so
@@ -232,4 +235,118 @@ it('returns nothing for an empty line', function () {
 
 it('returns nothing when the reference points at an entry that does not exist', function () {
     expect(resolver()->resolve('ABSA BANK PPRC-M99-4242'))->toBe([]);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Identification-only surfaces: the same places `payments:trace` looks
+|--------------------------------------------------------------------------
+|
+| A reference whose record has been deleted is exactly the case the recon
+| used to give up on. These tests pin the surfaces that let it identify the
+| deposit anyway, matching what the trace command has always done — a
+| stored payment_reference the id-parse can't reach, a soft-deleted
+| membership payment, and finally the email log itself.
+|
+*/
+
+it('finds a match entry by the reference stored on the row when the id-parse cannot', function () {
+    // An imported/legacy entry whose stored reference does not derive from
+    // its own id. The id-based parse (id=52 with event_id=12) would miss
+    // this entirely; the payment_reference column lookup catches it.
+    $event = refEvent(12, 'Match Twelve');
+    $entry = refEntry(9998, $event, refMember('Etienne', 'Hennop'), [
+        'payment_reference' => 'PPRC-M12-52',
+    ]);
+
+    $results = resolver()->resolve('FNB APP PAYMENT FROM PPRC-M12-52');
+
+    $entryHit = collect($results)->first(fn (PaymentMatch $m) => $m->kind === PaymentMatch::MATCH_ENTRY);
+
+    expect($entryHit?->id)->toBe($entry->id)
+        ->and($entryHit?->reference)->toBe('PPRC-M12-52')
+        ->and($entryHit?->confidence)->toBe(PaymentMatch::EXACT);
+});
+
+it('surfaces a soft-deleted membership payment as an identification-only hit', function () {
+    $member = refMember('Coenie', 'van Tonder');
+    $payment = refMembershipPayment($member, 'PPRC-20260725-0001', PaymentStatus::Submitted);
+    $payment->delete();
+
+    $results = collect(resolver()->resolve('ABSA BANK PPRC-20260725-0001'));
+
+    $hit = $results->first(fn (PaymentMatch $m) => $m->kind === PaymentMatch::IDENTIFICATION);
+
+    expect($hit)->not->toBeNull()
+        ->and($hit->confidence)->toBe(PaymentMatch::INFO)
+        ->and($hit->reference)->toBe('PPRC-20260725-0001')
+        ->and($hit->settled)->toBeTrue()
+        ->and($hit->settledNote)->toContain('removed')
+        ->and($hit->who)->toContain('Coenie');
+});
+
+it('identifies a reference via the email log when nothing else holds it', function () {
+    // No live record whatsoever — the entry is gone, no membership payment
+    // exists — but the reference was emailed to the shooter once. That
+    // email is what proves ownership.
+    EmailLog::create([
+        'to_email' => 'shooter@example.com',
+        'to_name' => 'Jaco Smit',
+        'subject' => 'PPRC match entry — reference PPRC-M12-52',
+        'body_html' => '<p>Please pay using reference <strong>PPRC-M12-52</strong>.</p>',
+        'status' => EmailLog::STATUS_SENT,
+        'sent_at' => now()->subYear(),
+    ]);
+
+    $results = collect(resolver()->resolve('FNB APP PAYMENT FROM PPRC-M12-52'));
+
+    $hit = $results->first(fn (PaymentMatch $m) => $m->kind === PaymentMatch::IDENTIFICATION);
+
+    expect($hit)->not->toBeNull()
+        ->and($hit->confidence)->toBe(PaymentMatch::INFO)
+        ->and($hit->who)->toBe('Jaco Smit')
+        ->and($hit->email)->toBe('shooter@example.com')
+        ->and($hit->reference)->toBe('PPRC-M12-52')
+        ->and($hit->settled)->toBeTrue()
+        ->and($hit->reason)->toContain('emailed');
+});
+
+it('does not fall back to the email log when a live record already resolved the reference', function () {
+    $event = refEvent(14, 'Match Fourteen');
+    refEntry(103, $event, refMember('Jaco', 'Smit'));
+
+    // The email log carries the same reference for somebody else entirely —
+    // stale data from an old use of the number. It must not be offered
+    // alongside the live entry that already resolves cleanly.
+    EmailLog::create([
+        'to_email' => 'wrong@example.com',
+        'to_name' => 'Old Recipient',
+        'subject' => 'PPRC match entry — reference PPRC-M14-103',
+        'status' => EmailLog::STATUS_SENT,
+        'sent_at' => now()->subYears(2),
+    ]);
+
+    $results = collect(resolver()->resolve('ABSA BANK PPRC-M14-103'));
+
+    expect($results->contains(fn (PaymentMatch $m) => $m->kind === PaymentMatch::IDENTIFICATION))
+        ->toBeFalse();
+});
+
+it('deduplicates email-log identifications by recipient', function () {
+    // The same member was mailed the reference three times (initial invoice,
+    // reminder, receipt). One identification hit is enough.
+    foreach (range(1, 3) as $i) {
+        EmailLog::create([
+            'to_email' => 'shooter@example.com',
+            'to_name' => 'Jaco Smit',
+            'subject' => 'PPRC — reference PPRC-M12-52 (attempt '.$i.')',
+            'status' => EmailLog::STATUS_SENT,
+            'sent_at' => now()->subMonths($i),
+        ]);
+    }
+
+    $identifications = collect(resolver()->resolve('PPRC-M12-52'))
+        ->filter(fn (PaymentMatch $m) => $m->kind === PaymentMatch::IDENTIFICATION);
+
+    expect($identifications)->toHaveCount(1);
 });
