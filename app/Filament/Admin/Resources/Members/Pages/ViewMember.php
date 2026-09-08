@@ -128,7 +128,13 @@ class ViewMember extends Page
         }
 
         if ($standing === MemberStanding::AwaitingPayment) {
-            $actions[] = ResendMembershipPaymentRequestAction::forMember();
+            // Bind the record explicitly. On a custom ViewPage the header-
+            // action pipeline does not auto-inject $this->record into action
+            // closures the way a ManageRelatedRecords / EditRecord page does,
+            // so without this the click handler runs with $record = null and
+            // the send is silently skipped.
+            $actions[] = ResendMembershipPaymentRequestAction::forMember()
+                ->record($this->record);
         }
 
         if ($standing === MemberStanding::AwaitingEmail && $this->record->user) {

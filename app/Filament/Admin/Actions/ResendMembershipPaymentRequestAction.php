@@ -14,6 +14,27 @@ use Illuminate\Validation\ValidationException;
 
 class ResendMembershipPaymentRequestAction
 {
+    /*
+    |--------------------------------------------------------------------------
+    | Why every closure below is nullable
+    |--------------------------------------------------------------------------
+    |
+    | Filament calls the visibility closure during page render to decide
+    | whether the button, dropdown item, or group entry is even drawn. On a
+    | custom page (like ViewMember) the header-action pipeline can evaluate
+    | that closure *without* a bound record — the same closure is also asked
+    | "would you be hidden in a group?" as part of the button HTML build.
+    | A non-nullable type-hint blows the page up with a TypeError at render
+    | time instead of just hiding the action, and there is no other useful
+    | answer than "hide me" when the caller has no record to give.
+    |
+    | So every closure accepts `?Model $record = null` and short-circuits.
+    | The action closures are guarded too, defensively — an action fired
+    | without a record shouldn't be reachable anyway (visibility would have
+    | returned false), but a stack trace beats a silent send.
+    |
+    */
+
     public static function forMembership(): Action
     {
         return Action::make('resend_payment_request')
@@ -22,9 +43,16 @@ class ResendMembershipPaymentRequestAction
             ->color('warning')
             ->requiresConfirmation()
             ->modalHeading('Resend payment request')
-            ->modalDescription(fn (Membership $record) => self::modalDescription($record))
-            ->visible(fn (Membership $record) => self::canSendForMembership($record))
-            ->action(fn (Membership $record) => self::send($record));
+            ->modalDescription(fn (?Membership $record = null) => self::modalDescription($record))
+            ->visible(fn (?Membership $record = null) => $record !== null
+                && self::canSendForMembership($record))
+            ->action(function (?Membership $record = null): void {
+                if ($record === null) {
+                    return;
+                }
+
+                self::send($record);
+            });
     }
 
     public static function forPayment(): Action
@@ -35,10 +63,11 @@ class ResendMembershipPaymentRequestAction
             ->color('warning')
             ->requiresConfirmation()
             ->modalHeading('Resend payment request')
-            ->modalDescription(fn (MembershipPayment $record) => self::modalDescription($record->membership))
-            ->visible(fn (MembershipPayment $record) => self::canSendForPayment($record))
-            ->action(function (MembershipPayment $record): void {
-                if (! $record->membership) {
+            ->modalDescription(fn (?MembershipPayment $record = null) => self::modalDescription($record?->membership))
+            ->visible(fn (?MembershipPayment $record = null) => $record !== null
+                && self::canSendForPayment($record))
+            ->action(function (?MembershipPayment $record = null): void {
+                if (! $record?->membership) {
                     return;
                 }
 
@@ -54,10 +83,11 @@ class ResendMembershipPaymentRequestAction
             ->color('warning')
             ->requiresConfirmation()
             ->modalHeading('Resend payment request')
-            ->modalDescription(fn (Member $record) => self::modalDescription($record->currentMembership()))
-            ->visible(fn (Member $record) => self::canSendForMembership($record->currentMembership()))
-            ->action(function (Member $record): void {
-                $membership = $record->currentMembership();
+            ->modalDescription(fn (?Member $record = null) => self::modalDescription($record?->currentMembership()))
+            ->visible(fn (?Member $record = null) => $record !== null
+                && self::canSendForMembership($record->currentMembership()))
+            ->action(function (?Member $record = null): void {
+                $membership = $record?->currentMembership();
                 if (! $membership) {
                     return;
                 }
