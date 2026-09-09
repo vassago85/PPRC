@@ -113,28 +113,32 @@
                      Mobile: renders first (order-1), centered, narrower max width.
                      Desktop: renders last (lg:order-2) in the 5-col right column. --}}
                 <div class="order-1 lg:order-2 lg:col-span-5">
-                    <div class="relative mx-auto aspect-square w-full max-w-[20rem] sm:max-w-sm lg:max-w-md">
-                        {{-- Soft radial glow behind the logo --}}
-                        <div class="absolute inset-0 rounded-full bg-gradient-to-br from-brand-500/30 via-brand-600/10 to-transparent blur-3xl" aria-hidden="true"></div>
+                    {{-- Keep stats outside aspect-square so the column height
+                         includes the strip on every mobile browser. --}}
+                    <div class="mx-auto w-full max-w-[20rem] sm:max-w-sm lg:max-w-md">
+                        <div class="relative aspect-square w-full">
+                            {{-- Soft radial glow behind the logo --}}
+                            <div class="absolute inset-0 rounded-full bg-gradient-to-br from-brand-500/30 via-brand-600/10 to-transparent blur-3xl" aria-hidden="true"></div>
 
-                        {{-- Framed logo card --}}
-                        <div class="home-card-hover relative flex h-full w-full items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] p-6 ring-1 ring-white/5 backdrop-blur-sm motion-safe:hover:border-white/20 sm:p-8 lg:p-10">
-                            {{-- Thin corner marks for a composed, intentional feel --}}
-                            <span class="absolute left-3 top-3 h-3 w-3 border-l border-t border-white/25 sm:left-4 sm:top-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
-                            <span class="absolute right-3 top-3 h-3 w-3 border-r border-t border-white/25 sm:right-4 sm:top-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
-                            <span class="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-white/25 sm:bottom-4 sm:left-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
-                            <span class="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-white/25 sm:bottom-4 sm:right-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
+                            {{-- Framed logo card --}}
+                            <div class="home-card-hover relative flex h-full w-full items-center justify-center rounded-3xl border border-white/10 bg-white/[0.02] p-6 ring-1 ring-white/5 backdrop-blur-sm motion-safe:hover:border-white/20 sm:p-8 lg:p-10">
+                                {{-- Thin corner marks for a composed, intentional feel --}}
+                                <span class="absolute left-3 top-3 h-3 w-3 border-l border-t border-white/25 sm:left-4 sm:top-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
+                                <span class="absolute right-3 top-3 h-3 w-3 border-r border-t border-white/25 sm:right-4 sm:top-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
+                                <span class="absolute bottom-3 left-3 h-3 w-3 border-b border-l border-white/25 sm:bottom-4 sm:left-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
+                                <span class="absolute bottom-3 right-3 h-3 w-3 border-b border-r border-white/25 sm:bottom-4 sm:right-4 sm:h-4 sm:w-4" aria-hidden="true"></span>
 
-                            <img
-                                src="{{ asset('pprclogo.png') }}"
-                                alt="Pretoria Precision Rifle Club logo"
-                                class="h-auto w-[80%] drop-shadow-[0_20px_50px_rgba(29,138,192,0.45)] sm:w-[78%]"
-                            />
+                                <img
+                                    src="{{ asset('pprclogo.png') }}"
+                                    alt="Pretoria Precision Rifle Club logo"
+                                    class="h-auto w-[80%] drop-shadow-[0_20px_50px_rgba(29,138,192,0.45)] sm:w-[78%]"
+                                />
+                            </div>
                         </div>
 
                         {{-- At-a-glance strip: Founded · Based in · Matches. Centered
                              to align visually with the framed logo above. --}}
-                        <dl class="home-card-hover mx-auto mt-5 grid max-w-[20rem] grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02] text-center motion-safe:hover:border-white/20 sm:mt-6 sm:max-w-sm lg:max-w-md">
+                        <dl class="home-card-hover mx-auto mt-5 grid w-full grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-white/[0.02] text-center motion-safe:hover:border-white/20 sm:mt-6">
                             <div class="px-2 py-3.5 sm:px-3 sm:py-4">
                                 <div class="mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg border border-brand-400/25 bg-brand-500/10 text-brand-200">
                                     <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" aria-hidden="true">
