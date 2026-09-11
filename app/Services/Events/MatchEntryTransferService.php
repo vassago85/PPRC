@@ -23,8 +23,8 @@ use Illuminate\Validation\ValidationException;
  *    event id, so a moved entry stops matching the bank statement.
  *  - Silently re-pointing an entry rewrites the financials of both matches with
  *    no record of why they changed.
- *  - The club's payout rule already works this way: MatchDirectorReport treats
- *    a paid shooter who did not shoot as held credit, not director payout.
+ *  - A transfer is an explicit release: the paid entry leaves this match
+ *    (and its payout) and the credit is spent on the new one.
  *
  * So a transfer is always: release the old entry to a credit, then spend that
  * credit on the new match.

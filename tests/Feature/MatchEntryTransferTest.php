@@ -206,8 +206,7 @@ it('still pays the director for a head the club funded from a credit', function 
     $from = transferMatch('Old Match', 15000);
     $to = transferMatch('New Match', 15000);
 
-    $moved = transfers()->transfer(paidEntry($from, $member), $to);
-    $moved->update(['attended' => true]);
+    transfers()->transfer(paidEntry($from, $member), $to);
 
     $summary = (new MatchDirectorReport($to->refresh()))->summary();
 

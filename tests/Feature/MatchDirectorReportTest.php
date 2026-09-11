@@ -40,9 +40,9 @@ function reportEntry(Event $event, array $attrs): EventRegistration
 it('classifies entries and totals the payout with a per-head levy', function () {
     $event = reportMatch();
 
-    // Paid (EFT) and shot -> counts toward payout the club owes (fee 250.00 as guest)
+    // Paid (EFT) guest -> counts toward payout the club owes (fee 250.00)
     reportEntry($event, ['guest_name' => 'Paid Shot', 'paid_at' => now(), 'attended' => true]);
-    // Paid but no-show -> held as credit
+    // Paid but no-show -> still counts; attendance does not hold the fee back
     reportEntry($event, ['guest_name' => 'Paid NoShow', 'paid_at' => now(), 'attended' => false]);
     // Owes, not paid -> outstanding
     reportEntry($event, ['guest_name' => 'Owing', 'attended' => true]);
@@ -51,29 +51,83 @@ it('classifies entries and totals the payout with a per-head levy', function () 
     // Cancelled -> excluded entirely
     reportEntry($event, ['guest_name' => 'Gone', 'status' => EventRegistrationStatus::Cancelled, 'paid_at' => now(), 'attended' => true]);
 
-    // Club keeps R50 per paying shooter who shot.
+    // Club keeps R50 per paying shooter.
     $report = new MatchDirectorReport($event, 5000);
     $s = $report->summary();
 
     expect($s['entries_total'])->toBe(4);
-    expect($s['payout_count'])->toBe(1);
-    expect($s['credit_count'])->toBe(1);
+    expect($s['payout_count'])->toBe(2);
+    expect($s['credit_count'])->toBe(0);
     expect($s['awaiting_count'])->toBe(1);
     expect($s['free_count'])->toBe(1);
 
     // Gross collected = the two paid entries (250 + 250 = 500.00)
     expect($s['gross_collected_cents'])->toBe(50000);
-    // Payout base = the single paid-and-shot entry
-    expect($s['payout_base_cents'])->toBe(25000);
+    expect($s['payout_base_cents'])->toBe(50000);
     // No cash recorded -> the whole payout base is EFT
-    expect($s['eft_base_cents'])->toBe(25000);
+    expect($s['eft_base_cents'])->toBe(50000);
     expect($s['cash_base_cents'])->toBe(0);
-    expect($s['credit_cents'])->toBe(25000);
+    expect($s['credit_cents'])->toBe(0);
     expect($s['outstanding_cents'])->toBe(25000);
 
-    // Levy = R50 x 1 paying shooter; director gets 250 - 50 = 200.00
-    expect($s['levy_total_cents'])->toBe(5000);
-    expect($s['director_payout_cents'])->toBe(20000);
+    // Levy = R50 x 2 paying shooters; director gets 500 - 100 = 400.00
+    expect($s['levy_total_cents'])->toBe(10000);
+    expect($s['director_payout_cents'])->toBe(40000);
+});
+
+it('pays the director for a paid entry even when they did not attend', function () {
+    $event = reportMatch();
+    reportEntry($event, ['guest_name' => 'Paid NoShow', 'paid_at' => now(), 'attended' => false]);
+
+    $s = (new MatchDirectorReport($event))->summary();
+
+    expect($s['payout_count'])->toBe(1)
+        ->and($s['payout_base_cents'])->toBe(25000)
+        ->and($s['director_payout_cents'])->toBe(25000)
+        ->and($s['credit_count'])->toBe(0);
+});
+
+it('can keep the non-member difference with the club', function () {
+    $event = reportMatch();
+    $member = transferShooter();
+
+    reportEntry($event, [
+        'guest_name' => null,
+        'guest_email' => null,
+        'member_id' => $member->id,
+        'paid_at' => now(),
+    ]);
+    reportEntry($event, ['guest_name' => 'Guest', 'paid_at' => now()]);
+
+    $s = (new MatchDirectorReport($event, 0, true))->summary();
+
+    // Member 200 + guest 250 collected; club keeps the R50 guest surcharge.
+    expect($s['payout_base_cents'])->toBe(45000)
+        ->and($s['eft_base_cents'])->toBe(45000)
+        ->and($s['club_premium_cents'])->toBe(5000)
+        ->and($s['director_payout_cents'])->toBe(40000);
+});
+
+it('gives the director the full guest fee when the club does not keep the difference', function () {
+    $event = reportMatch();
+    reportEntry($event, ['guest_name' => 'Guest', 'paid_at' => now()]);
+
+    $s = (new MatchDirectorReport($event, 0, false))->summary();
+
+    expect($s['club_premium_cents'])->toBe(0)
+        ->and($s['director_payout_cents'])->toBe(25000);
+});
+
+it('subtracts both the levy and the non-member difference from the EFT pot', function () {
+    $event = reportMatch();
+    reportEntry($event, ['guest_name' => 'Guest', 'paid_at' => now()]);
+
+    $s = (new MatchDirectorReport($event, 5000, true))->summary();
+
+    // Guest 250, club keeps R50 difference + R50 levy -> director 150.
+    expect($s['levy_total_cents'])->toBe(5000)
+        ->and($s['club_premium_cents'])->toBe(5000)
+        ->and($s['director_payout_cents'])->toBe(15000);
 });
 
 it('excludes cash from the payout the club owes but still counts it collected', function () {

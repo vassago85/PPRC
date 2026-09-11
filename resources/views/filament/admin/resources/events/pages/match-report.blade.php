@@ -81,7 +81,7 @@
             <p class="text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300">Club owes match director</p>
             <p class="mt-1 text-3xl font-bold text-primary-900 dark:text-primary-100">{{ $money($s['director_payout_cents']) }}</p>
             <p class="mt-2 text-xs text-primary-700/80 dark:text-primary-300/80">
-                {{ $money($s['eft_base_cents']) }} EFT (in the club account), less club levy {{ $money($s['levy_total_cents']) }}.
+                {{ $money($s['eft_base_cents']) }} EFT (in the club account), less club levy {{ $money($s['levy_total_cents']) }}@if (($s['club_premium_cents'] ?? 0) > 0) and non-member difference {{ $money($s['club_premium_cents']) }}@endif.
                 @if ($s['cash_base_cents'] > 0)
                     <br>Plus {{ $money($s['cash_base_cents']) }} cash you already collected on the day.
                 @endif
@@ -103,8 +103,8 @@
                     <p class="mt-0.5 text-lg font-semibold text-gray-900 dark:text-white">{{ $money($s['levy_total_cents']) }}</p>
                 </div>
                 <div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Held as credit</p>
-                    <p class="mt-0.5 text-lg font-semibold text-warning-600 dark:text-warning-400">{{ $money($s['credit_cents']) }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Non-member difference</p>
+                    <p class="mt-0.5 text-lg font-semibold text-gray-900 dark:text-white">{{ $money($s['club_premium_cents'] ?? 0) }}</p>
                 </div>
                 <div>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Outstanding</p>
@@ -113,34 +113,37 @@
             </div>
             <div class="mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                 <span>{{ $s['entries_total'] }} entries</span>
-                <span>{{ $s['attended_count'] }} attended</span>
-                <span>{{ $s['payout_count'] }} paid &amp; shot</span>
+                <span>{{ $s['payout_count'] }} paid</span>
                 <span>{{ $s['cash_count'] }} cash</span>
-                <span>{{ $s['credit_count'] }} no-show credit</span>
                 <span>{{ $s['awaiting_count'] }} unpaid</span>
                 <span>{{ $s['free_count'] }} free/waived</span>
             </div>
         </div>
     </div>
 
-    {{-- Levy control --}}
+    {{-- Levy / club-share controls --}}
     <div class="no-print mt-4 print-card rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-gray-900">
-        <div class="flex flex-wrap items-end gap-3">
+        <div class="flex flex-wrap items-end gap-4">
             <div>
                 <label for="levy" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Club levy per paid shooter (R)</label>
                 <input id="levy" type="number" min="0" step="0.01" wire:model.live.debounce.400ms="levyRands"
                     class="mt-1 w-40 rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
             </div>
+            <label for="keep-non-member-difference" class="flex cursor-pointer items-center gap-2 pb-2 text-sm text-gray-700 dark:text-gray-200">
+                <input id="keep-non-member-difference" type="checkbox" wire:model.live="keepNonMemberDifference"
+                    class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 dark:border-white/10 dark:bg-white/5" />
+                Club keeps the non-member difference
+            </label>
             @if ($canPay)
                 <button type="button" wire:click="saveLevyDefault"
                     class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-white/5 dark:text-gray-200 dark:hover:bg-white/10">
                     Save as club default
                 </button>
             @endif
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-                The club keeps this amount for each paying shooter who shot; the director gets the rest. Adjusting it recalculates the payout instantly.
-            </p>
         </div>
+        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            The club keeps the levy for each paying shooter. Tick the option and guests still pay the non-member fee, but only the member rate goes to the director — the extra stays with the club. Attendance does not change the payout. Adjusting either control recalculates instantly.
+        </p>
     </div>
 
     {{-- Entries table --}}
@@ -170,6 +173,9 @@
                         </td>
                         <td class="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-white">
                             {{ $row['fee_cents'] > 0 ? $money($row['fee_cents']) : '—' }}
+                            @if (($row['club_premium_cents'] ?? 0) > 0)
+                                <div class="text-xs font-normal text-gray-400">{{ $money($row['club_premium_cents']) }} to club</div>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             @if ($row['paid'])
@@ -234,9 +240,8 @@
     </div>
 
     <p class="no-print mt-3 text-xs text-gray-500 dark:text-gray-400">
-        Mark each entry <strong>EFT</strong> or <strong>Cash</strong> once paid (click the same one again to undo), and tick <strong>Shot</strong> for shooters who attended.
+        Mark each entry <strong>EFT</strong> or <strong>Cash</strong> once paid (click the same one again to undo). Attendance is optional and does not change the payout — every paid entry counts.
         <strong>EFT</strong> money sits in the club account and is what the club owes you; <strong>cash</strong> was handed to you on the day, so it's shown separately and not added to the payout.
-        A paid shooter who didn't shoot shows as a <span class="text-warning-600 dark:text-warning-400">no-show credit</span> — their fee is held for a future match.
     </p>
 
     </div>{{-- /#match-report --}}

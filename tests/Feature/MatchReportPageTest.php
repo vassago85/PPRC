@@ -209,3 +209,17 @@ it('saves the levy default to site settings', function () {
 
     expect((int) SiteSetting::get(MatchReport::LEVY_SETTING_KEY))->toBe(7500);
 });
+
+it('saves the keep-non-member-difference default to site settings', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->set('keepNonMemberDifference', true)
+        ->call('saveLevyDefault');
+
+    expect((bool) SiteSetting::get(MatchReport::KEEP_NON_MEMBER_DIFFERENCE_SETTING_KEY))->toBeTrue();
+});

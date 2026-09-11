@@ -23,9 +23,9 @@ use Filament\Resources\Pages\Page;
 use Illuminate\Support\Collection;
 
 /**
- * Match director financial report: confirm who paid and attended, and see how
- * much the director should be paid out (collected fees for paying shooters who
- * shot, less the club's per-head levy). Paid no-shows are surfaced as credits.
+ * Match director financial report: confirm who paid, and see how much the
+ * director should be paid out (collected fees for paying shooters, less the
+ * club's per-head levy and, optionally, the non-member surcharge).
  */
 class MatchReport extends Page
 {
@@ -42,7 +42,12 @@ class MatchReport extends Page
     /** Club levy kept per paying shooter, in Rands (bound to the input). */
     public float $levyRands = 0;
 
+    /** When true, guest fees above the member rate stay with the club. */
+    public bool $keepNonMemberDifference = false;
+
     public const LEVY_SETTING_KEY = 'matches.director_levy_per_entry_cents';
+
+    public const KEEP_NON_MEMBER_DIFFERENCE_SETTING_KEY = 'matches.director_keep_non_member_difference';
 
     public function mount(int|string $record): void
     {
@@ -51,6 +56,7 @@ class MatchReport extends Page
         $this->record = $this->resolveRecord($record);
 
         $this->levyRands = ((int) SiteSetting::get(self::LEVY_SETTING_KEY, 0)) / 100;
+        $this->keepNonMemberDifference = (bool) SiteSetting::get(self::KEEP_NON_MEMBER_DIFFERENCE_SETTING_KEY, false);
     }
 
     public static function canAccess(array $parameters = []): bool
@@ -66,7 +72,7 @@ class MatchReport extends Page
 
     protected function report(): MatchDirectorReport
     {
-        return new MatchDirectorReport($this->getRecord(), $this->levyCents());
+        return new MatchDirectorReport($this->getRecord(), $this->levyCents(), $this->keepNonMemberDifference);
     }
 
     protected function levyCents(): int
@@ -279,9 +285,19 @@ class MatchReport extends Page
             'label' => 'Match director levy per paid shooter (cents)',
         ]);
 
+        SiteSetting::put(self::KEEP_NON_MEMBER_DIFFERENCE_SETTING_KEY, $this->keepNonMemberDifference, [
+            'group' => 'matches',
+            'label' => 'Club keeps the non-member match-fee difference',
+        ]);
+
+        $levy = 'R '.number_format($this->levyCents() / 100, 2).' per paid shooter';
+        $difference = $this->keepNonMemberDifference
+            ? 'the non-member difference stays with the club'
+            : 'the director receives the full guest fee';
+
         Notification::make()->success()
-            ->title('Default levy saved')
-            ->body('New match reports will start with R '.number_format($this->levyCents() / 100, 2).' per paid shooter.')
+            ->title('Club defaults saved')
+            ->body('New match reports will start with '.$levy.'; '.$difference.'.')
             ->send();
     }
 
