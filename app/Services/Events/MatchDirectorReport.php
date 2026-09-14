@@ -140,9 +140,12 @@ class MatchDirectorReport
 
         // The club's per-head levy (and optional non-member surcharge) apply
         // to every paying shooter, regardless of how they paid. Both are
-        // recovered from the EFT pot the club is holding.
+        // recovered from the EFT pot the club is holding. Any "other costs"
+        // recorded against the match (range fees, prize money, etc.) also
+        // come out of that EFT pot before the director is paid.
         $levyTotalCents = $this->levyCents * $payoutCount;
-        $directorPayoutCents = max(0, $eftBaseCents - $levyTotalCents - $clubPremiumCents);
+        $expensesTotalCents = (int) $this->event->matchExpenses()->sum('amount_cents');
+        $directorPayoutCents = max(0, $eftBaseCents - $levyTotalCents - $clubPremiumCents - $expensesTotalCents);
 
         return [
             'entries_total' => $rows->count(),
@@ -168,6 +171,7 @@ class MatchDirectorReport
             'levy_cents' => $this->levyCents,
             'levy_total_cents' => $levyTotalCents,
             'club_premium_cents' => $clubPremiumCents,
+            'expenses_total_cents' => $expensesTotalCents,
             'director_payout_cents' => $directorPayoutCents,
         ];
     }

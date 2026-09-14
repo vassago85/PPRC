@@ -9,8 +9,7 @@
         $loggedCreditIds = $this->getLoggedCreditEntryIds();
         $expenses = $this->getExpenses();
         $expenseItems = $expenses['items'];
-        $expenseTotalCents = (int) ($expenses['total_cents'] ?? 0);
-        $clubOutlayCents = (int) $s['director_payout_cents'] + $expenseTotalCents;
+        $expenseTotalCents = (int) ($s['expenses_total_cents'] ?? $expenses['total_cents'] ?? 0);
 
         $money = fn (int $cents) => 'R ' . number_format($cents / 100, 2);
 
@@ -117,7 +116,7 @@
             <p class="text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300">Club owes match director</p>
             <p class="mt-1 text-3xl font-bold text-primary-900 dark:text-primary-100">{{ $money($s['director_payout_cents']) }}</p>
             <p class="mt-2 text-xs text-primary-700/80 dark:text-primary-300/80">
-                {{ $money($s['eft_base_cents']) }} EFT (in the club account), less club levy {{ $money($s['levy_total_cents']) }}@if (($s['club_premium_cents'] ?? 0) > 0) and non-member difference {{ $money($s['club_premium_cents']) }}@endif.
+                {{ $money($s['eft_base_cents']) }} EFT (in the club account), less club levy {{ $money($s['levy_total_cents']) }}@if (($s['club_premium_cents'] ?? 0) > 0), non-member difference {{ $money($s['club_premium_cents']) }}@endif@if ($expenseTotalCents > 0) and other costs {{ $money($expenseTotalCents) }}@endif.
                 @if ($s['cash_base_cents'] > 0)
                     <br>Plus {{ $money($s['cash_base_cents']) }} cash you already collected on the day.
                 @endif
@@ -125,7 +124,7 @@
         </div>
 
         <div class="print-card rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-gray-900 md:col-span-2">
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 {{ $expenseTotalCents > 0 ? 'lg:grid-cols-6' : 'lg:grid-cols-5' }}">
                 <div>
                     <p class="text-xs text-gray-500 dark:text-gray-400">EFT (to club)</p>
                     <p class="mt-0.5 text-lg font-semibold text-gray-900 dark:text-white">{{ $money($s['eft_base_cents']) }}</p>
@@ -142,6 +141,12 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400">Non-member difference</p>
                     <p class="mt-0.5 text-lg font-semibold text-gray-900 dark:text-white">{{ $money($s['club_premium_cents'] ?? 0) }}</p>
                 </div>
+                @if ($expenseTotalCents > 0)
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Other costs</p>
+                        <p class="mt-0.5 text-lg font-semibold text-gray-900 dark:text-white">{{ $money($expenseTotalCents) }}</p>
+                    </div>
+                @endif
                 <div>
                     <p class="text-xs text-gray-500 dark:text-gray-400">Outstanding</p>
                     <p class="mt-0.5 text-lg font-semibold text-danger-600 dark:text-danger-400">{{ $money($s['outstanding_cents']) }}</p>
@@ -188,7 +193,7 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Other costs the club must pay</p>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    Range fees, prize money, and anything else the club is settling on top of the director payout. These are shown alongside the payout, not deducted from it.
+                    Range fees, prize money, and anything else the club is settling out of the EFT pot. These come off the top before the match director is paid.
                 </p>
             </div>
             <p class="text-sm font-semibold text-gray-900 dark:text-white">
@@ -234,11 +239,6 @@
                     <tr class="border-t border-gray-200 dark:border-white/10">
                         <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" colspan="2">Total other costs</td>
                         <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $money($expenseTotalCents) }}</td>
-                        <td class="px-4 py-2 no-print"></td>
-                    </tr>
-                    <tr class="bg-primary-50/60 dark:bg-primary-500/10">
-                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300" colspan="2">Total club payout (director + costs)</td>
-                        <td class="px-4 py-2 text-right font-bold tabular-nums text-primary-900 dark:text-primary-100">{{ $money($clubOutlayCents) }}</td>
                         <td class="px-4 py-2 no-print"></td>
                     </tr>
                 </tfoot>

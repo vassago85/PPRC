@@ -171,3 +171,37 @@ it('excludes cancelled entries from the rows', function () {
     expect($rows->pluck('name'))->toContain('Active')
         ->not->toContain('Cancelled One');
 });
+
+it('deducts recorded match expenses from the director payout', function () {
+    $event = reportMatch();
+    reportEntry($event, ['guest_name' => 'Paid Guest', 'paid_at' => now(), 'attended' => true]);
+
+    // Range fee the club has to settle with the venue out of the EFT pot.
+    $event->matchExpenses()->create([
+        'description' => 'Range fees',
+        'payee_name' => 'Legends Adventure Farm',
+        'amount_cents' => 10000,
+    ]);
+
+    $s = (new MatchDirectorReport($event))->summary();
+
+    expect($s['eft_base_cents'])->toBe(25000)
+        ->and($s['expenses_total_cents'])->toBe(10000)
+        // 250 collected less 100 range fee -> director gets 150.
+        ->and($s['director_payout_cents'])->toBe(15000);
+});
+
+it('clamps the director payout at zero when expenses exceed the EFT pot', function () {
+    $event = reportMatch();
+    reportEntry($event, ['guest_name' => 'Only Payer', 'paid_at' => now(), 'attended' => true]);
+
+    $event->matchExpenses()->create([
+        'description' => 'Big cost',
+        'amount_cents' => 40000, // more than the 250 EFT collected
+    ]);
+
+    $s = (new MatchDirectorReport($event))->summary();
+
+    expect($s['director_payout_cents'])->toBe(0)
+        ->and($s['expenses_total_cents'])->toBe(40000);
+});
