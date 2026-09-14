@@ -6,6 +6,7 @@ use App\Filament\Admin\Resources\Events\Pages\MatchReport;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\MatchCredit;
+use App\Models\MatchExpense;
 use App\Models\MatchFormat;
 use App\Models\SiteSetting;
 use App\Models\User;
@@ -222,4 +223,118 @@ it('saves the keep-non-member-difference default to site settings', function () 
         ->call('saveLevyDefault');
 
     expect((bool) SiteSetting::get(MatchReport::KEEP_NON_MEMBER_DIFFERENCE_SETTING_KEY))->toBeTrue();
+});
+
+it('adds an "other cost" line item to the match', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->set('newExpenseDescription', 'Range fees')
+        ->set('newExpensePayee', 'Legends Adventure Farm')
+        ->set('newExpenseAmount', 750.00)
+        ->call('addExpense');
+
+    $expense = $event->matchExpenses()->first();
+
+    expect($expense)->not->toBeNull()
+        ->and($expense->description)->toBe('Range fees')
+        ->and($expense->payee_name)->toBe('Legends Adventure Farm')
+        ->and($expense->amount_cents)->toBe(75000)
+        ->and($expense->created_by_user_id)->toBe($admin->id);
+});
+
+it('clears the add-cost form after saving', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+
+    $component = Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->set('newExpenseDescription', 'Range fees')
+        ->set('newExpenseAmount', 500)
+        ->call('addExpense');
+
+    expect($component->get('newExpenseDescription'))->toBe('')
+        ->and($component->get('newExpensePayee'))->toBe('')
+        ->and($component->get('newExpenseAmount'))->toBeNull();
+});
+
+it('refuses to add a cost without a description or amount', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+
+    // Missing description.
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->set('newExpenseAmount', 100)
+        ->call('addExpense');
+
+    expect($event->matchExpenses()->count())->toBe(0);
+
+    // Missing amount.
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->set('newExpenseDescription', 'Range fees')
+        ->call('addExpense');
+
+    expect($event->matchExpenses()->count())->toBe(0);
+});
+
+it('deletes an expense from the report', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+    $expense = $event->matchExpenses()->create([
+        'description' => 'Range fees',
+        'payee_name' => 'Legends Adventure Farm',
+        'amount_cents' => 75000,
+    ]);
+
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->call('deleteExpense', $expense->id);
+
+    expect($event->matchExpenses()->count())->toBe(0);
+});
+
+it('will not touch expenses on another match when deleting', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+    $otherEvent = matchReportEvent();
+
+    $stranger = $otherEvent->matchExpenses()->create([
+        'description' => 'Someone else\'s cost',
+        'amount_cents' => 100,
+    ]);
+
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->call('deleteExpense', $stranger->id);
+
+    expect(MatchExpense::query()->whereKey($stranger->id)->exists())->toBeTrue();
+});
+
+it('exposes the expenses total for the view', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+    $event->matchExpenses()->create(['description' => 'Range fees', 'amount_cents' => 75000]);
+    $event->matchExpenses()->create(['description' => 'Prize money', 'amount_cents' => 25000]);
+
+    $component = Livewire::test(MatchReport::class, ['record' => $event->slug]);
+    $expenses = $component->instance()->getExpenses();
+
+    expect($expenses['total_cents'])->toBe(100000)
+        ->and($expenses['items'])->toHaveCount(2);
 });

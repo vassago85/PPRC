@@ -9,6 +9,7 @@ use App\Filament\Admin\Resources\Events\EventResource;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\MatchCredit;
+use App\Models\MatchExpense;
 use App\Models\Member;
 use App\Models\SiteSetting;
 use App\Services\Events\MatchDirectorReport;
@@ -44,6 +45,13 @@ class MatchReport extends Page
 
     /** When true, guest fees above the member rate stay with the club. */
     public bool $keepNonMemberDifference = false;
+
+    /** New-expense form state (bound to the "Add cost" row on the report). */
+    public string $newExpenseDescription = '';
+
+    public string $newExpensePayee = '';
+
+    public ?float $newExpenseAmount = null;
 
     public const LEVY_SETTING_KEY = 'matches.director_levy_per_entry_cents';
 
@@ -272,6 +280,83 @@ class MatchReport extends Page
             ->pluck('source_registration_id')
             ->map(fn ($id) => (int) $id)
             ->all();
+    }
+
+    /**
+     * Every extra cost recorded against this match, oldest first, together with
+     * a total so the view doesn't have to sum them itself.
+     *
+     * @return array{items: \Illuminate\Support\Collection<int, MatchExpense>, total_cents: int}
+     */
+    public function getExpenses(): array
+    {
+        $items = $this->getRecord()->matchExpenses()->get();
+
+        return [
+            'items' => $items,
+            'total_cents' => (int) $items->sum('amount_cents'),
+        ];
+    }
+
+    /**
+     * Add another line item to the "other costs" list for this match. Only
+     * managers of match payments can touch the cost list.
+     */
+    public function addExpense(): void
+    {
+        if (! $this->canManagePayments()) {
+            return;
+        }
+
+        $description = trim($this->newExpenseDescription);
+        $payee = trim($this->newExpensePayee);
+        $amountCents = (int) round(max(0, (float) ($this->newExpenseAmount ?? 0)) * 100);
+
+        if ($description === '') {
+            Notification::make()->warning()
+                ->title('Add a description')
+                ->body('Say what this cost is for so the report reads sensibly.')
+                ->send();
+
+            return;
+        }
+
+        if ($amountCents <= 0) {
+            Notification::make()->warning()
+                ->title('Enter an amount')
+                ->body('A cost needs a positive rand value.')
+                ->send();
+
+            return;
+        }
+
+        $this->getRecord()->matchExpenses()->create([
+            'description' => $description,
+            'payee_name' => $payee !== '' ? $payee : null,
+            'amount_cents' => $amountCents,
+            'created_by_user_id' => auth()->id(),
+        ]);
+
+        $this->newExpenseDescription = '';
+        $this->newExpensePayee = '';
+        $this->newExpenseAmount = null;
+
+        Notification::make()->success()
+            ->title('Cost added')
+            ->send();
+    }
+
+    /**
+     * Remove a cost line. Guarded to this match so a bad id can't wipe
+     * something on a neighbouring event.
+     */
+    public function deleteExpense(int $expenseId): void
+    {
+        if (! $this->canManagePayments()) {
+            return;
+        }
+
+        $this->getRecord()->matchExpenses()->whereKey($expenseId)->delete();
     }
 
     public function saveLevyDefault(): void

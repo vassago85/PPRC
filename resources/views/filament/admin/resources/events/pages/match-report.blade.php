@@ -7,6 +7,10 @@
         $canPay = $this->canManagePaymentsPublic();
         $canAttend = $this->canManageAttendancePublic();
         $loggedCreditIds = $this->getLoggedCreditEntryIds();
+        $expenses = $this->getExpenses();
+        $expenseItems = $expenses['items'];
+        $expenseTotalCents = (int) ($expenses['total_cents'] ?? 0);
+        $clubOutlayCents = (int) $s['director_payout_cents'] + $expenseTotalCents;
 
         $money = fn (int $cents) => 'R ' . number_format($cents / 100, 2);
 
@@ -20,9 +24,19 @@
 
     <style>
         @media print {
-            /* Hide everything, then reveal only the report subtree. This kills
-               the app chrome and any translucent theme/overlay layers that
-               were showing through as a grey wash over the printout. */
+            /* Kill the grey theme wash by forcing every ancestor (Filament
+               chrome, the panel background, dark mode) to plain white before
+               we position the report on top. `print-color-adjust: exact`
+               keeps the colours we DO want (badges, primary card) crisp. */
+            @page { size: A4; margin: 10mm; }
+
+            html, body {
+                background: #ffffff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Hide everything, then reveal only the report subtree. */
             body * { visibility: hidden !important; }
             #match-report, #match-report * { visibility: visible !important; }
 
@@ -34,6 +48,8 @@
                 margin: 0 !important;
                 padding: 0 !important;
                 background: #ffffff !important;
+                font-size: 10px !important;
+                line-height: 1.25 !important;
             }
 
             /* Force a clean light printout even when the admin is in dark mode. */
@@ -42,10 +58,30 @@
                 background-color: transparent !important;
                 box-shadow: none !important;
             }
-            #match-report .print-card { border: 1px solid #e5e7eb !important; }
+
+            /* Tight card / spacing rules to fit more on a page. */
+            #match-report .print-card {
+                border: 1px solid #d1d5db !important;
+                border-radius: 6px !important;
+                padding: 6px 8px !important;
+                margin-top: 6px !important;
+            }
+            #match-report h2 { font-size: 13px !important; margin: 0 !important; }
+            #match-report .text-3xl { font-size: 16px !important; }
+            #match-report .text-lg { font-size: 11px !important; }
+            #match-report .text-sm { font-size: 10px !important; }
+            #match-report .text-xs { font-size: 9px !important; }
+            #match-report table { font-size: 9.5px !important; }
+            #match-report table th,
+            #match-report table td { padding: 3px 6px !important; }
+
+            /* Avoid awkward mid-row page breaks. */
+            #match-report table tr { page-break-inside: avoid; }
 
             .no-print { display: none !important; }
+            .print-only { display: block !important; }
         }
+        .print-only { display: none; }
     </style>
 
     <div id="match-report">
@@ -144,6 +180,99 @@
         <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
             The club keeps the levy for each paying shooter. Tick the option and guests still pay the non-member fee, but only the member rate goes to the director — the extra stays with the club. Attendance does not change the payout. Adjusting either control recalculates instantly.
         </p>
+    </div>
+
+    {{-- Other costs the club owes (range fees, etc.) --}}
+    <div class="mt-4 print-card overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-white/10">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Other costs the club must pay</p>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    Range fees, prize money, and anything else the club is settling on top of the director payout. These are shown alongside the payout, not deducted from it.
+                </p>
+            </div>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                Total: <span class="tabular-nums">{{ $money($expenseTotalCents) }}</span>
+            </p>
+        </div>
+
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
+                    <th class="px-4 py-2">Description</th>
+                    <th class="px-4 py-2">Payee</th>
+                    <th class="px-4 py-2 text-right">Amount</th>
+                    <th class="px-4 py-2 text-right no-print"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                @forelse ($expenseItems as $expense)
+                    <tr>
+                        <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $expense->description }}</td>
+                        <td class="px-4 py-2 text-gray-600 dark:text-gray-300">{{ $expense->payee_name ?: '—' }}</td>
+                        <td class="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-white">{{ $money((int) $expense->amount_cents) }}</td>
+                        <td class="px-4 py-2 text-right no-print">
+                            @if ($canPay)
+                                <button type="button" wire:click="deleteExpense({{ $expense->id }})"
+                                    wire:confirm="Remove this cost?"
+                                    class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-500/10">
+                                    Remove
+                                </button>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                            No other costs recorded yet.
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+            @if ($expenseTotalCents > 0)
+                <tfoot>
+                    <tr class="border-t border-gray-200 dark:border-white/10">
+                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" colspan="2">Total other costs</td>
+                        <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $money($expenseTotalCents) }}</td>
+                        <td class="px-4 py-2 no-print"></td>
+                    </tr>
+                    <tr class="bg-primary-50/60 dark:bg-primary-500/10">
+                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300" colspan="2">Total club payout (director + costs)</td>
+                        <td class="px-4 py-2 text-right font-bold tabular-nums text-primary-900 dark:text-primary-100">{{ $money($clubOutlayCents) }}</td>
+                        <td class="px-4 py-2 no-print"></td>
+                    </tr>
+                </tfoot>
+            @endif
+        </table>
+
+        @if ($canPay)
+            <div class="no-print border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-end">
+                    <div>
+                        <label for="expense-description" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Description</label>
+                        <input id="expense-description" type="text" wire:model.defer="newExpenseDescription" placeholder="Range fees"
+                            class="mt-1 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+                    </div>
+                    <div>
+                        <label for="expense-payee" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Payee (who it's due to)</label>
+                        <input id="expense-payee" type="text" wire:model.defer="newExpensePayee" placeholder="Legends Adventure Farm"
+                            class="mt-1 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+                    </div>
+                    <div>
+                        <label for="expense-amount" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Amount (R)</label>
+                        <input id="expense-amount" type="number" min="0" step="0.01" wire:model.defer="newExpenseAmount" placeholder="0.00"
+                            class="mt-1 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+                    </div>
+                    <div>
+                        <button type="button" wire:click="addExpense"
+                            class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-500 sm:w-auto">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                            Add cost
+                        </button>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 
     {{-- Entries table --}}
