@@ -57,7 +57,10 @@ class PaymentReferenceResolver
         }
 
         $prefix = PaymentReferencePrefix::get();
-        $tokens = $narration->referenceTokens($prefix);
+        $tokens = array_values(array_unique([
+            ...$narration->referenceTokens($prefix),
+            ...$narration->bareMembershipTokens(),
+        ]));
 
         /** @var array<string, PaymentMatch> $matches */
         $matches = [];

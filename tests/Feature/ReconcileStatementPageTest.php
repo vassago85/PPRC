@@ -3,6 +3,7 @@
 use App\Enums\MatchPaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Pages\ReconcileStatement;
+use App\Filament\Admin\Pages\Reconciliation;
 use App\Models\EmailLog;
 use App\Models\User;
 use App\Services\Payments\StatementLine;
@@ -185,6 +186,37 @@ it('confirms a membership payment straight off the statement', function () {
     uploadStatement($csv)->call('applyAllReady');
 
     expect($payment->refresh()->status)->toBe(PaymentStatus::Confirmed);
+});
+
+it('confirms a membership payment quoted without the club prefix', function () {
+    $member = refMember('Werner', 'Palm');
+    $payment = refMembershipPayment($member, 'PPRC-20261004-0002', PaymentStatus::Submitted, 40000);
+
+    $csv = "Date, Amount, Balance, Description\n2026/10/05, 400.00, 400.00, CAPITEC 20261004-0002";
+
+    $page = uploadStatement($csv);
+
+    expect($page->get('reviews')[0]['status'])->toBe(Recon::READY);
+
+    $page->call('applyAllReady');
+
+    expect($payment->refresh()->status)->toBe(PaymentStatus::Confirmed);
+});
+
+it('labels every line by its real status on the reconciliation desk and lists the candidates', function () {
+    seedStatementFixtures();
+
+    Livewire::test(Reconciliation::class)
+        ->set('tab', 'statement')
+        ->set('file', UploadedFile::fake()->createWithContent('statement.csv', statementCsv()))
+        ->assertSee('Needs a look')
+        ->assertSee('Already paid')
+        ->assertSee('No match')
+        // The reused reference's real target is offered to pick, not hidden.
+        ->assertSee('Marius Kruger')
+        ->assertSee('This one')
+        // And the already-banked entry is named, so the admin can recognise it.
+        ->assertSee('Kobus Venter');
 });
 
 it('says plainly when the file is not a statement', function () {

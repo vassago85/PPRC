@@ -181,40 +181,65 @@
             </x-ui.panel>
 
             @if ($parsed)
+                @php
+                    $statusMeta = [
+                        \App\Services\Payments\StatementReconciliation::READY => ['label' => 'Ready', 'variant' => 'ok'],
+                        \App\Services\Payments\StatementReconciliation::REVIEW => ['label' => 'Needs a look', 'variant' => 'warn'],
+                        \App\Services\Payments\StatementReconciliation::SETTLED => ['label' => 'Already paid', 'variant' => 'muted'],
+                        \App\Services\Payments\StatementReconciliation::UNMATCHED => ['label' => 'No match', 'variant' => 'crit'],
+                    ];
+                    $counts = $this->filterCounts();
+                    $readyCount = $counts[\App\Services\Payments\StatementReconciliation::READY];
+                    $visible = $this->visibleReviews();
+                @endphp
+
                 <x-ui.panel>
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="text-sm">
-                            <strong>{{ $summary['lines'] ?? 0 }}</strong> money-in lines ·
-                            <strong>{{ $summary['ready'] ?? 0 }}</strong> ready ·
-                            <strong>{{ $summary['review'] ?? 0 }}</strong> to review
-                            @if ($this->ignoredCount() > 0)
-                                · <span class="text-[color:var(--ui-ink-3)]">{{ $this->ignoredCount() }} ignored</span>
+                            <strong>{{ $summary['lines'] ?? 0 }}</strong> money-in lines totalling
+                            <strong>{{ $money($summary['total_cents'] ?? 0) }}</strong>
+                            @if (($skipped['debits'] ?? 0) > 0)
+                                <span class="text-[color:var(--ui-ink-3)]">
+                                    · {{ $skipped['debits'] }} money-out {{ \Illuminate\Support\Str::plural('line', $skipped['debits']) }} skipped
+                                </span>
                             @endif
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            @foreach ([
-                                'all' => 'All',
-                                \App\Services\Payments\StatementReconciliation::READY => 'Ready',
-                                \App\Services\Payments\StatementReconciliation::REVIEW => 'To review',
-                                'ignored' => 'Ignored',
-                            ] as $key => $label)
+                            @if ($readyCount > 0)
                                 <button type="button"
-                                    wire:click="setFilter('{{ $key }}')"
-                                    @class(['ui-btn ui-btn--sm', 'ui-btn--primary' => $filter === $key])>
-                                    {{ $label }}
+                                    wire:click="applyAllReady"
+                                    wire:confirm="Settle {{ $readyCount }} {{ \Illuminate\Support\Str::plural('payment', $readyCount) }}? Only lines with one certain match for the exact amount are included."
+                                    wire:loading.attr="disabled"
+                                    class="ui-btn ui-btn--sm ui-btn--primary">
+                                    Settle all {{ $readyCount }} ready
                                 </button>
-                            @endforeach
-                            @if (($summary['ready'] ?? 0) > 0)
-                                <button type="button" wire:click="applyAllReady" class="ui-btn ui-btn--sm ui-btn--primary">
-                                    Settle all ready
+                            @endif
+                            @if (! in_array($filter, ['all', 'ignored'], true) && $visible !== [])
+                                <button type="button"
+                                    wire:click="ignoreAllVisible"
+                                    wire:confirm="Set aside all {{ count($visible) }} {{ \Illuminate\Support\Str::plural('line', count($visible)) }} shown? You can bring them back from Ignored."
+                                    class="ui-btn ui-btn--sm">
+                                    Ignore all {{ count($visible) }} shown
                                 </button>
                             @endif
                             <button type="button" wire:click="clearStatement" class="ui-btn ui-btn--sm ui-btn--ghost">Clear</button>
                         </div>
                     </div>
-                </x-ui.panel>
 
-                @php $visible = $this->visibleReviews(); @endphp
+                    <x-ui.segments
+                        class="mt-3"
+                        name="filter"
+                        :active="$filter"
+                        :segments="[
+                            ['key' => 'all', 'label' => 'All', 'count' => $counts['all']],
+                            ['key' => \App\Services\Payments\StatementReconciliation::READY, 'label' => 'Ready', 'count' => $readyCount],
+                            ['key' => \App\Services\Payments\StatementReconciliation::REVIEW, 'label' => 'Needs a look', 'count' => $counts[\App\Services\Payments\StatementReconciliation::REVIEW]],
+                            ['key' => \App\Services\Payments\StatementReconciliation::SETTLED, 'label' => 'Already paid', 'count' => $counts[\App\Services\Payments\StatementReconciliation::SETTLED]],
+                            ['key' => \App\Services\Payments\StatementReconciliation::UNMATCHED, 'label' => 'No match', 'count' => $counts[\App\Services\Payments\StatementReconciliation::UNMATCHED]],
+                            ['key' => 'ignored', 'label' => 'Ignored', 'count' => $counts['ignored']],
+                        ]"
+                    />
+                </x-ui.panel>
 
                 @if (empty($visible))
                     <x-ui.panel>
@@ -222,41 +247,118 @@
                     </x-ui.panel>
                 @else
                     <x-ui.panel flush>
-                        <x-ui.table :columns="[
-                            ['label' => 'Row', 'align' => 'right'],
-                            ['label' => 'Description'],
-                            ['label' => 'Amount', 'align' => 'right'],
-                            ['label' => 'Status'],
-                            ['label' => 'Action', 'align' => 'right'],
-                        ]">
-                            @foreach ($visible as $review)
-                                <tr>
-                                    <td class="ui-cell--right ui-cell--mono">{{ $review['row'] }}</td>
-                                    <td>
-                                        <div class="ui-cell--mono text-xs">{{ $review['description'] }}</div>
-                                        @if (! empty($review['best_candidate_who']))
-                                            <div class="text-xs text-[color:var(--ui-ink-3)]">{{ $review['best_candidate_who'] }}</div>
-                                        @endif
-                                    </td>
-                                    <td><x-ui.money :cents="$review['amount_cents']" /></td>
-                                    <td>
-                                        <x-ui.pill variant="{{ $review['status'] === \App\Services\Payments\StatementReconciliation::READY ? 'ok' : 'warn' }}">
-                                            {{ $review['status'] === \App\Services\Payments\StatementReconciliation::READY ? 'Ready' : 'Review' }}
-                                        </x-ui.pill>
-                                    </td>
-                                    <td class="ui-cell--right">
-                                        @if ($this->isIgnored((int) $review['row']))
-                                            <button type="button" wire:click="restore({{ $review['row'] }})" class="ui-btn ui-btn--sm">Restore</button>
-                                        @elseif ($review['status'] === \App\Services\Payments\StatementReconciliation::READY && $review['apply'])
-                                            <button type="button" wire:click="apply({{ $review['row'] }}, '{{ $review['apply'] }}')" class="ui-btn ui-btn--sm ui-btn--primary">Settle</button>
-                                            <button type="button" wire:click="ignore({{ $review['row'] }})" class="ui-btn ui-btn--sm ui-btn--ghost">Ignore</button>
-                                        @else
-                                            <button type="button" wire:click="ignore({{ $review['row'] }})" class="ui-btn ui-btn--sm ui-btn--ghost">Ignore</button>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </x-ui.table>
+                        <div x-data="{ open: {} }">
+                            <x-ui.table :columns="[
+                                ['label' => 'Row', 'align' => 'right', 'width' => '4rem'],
+                                ['label' => 'Date', 'width' => '7rem'],
+                                ['label' => 'Description'],
+                                ['label' => 'Amount', 'align' => 'right'],
+                                ['label' => 'Status'],
+                            ]">
+                                @foreach ($visible as $review)
+                                    @php
+                                        $row = (int) $review['row'];
+                                        $meta = $statusMeta[$review['status']] ?? $statusMeta[\App\Services\Payments\StatementReconciliation::REVIEW];
+                                        $candidates = $review['candidates'];
+                                        $lead = collect($candidates)->first(fn (array $candidate) => ! $candidate['settled']) ?? ($candidates[0] ?? null);
+                                        $isIgnored = $this->isIgnored($row);
+                                        $startOpen = $review['status'] === \App\Services\Payments\StatementReconciliation::REVIEW && ! $isIgnored ? 'true' : 'false';
+                                        $readyKey = $review['status'] === \App\Services\Payments\StatementReconciliation::READY ? $review['apply'] : null;
+                                    @endphp
+
+                                    <tr wire:key="line-{{ $row }}">
+                                        <td class="ui-cell--right ui-cell--mono">{{ $row }}</td>
+                                        <td class="ui-cell--mono text-xs">
+                                            {{ $review['date'] ? \Illuminate\Support\Carbon::parse($review['date'])->format('d M Y') : '—' }}
+                                        </td>
+                                        <td>
+                                            <div class="ui-cell--mono text-xs">{{ $review['description'] }}</div>
+                                            @if ($lead)
+                                                <span class="ui-cell__sub">{{ $lead['who'] }} — {{ $lead['what'] }}</span>
+                                            @elseif (($review['payer'] ?? '') !== '')
+                                                <span class="ui-cell__sub">Looks like {{ \Illuminate\Support\Str::title(strtolower($review['payer'])) }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="ui-cell--right"><x-ui.money :cents="$review['amount_cents']" /></td>
+                                        <td><x-ui.pill :variant="$meta['variant']">{{ $meta['label'] }}</x-ui.pill></td>
+                                        <td class="ui-cell--actions">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                @if ($candidates !== [])
+                                                    <button type="button"
+                                                        class="ui-btn ui-btn--sm ui-btn--ghost"
+                                                        x-on:click="open[{{ $row }}] = ! (open[{{ $row }}] ?? {{ $startOpen }})"
+                                                        x-text="(open[{{ $row }}] ?? {{ $startOpen }}) ? 'Hide' : '{{ count($candidates) }} {{ \Illuminate\Support\Str::plural('match', count($candidates)) }}'">
+                                                    </button>
+                                                @endif
+                                                @if ($isIgnored)
+                                                    <button type="button" wire:click="restore({{ $row }})" class="ui-btn ui-btn--sm">Restore</button>
+                                                @else
+                                                    @if ($readyKey && $this->canSettleKind(explode(':', $readyKey)[0]))
+                                                        <button type="button"
+                                                            wire:click="apply({{ $row }}, '{{ $readyKey }}')"
+                                                            wire:confirm="Record {{ $money($review['amount_cents']) }} against {{ $lead['who'] ?? 'this item' }}?"
+                                                            wire:loading.attr="disabled"
+                                                            class="ui-btn ui-btn--sm ui-btn--primary">Settle</button>
+                                                    @endif
+                                                    <button type="button" wire:click="ignore({{ $row }})" class="ui-btn ui-btn--sm ui-btn--ghost">Ignore</button>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    @if ($candidates !== [])
+                                        <tr wire:key="line-{{ $row }}-candidates" x-show="open[{{ $row }}] ?? {{ $startOpen }}" @if ($startOpen === 'false') x-cloak @endif>
+                                            <td></td>
+                                            <td colspan="6">
+                                                <div class="space-y-1.5">
+                                                    @foreach ($candidates as $candidate)
+                                                        @php
+                                                            $badge = $confidence[$candidate['confidence']] ?? $confidence[\App\Services\Payments\PaymentMatch::POSSIBLE];
+                                                            $amountAgrees = ! $candidate['settled'] && $candidate['amount_cents'] === $review['amount_cents'];
+                                                        @endphp
+
+                                                        <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[color:var(--ui-line)] bg-[color:var(--ui-surface)] px-3 py-2">
+                                                            <div class="min-w-0 flex-1">
+                                                                <div class="flex flex-wrap items-center gap-2">
+                                                                    <x-ui.pill :variant="$badge['variant']">{{ $badge['label'] }}</x-ui.pill>
+                                                                    <span class="text-sm font-semibold text-[color:var(--ui-ink)]">{{ $candidate['who'] }}</span>
+                                                                    <span class="text-xs text-[color:var(--ui-ink-3)]">{{ $kindLabel[$candidate['kind']] ?? $candidate['kind'] }}</span>
+                                                                    @if ($amountAgrees)
+                                                                        <x-ui.pill variant="ok" plain>Amount agrees</x-ui.pill>
+                                                                    @elseif (! $candidate['settled'])
+                                                                        <x-ui.pill variant="warn" plain>Owes {{ $money($candidate['amount_cents']) }}</x-ui.pill>
+                                                                    @endif
+                                                                </div>
+                                                                <p class="mt-0.5 text-xs text-[color:var(--ui-ink-2)]">
+                                                                    {{ $candidate['what'] }}
+                                                                    @if ($candidate['reference'])
+                                                                        · <span class="ui-cell--mono">{{ $candidate['reference'] }}</span>
+                                                                    @endif
+                                                                </p>
+                                                                <p class="mt-0.5 text-xs text-[color:var(--ui-ink-3)]">{{ $candidate['reason'] }}</p>
+                                                            </div>
+                                                            <div class="flex shrink-0 items-center gap-2">
+                                                                @if ($candidate['settled'])
+                                                                    <span class="text-xs text-[color:var(--ui-ink-3)]">{{ $candidate['settled_note'] ?? 'Nothing outstanding' }}</span>
+                                                                @elseif (! $isIgnored && $this->canSettleKind($candidate['kind']))
+                                                                    <button type="button"
+                                                                        wire:click="apply({{ $row }}, '{{ $candidate['key'] }}')"
+                                                                        wire:confirm="Record {{ $money($review['amount_cents']) }} against {{ $candidate['who'] }} — {{ $candidate['what'] }}?"
+                                                                        wire:loading.attr="disabled"
+                                                                        @class(['ui-btn ui-btn--sm', 'ui-btn--primary' => $readyKey === $candidate['key']])>
+                                                                        This one
+                                                                    </button>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endforeach
+                            </x-ui.table>
+                        </div>
                     </x-ui.panel>
                 @endif
             @endif

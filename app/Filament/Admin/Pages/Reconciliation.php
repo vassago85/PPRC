@@ -406,6 +406,37 @@ class Reconciliation extends Page
         ));
     }
 
+    /**
+     * Line counts per filter. Ignored lines only count towards "ignored", so
+     * the numbers on the filter strip match what each filter actually shows.
+     *
+     * @return array<string, int>
+     */
+    public function filterCounts(): array
+    {
+        $counts = [
+            'all' => 0,
+            StatementReconciliation::READY => 0,
+            StatementReconciliation::REVIEW => 0,
+            StatementReconciliation::SETTLED => 0,
+            StatementReconciliation::UNMATCHED => 0,
+            'ignored' => 0,
+        ];
+
+        foreach ($this->reviews as $review) {
+            if ($this->isIgnored((int) $review['row'])) {
+                $counts['ignored']++;
+
+                continue;
+            }
+
+            $counts['all']++;
+            $counts[(string) $review['status']]++;
+        }
+
+        return $counts;
+    }
+
     public function canSettleKind(string $kind): bool
     {
         return app(PaymentSettler::class)->canSettle($kind, auth()->user());

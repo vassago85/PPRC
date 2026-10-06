@@ -95,6 +95,34 @@ class BankNarration
     }
 
     /**
+     * Membership references quoted without the club prefix, canonicalised to
+     * "YYYYMMDD-NNNN" — "CAPITEC 20261004-0002" is a member copying only the
+     * part of the reference that looked like a number. The date block plus a
+     * sequence is specific enough to look up on its own; the database decides
+     * whether it is real.
+     *
+     * @return array<int, string>
+     */
+    public function bareMembershipTokens(): array
+    {
+        preg_match_all(
+            '/(?<![A-Z0-9])(20\d{6})(?:[- ]?(\d{4})|-(\d{1,3}))(?![0-9])/',
+            $this->normalised(),
+            $found,
+            PREG_SET_ORDER,
+        );
+
+        $tokens = [];
+
+        foreach ($found as $match) {
+            $sequence = ($match[2] ?? '') !== '' ? $match[2] : ($match[3] ?? '');
+            $tokens[] = $match[1].'-'.str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        }
+
+        return array_values(array_unique($tokens));
+    }
+
+    /**
      * Words that could be part of a person's name, once the bank's boilerplate
      * and anything reference-shaped is out of the way.
      *

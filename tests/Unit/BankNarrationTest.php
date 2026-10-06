@@ -63,6 +63,17 @@ it('stops reading the reference at the payer name that follows it', function () 
     expect(BankNarration::make('PPRC-M13-95 J NEL')->referenceTokens('PPRC'))->toBe(['M13-95']);
 });
 
+it('finds a membership reference the member quoted without the prefix', function (string $line, array $expected) {
+    expect(BankNarration::make($line)->bareMembershipTokens())->toBe($expected);
+})->with([
+    'dashed' => ['CAPITEC 20261004-0002', ['20261004-0002']],
+    'flattened' => ['FNB APP PAYMENT FROM 202610040002', ['20261004-0002']],
+    'spaced' => ['ABSA BANK 20261004 0002', ['20261004-0002']],
+    'unpadded sequence' => ['FNB 20260105-6', ['20260105-0006']],
+    'just a name' => ['M BRUMMER', []],
+    'match entry reference' => ['FNB APP PAYMENT FROM PPRC-M199', []],
+]);
+
 it('finds no reference when the bank left only a name', function () {
     expect(BankNarration::make('M BRUMMER')->referenceTokens('PPRC'))->toBe([]);
 });
