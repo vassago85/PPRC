@@ -20,7 +20,7 @@
         <div class="flex items-start justify-between gap-4">
             <div>
                 <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500">Invoices</h2>
-                <p class="mt-1 text-sm text-slate-400">Print or save a PDF for any membership, match, or shop charge — paid or still outstanding.</p>
+                <p class="mt-1 text-sm text-slate-400">Download an A4 PDF invoice for any membership, match, or shop charge — paid or still outstanding.</p>
             </div>
             <div class="shrink-0">
                 <svg class="h-8 w-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
@@ -34,10 +34,20 @@
                             <p class="text-sm font-medium text-white">{{ $row['label'] }}</p>
                             <p class="text-xs text-slate-500">{{ $row['type']->label() }} · {{ $row['number'] }} · {{ $row['date'] }} · {{ $row['amount'] }}</p>
                         </div>
-                        <a href="{{ $row['url'] }}" target="_blank" rel="noopener"
-                           class="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/15">
-                            View invoice
-                        </a>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <a href="{{ $row['url'] }}" target="_blank" rel="noopener"
+                               class="inline-flex items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/15"
+                               title="Open the invoice PDF in a new tab">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
+                                View
+                            </a>
+                            <a href="{{ $row['url'] }}?download=1"
+                               class="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-slate-200"
+                               title="Download the invoice PDF">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                                PDF
+                            </a>
+                        </div>
                     </li>
                 @endforeach
             </ul>

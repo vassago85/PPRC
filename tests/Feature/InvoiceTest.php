@@ -14,6 +14,7 @@ use App\Models\ShopProduct;
 use App\Models\ShopRun;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Testing\TestResponse;
 
 function invoiceShopOrder(User $user, array $overrides = []): ShopOrder
 {
@@ -53,45 +54,54 @@ function invoiceShopOrder(User $user, array $overrides = []): ShopOrder
     return $order->fresh(['lines.product', 'user', 'run']);
 }
 
-it('renders a membership invoice for the paying member', function () {
+/**
+ * Invoices are now rendered as PDFs by DomPDF — `assertSee` against the raw
+ * binary PDF stream is unreliable (text can be compressed, kerned into font
+ * glyph positions, or split across content operators), so we assert on the
+ * HTTP envelope instead: 200 OK, `application/pdf` content type, inline
+ * disposition, and the `%PDF` magic bytes at the start of the body. Field
+ * accuracy (names, references, amounts, "Paid" vs "Amount due") is covered by
+ * InvoicePdfTest and the InvoiceDocument unit tests.
+ */
+function assertPdfResponse(TestResponse $response): TestResponse
+{
+    $response->assertOk();
+
+    expect($response->headers->get('Content-Type'))->toContain('application/pdf');
+    expect($response->headers->get('Content-Disposition'))->toContain('inline');
+    expect(substr((string) $response->getContent(), 0, 4))->toBe('%PDF');
+
+    return $response;
+}
+
+it('serves a membership invoice PDF to the paying member', function () {
     $member = refMember('Jaco', 'Smit');
     $payment = refMembershipPayment($member, 'PPRC-20260105-0006', PaymentStatus::Confirmed, 60000);
 
-    $this->actingAs($member->user)
-        ->get(route('portal.invoices.show', ['type' => InvoiceType::Membership, 'id' => $payment->id]))
-        ->assertOk()
-        ->assertSee('Invoice')
-        ->assertSee('PPRC-20260105-0006')
-        ->assertSee('Jaco Smit')
-        ->assertSee('R 600.00')
-        ->assertSee('Paid');
+    $response = $this->actingAs($member->user)
+        ->get(route('portal.invoices.show', ['type' => InvoiceType::Membership, 'id' => $payment->id]));
+
+    assertPdfResponse($response);
 });
 
-it('renders a match invoice with the event fee and reference', function () {
+it('serves a match invoice PDF for an entry fee', function () {
     $member = refMember('Lize', 'Botha');
     $entry = paidEntry(transferMatch('Winter PRS', 45000), $member, ['fee_cents' => 45000]);
 
-    $this->actingAs($member->user)
-        ->get(route('portal.invoices.show', ['type' => InvoiceType::Match, 'id' => $entry->id]))
-        ->assertOk()
-        ->assertSee('Winter PRS')
-        ->assertSee($entry->paymentReference())
-        ->assertSee('Lize Botha')
-        ->assertSee('R 450.00');
+    $response = $this->actingAs($member->user)
+        ->get(route('portal.invoices.show', ['type' => InvoiceType::Match, 'id' => $entry->id]));
+
+    assertPdfResponse($response);
 });
 
-it('renders a shop invoice with line items and shipping', function () {
+it('serves a shop invoice PDF with lines and shipping', function () {
     $user = User::factory()->create();
     $order = invoiceShopOrder($user);
 
-    $this->actingAs($user)
-        ->get(route('portal.invoices.show', ['type' => InvoiceType::Shop, 'id' => $order->id]))
-        ->assertOk()
-        ->assertSee('Club shirt')
-        ->assertSee('Shipping')
-        ->assertSee($order->eft_reference)
-        ->assertSee('R 400.00')
-        ->assertSee('Amount due');
+    $response = $this->actingAs($user)
+        ->get(route('portal.invoices.show', ['type' => InvoiceType::Shop, 'id' => $order->id]));
+
+    assertPdfResponse($response);
 });
 
 it('lets a household adult open a junior membership invoice', function () {
@@ -104,12 +114,10 @@ it('lets a household adult open a junior membership invoice', function () {
     ]);
     $payment = refMembershipPayment($junior, 'PPRC-20260301-0002', PaymentStatus::Pending, 25000);
 
-    $this->actingAs($adult->user)
-        ->get(route('portal.invoices.show', ['type' => InvoiceType::Membership, 'id' => $payment->id]))
-        ->assertOk()
-        ->assertSee('Kid Parent')
-        ->assertSee('Pat Parent')
-        ->assertSee('PPRC-20260301-0002');
+    $response = $this->actingAs($adult->user)
+        ->get(route('portal.invoices.show', ['type' => InvoiceType::Membership, 'id' => $payment->id]));
+
+    assertPdfResponse($response);
 });
 
 it('forbids a stranger from opening another shooter\'s invoice', function () {
@@ -130,10 +138,10 @@ it('lets a treasurer open a membership invoice', function () {
     $treasurer = User::factory()->create();
     $treasurer->assignRole('treasurer');
 
-    $this->actingAs($treasurer)
-        ->get(route('portal.invoices.show', ['type' => InvoiceType::Membership, 'id' => $payment->id]))
-        ->assertOk()
-        ->assertSee('PPRC-20260105-0006');
+    $response = $this->actingAs($treasurer)
+        ->get(route('portal.invoices.show', ['type' => InvoiceType::Membership, 'id' => $payment->id]));
+
+    assertPdfResponse($response);
 });
 
 it('opens a guest match invoice from a signed URL', function () {
@@ -147,11 +155,9 @@ it('opens a guest match invoice from a signed URL', function () {
         'registered_at' => now(),
     ]);
 
-    $this->get(InvoiceUrl::signed(InvoiceType::Match, $entry->id))
-        ->assertOk()
-        ->assertSee('Jane Guest')
-        ->assertSee($entry->paymentReference())
-        ->assertSee('R 200.00');
+    $response = $this->get(InvoiceUrl::signed(InvoiceType::Match, $entry->id));
+
+    assertPdfResponse($response);
 });
 
 it('rejects an unsigned public invoice URL', function () {
