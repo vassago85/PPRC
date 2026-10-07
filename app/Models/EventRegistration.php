@@ -44,6 +44,7 @@ class EventRegistration extends Model
         'marked_paid_by_user_id',
         'payment_proof_path',
         'proof_submitted_at',
+        'whatsapp_link_sent_at',
     ];
 
     protected $casts = [
@@ -54,6 +55,7 @@ class EventRegistration extends Model
         'checked_in_at' => 'datetime',
         'paid_at' => 'datetime',
         'proof_submitted_at' => 'datetime',
+        'whatsapp_link_sent_at' => 'datetime',
         'payment_method' => MatchPaymentMethod::class,
         'status' => EventRegistrationStatus::class,
         'squad_number' => 'integer',
@@ -210,6 +212,26 @@ class EventRegistration extends Model
     public function isCashPayment(): bool
     {
         return $this->payment_method === MatchPaymentMethod::Cash;
+    }
+
+    /**
+     * The shooter has told us they'll pay in cash on the day, but hasn't
+     * handed it over yet. Modelled as "cash method, no paid_at" so the
+     * existing payment plumbing (match report, settler, confirmation emails)
+     * all continue to work unchanged — once a match director marks them paid,
+     * the method is already correct.
+     *
+     * The admin uses this to stop EFT reminder emails going out to someone
+     * who's bringing notes, and so the entries tab visibly separates
+     * "chasing" from "committed-to-pay-cash".
+     */
+    public function hasCashIntent(): bool
+    {
+        return $this->paid_at === null
+            && $this->payment_method === MatchPaymentMethod::Cash
+            && ! $this->is_saprf_entry
+            && ! $this->isWaived()
+            && $this->outstandingCents() > 0;
     }
 
     public function shooterName(): string

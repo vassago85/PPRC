@@ -36,6 +36,7 @@ class Event extends Model
         'junior_price_cents',
         'is_saprf_match',
         'saprf_url',
+        'whatsapp_group_url',
         'max_entries',
         'round_count',
         'club_round_count',

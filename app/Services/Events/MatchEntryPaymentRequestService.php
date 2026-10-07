@@ -43,6 +43,16 @@ class MatchEntryPaymentRequestService
             ]);
         }
 
+        // Shooters who've told us they're bringing cash don't want (or need)
+        // the EFT banking details email — the match director will collect on
+        // the day. Bulk sends silently skip them via sendBulk's catch; a
+        // single-entry send surfaces the reason so an admin can see why.
+        if ($registration->hasCashIntent()) {
+            throw ValidationException::withMessages([
+                'entry' => 'This entry is flagged as paying cash on the day — no EFT reminder needed.',
+            ]);
+        }
+
         $pending = Mail::to($email, $registration->shooterName());
 
         if ($queueUntil !== null) {

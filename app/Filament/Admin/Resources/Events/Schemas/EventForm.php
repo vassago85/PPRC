@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Events\Schemas;
 
 use App\Enums\EventStatus;
 use App\Models\MatchFormat;
+use App\Support\MediaDisk;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
@@ -195,6 +196,21 @@ class EventForm
                                         ->helperText('Link shown on the public match page so SAPRF members can register through their portal.'),
                                 ]),
 
+                            Section::make('Match WhatsApp group')
+                                ->description('Optional WhatsApp group invite link for match-day comms. Can be filled in now or pasted straight into the "Send WhatsApp link" action on the Entries tab closer to the match.')
+                                ->schema([
+                                    TextInput::make('whatsapp_group_url')
+                                        ->label('WhatsApp group invite link')
+                                        ->url()
+                                        ->maxLength(500)
+                                        ->placeholder('https://chat.whatsapp.com/...')
+                                        ->regex('#^https://chat\.whatsapp\.com/[A-Za-z0-9]+$#')
+                                        ->validationMessages([
+                                            'regex' => 'Must be a WhatsApp group invite link (https://chat.whatsapp.com/...).',
+                                        ])
+                                        ->helperText('Only https://chat.whatsapp.com/... invite links are accepted.'),
+                                ]),
+
                             Section::make('Registration: division & category')
                                 ->description('Defaults follow SAPRF equipment divisions (Classic, Factory, Limited, Open) and standard categories (General, Ladies, Junior, Senior, Mil/LEO, Not applicable). Leave the tag lists empty to use those defaults, or add your own tags to replace the list entirely (e.g. only “Club Open”).')
                                 ->schema([
@@ -232,14 +248,14 @@ class EventForm
                                         ->label('Banner image')
                                         ->image()
                                         ->imageEditor()
-                                        ->disk(\App\Support\MediaDisk::name())
+                                        ->disk(MediaDisk::name())
                                         ->directory('events/banners')
                                         ->maxSize(5120)
                                         ->helperText('Portrait poster works best (4:5, e.g. 1080×1350). The full image is shown — nothing is cropped.')
                                         ->columnSpanFull(),
                                     FileUpload::make('match_book_path')
                                         ->label('Match book (PDF)')
-                                        ->disk(\App\Support\MediaDisk::name())
+                                        ->disk(MediaDisk::name())
                                         ->directory('events/match-books')
                                         ->acceptedFileTypes(['application/pdf'])
                                         ->maxSize(20480)

@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\Events\RelationManagers;
 use App\Enums\EventRegistrationStatus;
 use App\Enums\InvoiceType;
 use App\Enums\MatchEntryAudience;
+use App\Enums\MatchPaymentMethod;
 use App\Filament\Admin\Actions\ApplyMatchCreditAction;
 use App\Filament\Admin\Actions\TransferMatchEntryAction;
 use App\Filament\Admin\Support\MemberSearch;
@@ -203,18 +204,23 @@ class RegistrationsRelationManager extends RelationManager
                     ->label('Payment')
                     ->state(fn (EventRegistration $r) => match (true) {
                         $r->paid_at !== null => 'Paid',
+                        $r->hasCashIntent() => 'Cash on day',
                         $r->awaitingPayment() => 'Awaiting',
                         default => 'No fee',
                     })
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'Paid' => 'success',
+                        'Cash on day' => 'info',
                         'Awaiting' => 'warning',
                         default => 'gray',
                     })
-                    ->description(fn (EventRegistration $r) => $r->paid_at !== null
-                        ? trim($r->paid_at->format('d M Y').($r->payment_method ? ' · '.$r->payment_method->label() : ''))
-                        : ($r->hasUnverifiedProof() ? 'Proof uploaded' : null)),
+                    ->description(fn (EventRegistration $r) => match (true) {
+                        $r->paid_at !== null => trim($r->paid_at->format('d M Y').($r->payment_method ? ' · '.$r->payment_method->label() : '')),
+                        $r->hasCashIntent() => 'Will pay cash on arrival',
+                        $r->hasUnverifiedProof() => 'Proof uploaded',
+                        default => null,
+                    }),
                 TextColumn::make('payment_reference')
                     ->label('Reference')
                     ->state(fn (EventRegistration $r) => (! $r->is_saprf_entry && (int) ($r->effectiveFeeCents() ?? 0) > 0)
@@ -246,6 +252,14 @@ class RegistrationsRelationManager extends RelationManager
                 IconColumn::make('is_junior')->boolean()->label('Junior')->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('attended')->boolean()->label('Attended')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('checked_in_at')->dateTime('d M H:i')->label('Checked in')->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('whatsapp_link_sent_at')
+                    ->label('WA link')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-chat-bubble-left-right')
+                    ->falseIcon('heroicon-o-minus')
+                    ->state(fn (EventRegistration $r) => $r->whatsapp_link_sent_at !== null)
+                    ->tooltip(fn (EventRegistration $r) => $r->whatsapp_link_sent_at?->format('d M H:i'))
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -334,6 +348,79 @@ class RegistrationsRelationManager extends RelationManager
                             ->body("Sent {$result['sent']}, skipped {$result['skipped']} (no email address).")
                             ->send();
                     }),
+                Action::make('send_whatsapp_link')
+                    ->label('Send WhatsApp link')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    ->color('success')
+                    ->visible(fn () => auth()->user()?->can('events.registrations.manage'))
+                    ->modalHeading('Send WhatsApp group link')
+                    ->modalDescription('Emails every entry in the chosen audience the WhatsApp group invite with a one-tap join button. We stamp each entry once it has had the link, so running this again a day or two later only tops up late signups.')
+                    ->modalSubmitActionLabel('Send link')
+                    ->fillForm(fn () => [
+                        'whatsapp_group_url' => $this->getOwnerRecord()->whatsapp_group_url,
+                        'audience' => MatchEntryAudience::Confirmed->value,
+                        'skip_already_sent' => true,
+                    ])
+                    ->schema([
+                        TextInput::make('whatsapp_group_url')
+                            ->label('WhatsApp group invite link')
+                            ->url()
+                            ->required()
+                            ->maxLength(500)
+                            ->placeholder('https://chat.whatsapp.com/...')
+                            ->regex('#^https://chat\.whatsapp\.com/[A-Za-z0-9]+$#')
+                            ->validationMessages([
+                                'regex' => 'Must be a WhatsApp group invite link (https://chat.whatsapp.com/...).',
+                            ])
+                            ->helperText('Prefilled from the match. If you paste a different one here it will also be saved on the match.'),
+                        Select::make('audience')
+                            ->label('Who to email')
+                            ->options(MatchEntryAudience::options())
+                            ->default(MatchEntryAudience::Confirmed->value)
+                            ->required(),
+                        Toggle::make('skip_already_sent')
+                            ->label('Skip shooters who already received it')
+                            ->default(true)
+                            ->inline(false)
+                            ->helperText('Leave on when topping up late entries. Turn off to re-send to everyone (e.g. the group link was rotated).'),
+                        Textarea::make('note')
+                            ->label('Optional note')
+                            ->rows(3)
+                            ->helperText('Appended under the default "Join the WhatsApp group…" line.'),
+                    ])
+                    ->action(function (array $data) {
+                        $event = $this->getOwnerRecord();
+                        $audience = MatchEntryAudience::from($data['audience']);
+                        $url = trim((string) ($data['whatsapp_group_url'] ?? ''));
+
+                        // Persist the (possibly updated) link onto the match so
+                        // the public page and future sends pick it up without
+                        // the admin having to open the match form.
+                        if ($url !== '' && $url !== (string) $event->whatsapp_group_url) {
+                            $event->update(['whatsapp_group_url' => $url]);
+                        }
+
+                        try {
+                            $result = app(MatchEntrantBroadcastService::class)->sendWhatsAppLink(
+                                $event->fresh(),
+                                $audience,
+                                (bool) ($data['skip_already_sent'] ?? true),
+                                $data['note'] ?? null,
+                            );
+                        } catch (ValidationException $e) {
+                            Notification::make()->danger()
+                                ->title('Could not send WhatsApp link')
+                                ->body(collect($e->errors())->flatten()->first() ?? $e->getMessage())
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()->success()
+                            ->title('WhatsApp link sent')
+                            ->body("Sent {$result['sent']}, already had it: {$result['already']}, skipped {$result['skipped']} (no email).")
+                            ->send();
+                    }),
             ])
             ->recordActions([
                 Action::make('view_invoice')
@@ -353,6 +440,7 @@ class RegistrationsRelationManager extends RelationManager
                         .number_format($r->outstandingCents() / 100, 2)
                         .'), banking details and a payment reference?')
                     ->visible(fn (EventRegistration $r) => $r->owesPayment()
+                        && ! $r->hasCashIntent()
                         && auth()->user()?->can('events.registrations.manage'))
                     ->action(function (EventRegistration $r) {
                         try {
@@ -376,15 +464,59 @@ class RegistrationsRelationManager extends RelationManager
                     ->visible(fn (EventRegistration $r) => filled($r->payment_proof_path)
                         && auth()->user()?->can('events.registrations.manage'))
                     ->url(fn (EventRegistration $r) => self::proofUrl($r), shouldOpenInNewTab: true),
+                Action::make('mark_cash_intent')
+                    ->label('Will pay cash')
+                    ->icon('heroicon-o-wallet')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Flag as paying cash on the day')
+                    ->modalDescription(fn (EventRegistration $r) => 'Flag '.$r->shooterName().'\'s entry as paying R '
+                        .number_format($r->outstandingCents() / 100, 2)
+                        .' in cash on arrival? They won\'t be chased for EFT. The match director will mark them paid on the day.')
+                    ->visible(fn (EventRegistration $r) => $r->paid_at === null
+                        && $r->awaitingPayment()
+                        && ! $r->hasCashIntent()
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->action(function (EventRegistration $r) {
+                        $r->update(['payment_method' => MatchPaymentMethod::Cash->value]);
+
+                        Notification::make()->success()
+                            ->title('Marked as paying cash')
+                            ->body($r->shooterName().' is flagged to pay in cash on the day. No EFT reminder will be sent.')
+                            ->send();
+                    }),
+                Action::make('clear_cash_intent')
+                    ->label('Cancel cash plan')
+                    ->icon('heroicon-o-x-mark')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Cancel cash-on-day plan')
+                    ->modalDescription(fn (EventRegistration $r) => 'Clear the cash-on-day flag for '.$r->shooterName()
+                        .'? They\'ll go back to being chased for EFT like everyone else awaiting payment.')
+                    ->visible(fn (EventRegistration $r) => $r->hasCashIntent()
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->action(function (EventRegistration $r) {
+                        $r->update(['payment_method' => null]);
+
+                        Notification::make()->success()
+                            ->title('Cash plan cleared')
+                            ->body($r->shooterName().' is back in the EFT queue.')
+                            ->send();
+                    }),
                 Action::make('mark_paid')
                     ->label('Mark paid')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Confirm payment received')
-                    ->modalDescription(fn (EventRegistration $r) => 'Mark '.$r->shooterName().'\'s entry (R '
-                        .number_format((int) ($r->effectiveFeeCents() ?? 0) / 100, 2)
-                        .') as paid? Do this once the EFT reflects in the club account.')
+                    ->modalDescription(function (EventRegistration $r) {
+                        $amount = 'R '.number_format((int) ($r->effectiveFeeCents() ?? 0) / 100, 2);
+                        $who = $r->shooterName();
+
+                        return $r->hasCashIntent()
+                            ? "Confirm {$who} has handed over {$amount} in cash?"
+                            : "Mark {$who}'s entry ({$amount}) as paid? Do this once the EFT reflects in the club account.";
+                    })
                     ->visible(fn (EventRegistration $r) => $r->paid_at === null
                         && $r->awaitingPayment()
                         && auth()->user()?->can('events.registrations.manage'))

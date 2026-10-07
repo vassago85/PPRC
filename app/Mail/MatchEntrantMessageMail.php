@@ -24,6 +24,7 @@ class MatchEntrantMessageMail extends Mailable
         public string $subjectLine,
         public string $body,
         public EventRegistration $registration,
+        public ?string $whatsappUrl = null,
     ) {}
 
     public function envelope(): Envelope
@@ -43,6 +44,7 @@ class MatchEntrantMessageMail extends Mailable
                 'matchUrl' => $this->event->slug
                     ? route('matches.show', ['event' => $this->event->slug])
                     : url('/matches'),
+                'whatsappUrl' => $this->whatsappUrl,
             ],
         );
     }
