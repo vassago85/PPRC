@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\EmailVerificationPinController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\Portal\EndorsementLetterController;
 use App\Http\Controllers\Portal\ParticipationLetterController;
+use App\Http\Controllers\Portal\PrimaryEmailController;
 use App\Http\Controllers\Site\AboutController;
 use App\Http\Controllers\Site\AnnouncementController;
 use App\Http\Controllers\Site\CertificateController;
@@ -134,6 +135,10 @@ Route::middleware(['web', 'auth', 'verified'])->prefix('portal')->name('portal.'
         ->name('documents.endorsement');
     Route::view('/account/profile', 'portal.account.profile')->name('account.profile');
     Route::view('/account/password', 'portal.account.password')->name('account.password');
+    Route::get('/account/primary-email', [PrimaryEmailController::class, 'show'])
+        ->name('account.primary-email');
+    Route::put('/account/primary-email', [PrimaryEmailController::class, 'update'])
+        ->name('account.primary-email.update');
 });
 
 Route::post('/webhooks/paystack', PaystackWebhookController::class)

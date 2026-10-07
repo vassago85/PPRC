@@ -13,7 +13,12 @@ use App\Models\EmailLog;
 use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Models\MembershipPayment;
+use App\Services\Members\MemberMerger;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Contracts\Support\Htmlable;
@@ -22,6 +27,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Member record page — /admin/members/{record}
@@ -154,7 +160,173 @@ class ViewMember extends Page
             ->color('gray')
             ->url(fn () => MemberResource::getUrl('edit', ['record' => $this->record]));
 
+        $actions[] = $this->mergeMemberAction();
+
         return $actions;
+    }
+
+    /**
+     * Admin action: absorb another Member record into this one. Used when the
+     * same person signed up twice (e.g. a stale "Choosing plan" account and
+     * their later Life Member record). Reparents memberships, matches, badges,
+     * payments and sub-members, soft-deletes the loser, and — if the loser
+     * had a login — adds its email as an alias on the surviving user so they
+     * can still sign in with either address.
+     */
+    protected function mergeMemberAction(): Action
+    {
+        return Action::make('merge_member')
+            ->label('Merge member')
+            ->icon('heroicon-o-user-group')
+            ->color('danger')
+            ->modalHeading(fn () => 'Merge another member into '.$this->record->fullName())
+            ->modalDescription('Absorbs the chosen member into this one. All their memberships, match entries, payments and badges move across; the absorbed record is soft-deleted. Destructive — type the surviving member\'s full name to confirm.')
+            ->modalSubmitActionLabel('Merge')
+            ->visible(fn () => (bool) auth()->user()?->can('members.delete'))
+            ->schema([
+                Select::make('loser_id')
+                    ->label('Member to absorb')
+                    ->required()
+                    ->searchable()
+                    ->placeholder('Search by name, membership number or email')
+                    ->getSearchResultsUsing(function (string $search) {
+                        return Member::query()
+                            ->where('id', '!=', $this->record->id)
+                            ->with('user')
+                            ->where(function ($q) use ($search) {
+                                $like = '%'.trim($search).'%';
+                                $q->where('first_name', 'like', $like)
+                                    ->orWhere('last_name', 'like', $like)
+                                    ->orWhere('membership_number', 'like', $like)
+                                    ->orWhereHas('user', fn ($u) => $u->where('email', 'like', $like));
+                            })
+                            ->orderBy('last_name')
+                            ->orderBy('first_name')
+                            ->limit(25)
+                            ->get()
+                            ->mapWithKeys(fn (Member $m) => [
+                                $m->id => trim(
+                                    $m->fullName()
+                                    .($m->formattedMembershipNumber() ? " ({$m->formattedMembershipNumber()})" : '')
+                                    .($m->user?->email ? " · {$m->user->email}" : '')
+                                ),
+                            ])
+                            ->all();
+                    })
+                    ->getOptionLabelUsing(function ($value) {
+                        $m = Member::with('user')->find($value);
+                        if (! $m) {
+                            return null;
+                        }
+
+                        return trim(
+                            $m->fullName()
+                            .($m->formattedMembershipNumber() ? " ({$m->formattedMembershipNumber()})" : '')
+                            .($m->user?->email ? " · {$m->user->email}" : '')
+                        );
+                    })
+                    ->live()
+                    ->helperText('Pick the duplicate / stale record to absorb. All its data moves onto this record.'),
+
+                Placeholder::make('preview')
+                    ->label('What will move')
+                    ->content(function ($get) {
+                        $loserId = $get('loser_id');
+                        if (! $loserId) {
+                            return 'Pick a member above to see what will move.';
+                        }
+
+                        $loser = Member::find($loserId);
+                        if (! $loser) {
+                            return '—';
+                        }
+
+                        $preview = app(MemberMerger::class)->preview($loser);
+                        $parts = [];
+                        foreach ([
+                            'memberships' => 'membership(s)',
+                            'event_registrations' => 'match entry/entries',
+                            'event_results' => 'match result(s)',
+                            'club_badges' => 'club badge(s)',
+                            'sub_members' => 'linked sub-member(s)',
+                            'letter_requests' => 'letter request(s)',
+                            'endorsement_requests' => 'endorsement request(s)',
+                            'match_credits' => 'match credit(s)',
+                        ] as $key => $label) {
+                            if (($preview[$key] ?? 0) > 0) {
+                                $parts[] = $preview[$key].' '.$label;
+                            }
+                        }
+
+                        return $parts === []
+                            ? 'The absorbed record has no owned data — only the member row itself will be soft-deleted.'
+                            : implode(', ', $parts).'.';
+                    }),
+
+                Toggle::make('keep_loser_email_as_alias')
+                    ->label('Keep the absorbed email as a second login address')
+                    ->default(true)
+                    ->inline(false)
+                    ->helperText('When on, the absorbed member\'s email becomes a secondary login on the surviving user. They can sign in and reset their password with either address, and on next login they will be asked which one should receive club mail.'),
+
+                TextInput::make('confirm_name')
+                    ->label('Type "'.$this->record->fullName().'" to confirm')
+                    ->required()
+                    ->rule(function () {
+                        $expected = $this->record->fullName();
+
+                        return function (string $attribute, $value, \Closure $fail) use ($expected) {
+                            if (trim((string) $value) !== $expected) {
+                                $fail('The name you typed does not match. This is on purpose — merges cannot be undone from the UI.');
+                            }
+                        };
+                    }),
+            ])
+            ->action(function (array $data) {
+                $loser = Member::find($data['loser_id']);
+                if (! $loser) {
+                    Notification::make()->danger()->title('Member to absorb was not found.')->send();
+
+                    return;
+                }
+
+                try {
+                    $stats = app(MemberMerger::class)->merge(
+                        survivor: $this->record,
+                        loser: $loser,
+                        keepLoserEmailAsAlias: (bool) ($data['keep_loser_email_as_alias'] ?? true),
+                    );
+                } catch (ValidationException $e) {
+                    Notification::make()->danger()
+                        ->title('Merge failed')
+                        ->body(collect($e->errors())->flatten()->first() ?? $e->getMessage())
+                        ->send();
+
+                    return;
+                }
+
+                $moved = array_sum([
+                    $stats['memberships'],
+                    $stats['event_registrations'],
+                    $stats['event_results'],
+                    $stats['club_badges'],
+                    $stats['sub_members'],
+                    $stats['letter_requests'],
+                    $stats['endorsement_requests'],
+                    $stats['match_credits'],
+                ]);
+
+                Notification::make()->success()
+                    ->title('Member merged')
+                    ->body(trim(
+                        "Absorbed {$loser->fullName()}. "
+                        .($moved > 0 ? "Reparented {$moved} record(s). " : 'No owned records needed moving. ')
+                        .($stats['aliases_added'] > 0 ? "{$stats['aliases_added']} login email added." : '')
+                    ))
+                    ->send();
+
+                $this->redirect(MemberResource::getUrl('view', ['record' => $this->record]));
+            });
     }
 
     /**

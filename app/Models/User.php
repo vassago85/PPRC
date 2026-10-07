@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use App\Auth\AliasAwareUserProvider;
 use App\Services\Auth\EmailVerificationPinService;
+use App\Services\Members\MemberMerger;
+use App\Services\Membership\MemberService;
 use App\Support\NameCase;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -16,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'created_via_import', 'email_verification_pin_hash', 'email_verification_pin_expires_at'])]
@@ -30,6 +34,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'email_verification_pin_expires_at' => 'datetime',
+            'must_pick_primary_email_at' => 'datetime',
             'created_via_import' => 'boolean',
             'password' => 'hashed',
         ];
@@ -79,7 +84,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         ])->save();
 
         if ($saved && $this->member) {
-            app(\App\Services\Membership\MemberService::class)->markVerified($this->member);
+            app(MemberService::class)->markVerified($this->member);
         }
 
         return $saved;
@@ -197,5 +202,43 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function shopOrders(): HasMany
     {
         return $this->hasMany(ShopOrder::class);
+    }
+
+    /**
+     * Secondary login addresses tied to this user — populated when two member
+     * records are merged. The primary address still lives on users.email;
+     * these are additional addresses accepted by {@see AliasAwareUserProvider}
+     * for login and password reset.
+     */
+    public function emailAliases(): HasMany
+    {
+        return $this->hasMany(UserEmailAlias::class);
+    }
+
+    /**
+     * Every address this user can sign in with — the primary plus any aliases.
+     * Used by the "pick your primary email" nudge and the account UI.
+     *
+     * @return Collection<int, string>
+     */
+    public function allLoginEmails(): Collection
+    {
+        return $this->emailAliases()
+            ->pluck('email')
+            ->prepend($this->email)
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Whether this user still needs to confirm which address should be their
+     * primary for outbound club mail. Set by {@see MemberMerger}
+     * when a merge brings in a second login address; cleared when they pick.
+     */
+    public function mustPickPrimaryEmail(): bool
+    {
+        return $this->must_pick_primary_email_at !== null
+            && $this->emailAliases()->exists();
     }
 }

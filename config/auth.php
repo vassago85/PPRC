@@ -63,7 +63,12 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            // Custom driver registered in AppServiceProvider::boot(). Delegates
+            // to the standard EloquentUserProvider but falls back to the
+            // user_email_aliases table when the primary users.email lookup
+            // misses, so merged members can log in and reset their password
+            // with either of their old addresses.
+            'driver' => 'eloquent_with_aliases',
             'model' => env('AUTH_MODEL', User::class),
         ],
 

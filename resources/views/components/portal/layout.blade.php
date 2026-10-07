@@ -37,7 +37,28 @@
         </div>
     </header>
 
+    @auth
+        @if (auth()->user()->mustPickPrimaryEmail() && ! request()->routeIs('portal.account.primary-email*'))
+            <div class="border-b border-amber-400/30 bg-amber-500/10">
+                <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm text-amber-100">
+                    <span>
+                        Your account picked up a second login email after a committee merge — pick which address club mail should go to.
+                    </span>
+                    <a href="{{ route('portal.account.primary-email') }}"
+                       class="rounded-lg bg-amber-400/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-amber-100 transition hover:bg-amber-400/30">
+                        Pick primary email
+                    </a>
+                </div>
+            </div>
+        @endif
+    @endauth
+
     <main class="mx-auto max-w-5xl px-5 py-10">
+        @if (session('status'))
+            <div class="mb-6 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                {{ session('status') }}
+            </div>
+        @endif
         {{ $slot }}
     </main>
 
