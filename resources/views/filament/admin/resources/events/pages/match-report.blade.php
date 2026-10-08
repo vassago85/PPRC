@@ -12,6 +12,9 @@
         $expenseTotalCents = (int) ($s['expenses_total_cents'] ?? $expenses['total_cents'] ?? 0);
         $refunds = $this->getRefunds();
         $refundsTotalCents = (int) ($s['refunds_total_cents'] ?? 0);
+        $refundsPaidCents = (int) ($s['refunds_paid_cents'] ?? 0);
+        $refundsOwingCents = (int) ($s['refunds_owing_cents'] ?? 0);
+        $refundsOwingCount = (int) ($s['refunds_owing_count'] ?? 0);
         $payeeUserOptions = $canPay ? $this->getPayeeUserOptions() : [];
         $categoryOptions = $this->getExpenseCategoryOptions();
 
@@ -333,19 +336,28 @@
         @endif
     </div>
 
-    {{-- Refunds issued (only shown when there are any) --}}
+    {{-- Refunds (only shown when there are any) --}}
     @if ($refunds->isNotEmpty())
         <div class="mt-4 print-card overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
             <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-white/10">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Refunds issued</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Refunds</p>
                     <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                        Paid shooters who withdrew and were refunded. Their entries are cancelled above, so the money going back out is already excluded from the EFT total — this list is here so the slip accounts for every rand that left the club.
+                        Paid shooters who withdrew. <strong>Owing</strong> rows are EFT refunds the club still has to send out in the next weekly match-payment batch — they're not deducted from the director's payout above, but the club pot has to cover them. <strong>Paid</strong> rows are already out (cash from the match-day float, or EFT that's been through a payout).
                     </p>
                 </div>
-                <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                    Total: <span class="tabular-nums">{{ $money($refundsTotalCents) }}</span>
-                </p>
+                <div class="text-right text-sm text-gray-900 dark:text-white">
+                    @if ($refundsOwingCents > 0)
+                        <p class="font-semibold text-warning-600 dark:text-warning-400">
+                            Owing: <span class="tabular-nums">{{ $money($refundsOwingCents) }}</span>
+                        </p>
+                    @endif
+                    @if ($refundsPaidCents > 0)
+                        <p class="font-semibold">
+                            Paid: <span class="tabular-nums">{{ $money($refundsPaidCents) }}</span>
+                        </p>
+                    @endif
+                </div>
             </div>
 
             <table class="w-full text-sm">
@@ -353,7 +365,8 @@
                     <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
                         <th class="px-4 py-2">Shooter</th>
                         <th class="px-4 py-2">Method</th>
-                        <th class="px-4 py-2">Date</th>
+                        <th class="px-4 py-2">Status</th>
+                        <th class="px-4 py-2">Recorded</th>
                         <th class="px-4 py-2">Note</th>
                         <th class="px-4 py-2 text-right">Amount</th>
                     </tr>
@@ -367,6 +380,17 @@
                                     {{ $refund->refunded_method?->label() ?? 'EFT' }}
                                 </span>
                             </td>
+                            <td class="px-4 py-2">
+                                @if ($refund->isRefundPaid())
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset bg-success-50 text-success-700 ring-success-600/20 dark:bg-success-500/10 dark:text-success-400">
+                                        Paid {{ $refund->refund_paid_at?->format('d M') }}
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset bg-warning-50 text-warning-700 ring-warning-600/20 dark:bg-warning-500/10 dark:text-warning-400">
+                                        Owing
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-4 py-2 text-gray-600 dark:text-gray-300 tabular-nums">{{ $refund->refunded_at?->format('d M Y') }}</td>
                             <td class="px-4 py-2 text-gray-600 dark:text-gray-300">{{ $refund->refunded_note ?: '—' }}</td>
                             <td class="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-white">{{ $money($refund->refundedAmountCents()) }}</td>
@@ -375,7 +399,7 @@
                 </tbody>
                 <tfoot>
                     <tr class="border-t border-gray-200 dark:border-white/10">
-                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" colspan="4">Total refunded</td>
+                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" colspan="5">Total refunded</td>
                         <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $money($refundsTotalCents) }}</td>
                     </tr>
                 </tfoot>

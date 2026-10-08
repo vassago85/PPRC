@@ -54,6 +54,7 @@ class EventRegistration extends Model
         'refunded_method',
         'refunded_note',
         'refunded_by_user_id',
+        'refund_paid_at',
     ];
 
     protected $casts = [
@@ -69,6 +70,7 @@ class EventRegistration extends Model
         'attendance_check_sent_at' => 'datetime',
         'attendance_response' => AttendanceResponse::class,
         'refunded_at' => 'datetime',
+        'refund_paid_at' => 'datetime',
         'refunded_amount_cents' => 'integer',
         'refunded_method' => MatchPaymentMethod::class,
         'payment_method' => MatchPaymentMethod::class,
@@ -149,6 +151,24 @@ class EventRegistration extends Model
             ->whereHas('event', fn (Builder $q) => $q->whereDate('start_date', '>=', now()->toDateString()));
     }
 
+    /**
+     * Registrations that still "take up a spot" at the match — everything
+     * except entries an admin has withdrawn (Cancelled) or marked as no-show.
+     * Used by the public shooter list, the registration cap check, and every
+     * public-facing registrations_count query so withdrawn shooters free up
+     * their place the moment the admin cancels the entry.
+     *
+     * Kept as a scope rather than a hardcoded where-clause so new destructive
+     * statuses (if we ever add e.g. "disqualified") only need to be added here.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNotIn('status', [
+            EventRegistrationStatus::Cancelled->value,
+            EventRegistrationStatus::NoShow->value,
+        ]);
+    }
+
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
@@ -170,13 +190,35 @@ class EventRegistration extends Model
     }
 
     /**
-     * Whether an admin has issued a refund against this entry. Pure read of
-     * `refunded_at` so the "Withdraw & refund" row action can hide itself
-     * once used, and the cash-up slip can show a refunds section.
+     * Whether an admin has recorded a refund against this entry. Separate from
+     * `isRefundPaid()`: for EFT refunds the money only moves at the next
+     * weekly match-payment batch, so a "recorded but not yet paid" refund is a
+     * real intermediate state the cash-up slip has to render.
      */
     public function wasRefunded(): bool
     {
         return $this->refunded_at !== null;
+    }
+
+    /**
+     * Whether the refund money has actually left the club. Cash refunds stamp
+     * this at the same moment they are recorded (the money came out of the
+     * match-day float on the spot); EFT refunds leave it null until an admin
+     * marks it paid after the weekly payout run.
+     */
+    public function isRefundPaid(): bool
+    {
+        return $this->refund_paid_at !== null;
+    }
+
+    /**
+     * A refund has been promised to the shooter but the money hasn't gone out
+     * yet — i.e. the state that drives the "Mark refund as paid" row action
+     * and the "Owing" column on the match director's cash-up slip.
+     */
+    public function isRefundOwing(): bool
+    {
+        return $this->wasRefunded() && ! $this->isRefundPaid();
     }
 
     /**

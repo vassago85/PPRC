@@ -13,7 +13,7 @@ use App\Filament\Admin\Support\MemberSearch;
 use App\Filament\Admin\Support\SearchTerm;
 use App\Invoices\InvoiceFactory;
 use App\Invoices\InvoiceUrl;
-use App\Mail\MatchEntryRefundIssuedMail;
+use App\Mail\MatchWithdrawalConfirmedMail;
 use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Services\Events\MatchEntrantBroadcastService;
@@ -22,10 +22,10 @@ use App\Services\Events\MatchEntryPaymentRequestService;
 use App\Support\MailThrottle;
 use App\Support\ProofDisk;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
@@ -35,6 +35,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Size;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -480,86 +481,11 @@ class RegistrationsRelationManager extends RelationManager
                     }),
             ])
             ->recordActions([
-                Action::make('view_invoice')
-                    ->label('Invoice')
-                    ->icon('heroicon-o-document-text')
-                    ->color('gray')
-                    ->visible(fn (EventRegistration $r) => app(InvoiceFactory::class)->canGenerate($r))
-                    ->url(fn (EventRegistration $r) => InvoiceUrl::signed(InvoiceType::Match, $r->id), shouldOpenInNewTab: true),
-                Action::make('send_payment_email')
-                    ->label('Send payment email')
-                    ->icon('heroicon-o-envelope')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalHeading('Send payment email')
-                    ->modalDescription(fn (EventRegistration $r) => 'Email '.$r->shooterName().' at '
-                        .($r->payerEmail() ?? '—').' with the amount outstanding (R '
-                        .number_format($r->outstandingCents() / 100, 2)
-                        .'), banking details and a payment reference?')
-                    ->visible(fn (EventRegistration $r) => $r->owesPayment()
-                        && ! $r->hasCashIntent()
-                        && auth()->user()?->can('events.registrations.manage'))
-                    ->action(function (EventRegistration $r) {
-                        try {
-                            app(MatchEntryPaymentRequestService::class)->send($r);
-
-                            Notification::make()->success()
-                                ->title('Payment email sent')
-                                ->body('Sent to '.$r->payerEmail().' with reference '.$r->paymentReference().'.')
-                                ->send();
-                        } catch (ValidationException $e) {
-                            Notification::make()->danger()
-                                ->title('Could not send payment email')
-                                ->body(collect($e->errors())->flatten()->first() ?? $e->getMessage())
-                                ->send();
-                        }
-                    }),
-                Action::make('view_proof')
-                    ->label('View proof')
-                    ->icon('heroicon-o-paper-clip')
-                    ->color('info')
-                    ->visible(fn (EventRegistration $r) => filled($r->payment_proof_path)
-                        && auth()->user()?->can('events.registrations.manage'))
-                    ->url(fn (EventRegistration $r) => self::proofUrl($r), shouldOpenInNewTab: true),
-                Action::make('mark_cash_intent')
-                    ->label('Will pay cash')
-                    ->icon('heroicon-o-wallet')
-                    ->color('warning')
-                    ->requiresConfirmation()
-                    ->modalHeading('Flag as paying cash on the day')
-                    ->modalDescription(fn (EventRegistration $r) => 'Flag '.$r->shooterName().'\'s entry as paying R '
-                        .number_format($r->outstandingCents() / 100, 2)
-                        .' in cash on arrival? They won\'t be chased for EFT. The match director will mark them paid on the day.')
-                    ->visible(fn (EventRegistration $r) => $r->paid_at === null
-                        && $r->awaitingPayment()
-                        && ! $r->hasCashIntent()
-                        && auth()->user()?->can('events.registrations.manage'))
-                    ->action(function (EventRegistration $r) {
-                        $r->update(['payment_method' => MatchPaymentMethod::Cash->value]);
-
-                        Notification::make()->success()
-                            ->title('Marked as paying cash')
-                            ->body($r->shooterName().' is flagged to pay in cash on the day. No EFT reminder will be sent.')
-                            ->send();
-                    }),
-                Action::make('clear_cash_intent')
-                    ->label('Cancel cash plan')
-                    ->icon('heroicon-o-x-mark')
-                    ->color('gray')
-                    ->requiresConfirmation()
-                    ->modalHeading('Cancel cash-on-day plan')
-                    ->modalDescription(fn (EventRegistration $r) => 'Clear the cash-on-day flag for '.$r->shooterName()
-                        .'? They\'ll go back to being chased for EFT like everyone else awaiting payment.')
-                    ->visible(fn (EventRegistration $r) => $r->hasCashIntent()
-                        && auth()->user()?->can('events.registrations.manage'))
-                    ->action(function (EventRegistration $r) {
-                        $r->update(['payment_method' => null]);
-
-                        Notification::make()->success()
-                            ->title('Cash plan cleared')
-                            ->body($r->shooterName().' is back in the EFT queue.')
-                            ->send();
-                    }),
+                // Primary inline action — Mark paid is the daily use case
+                // during match week (treasurer sweeping EFTs), so it stays
+                // as a one-click button instead of hiding behind the ⋯ menu.
+                // Only renders when the entry still awaits payment, so paid
+                // / cancelled / free entries just show the ⋯ group alone.
                 Action::make('mark_paid')
                     ->label('Mark paid')
                     ->icon('heroicon-o-banknotes')
@@ -588,142 +514,286 @@ class RegistrationsRelationManager extends RelationManager
                                 .($emailed ? ' A confirmation email was sent.' : ''))
                             ->send();
                     }),
-                Action::make('send_confirmation')
-                    ->label('Send confirmation')
-                    ->icon('heroicon-o-check-badge')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Send payment confirmation')
-                    ->modalDescription(fn (EventRegistration $r) => 'Email '.$r->shooterName().' at '
-                        .($r->payerEmail() ?? '—').' confirming their entry fee has been received?')
-                    ->visible(fn (EventRegistration $r) => $r->paid_at !== null
-                        && filled($r->payerEmail())
-                        && auth()->user()?->can('events.registrations.manage'))
-                    ->action(function (EventRegistration $r) {
-                        $sent = app(MatchEntryPaymentRequestService::class)->sendConfirmation($r);
 
-                        if ($sent) {
+                // Everything else collapses into one dots menu so the row
+                // never horizontally overflows, no matter how many conditional
+                // actions apply at once. Order inside the group runs from
+                // common follow-ups to one-off / destructive at the bottom.
+                ActionGroup::make([
+                    Action::make('view_invoice')
+                        ->label('Invoice')
+                        ->icon('heroicon-o-document-text')
+                        ->color('gray')
+                        ->visible(fn (EventRegistration $r) => app(InvoiceFactory::class)->canGenerate($r))
+                        ->url(fn (EventRegistration $r) => InvoiceUrl::signed(InvoiceType::Match, $r->id), shouldOpenInNewTab: true),
+                    Action::make('send_payment_email')
+                        ->label('Send payment email')
+                        ->icon('heroicon-o-envelope')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Send payment email')
+                        ->modalDescription(fn (EventRegistration $r) => 'Email '.$r->shooterName().' at '
+                            .($r->payerEmail() ?? '—').' with the amount outstanding (R '
+                            .number_format($r->outstandingCents() / 100, 2)
+                            .'), banking details and a payment reference?')
+                        ->visible(fn (EventRegistration $r) => $r->owesPayment()
+                            && ! $r->hasCashIntent()
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
+                            try {
+                                app(MatchEntryPaymentRequestService::class)->send($r);
+
+                                Notification::make()->success()
+                                    ->title('Payment email sent')
+                                    ->body('Sent to '.$r->payerEmail().' with reference '.$r->paymentReference().'.')
+                                    ->send();
+                            } catch (ValidationException $e) {
+                                Notification::make()->danger()
+                                    ->title('Could not send payment email')
+                                    ->body(collect($e->errors())->flatten()->first() ?? $e->getMessage())
+                                    ->send();
+                            }
+                        }),
+                    Action::make('view_proof')
+                        ->label('View proof')
+                        ->icon('heroicon-o-paper-clip')
+                        ->color('info')
+                        ->visible(fn (EventRegistration $r) => filled($r->payment_proof_path)
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->url(fn (EventRegistration $r) => self::proofUrl($r), shouldOpenInNewTab: true),
+                    Action::make('mark_cash_intent')
+                        ->label('Will pay cash')
+                        ->icon('heroicon-o-wallet')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Flag as paying cash on the day')
+                        ->modalDescription(fn (EventRegistration $r) => 'Flag '.$r->shooterName().'\'s entry as paying R '
+                            .number_format($r->outstandingCents() / 100, 2)
+                            .' in cash on arrival? They won\'t be chased for EFT. The match director will mark them paid on the day.')
+                        ->visible(fn (EventRegistration $r) => $r->paid_at === null
+                            && $r->awaitingPayment()
+                            && ! $r->hasCashIntent()
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
+                            $r->update(['payment_method' => MatchPaymentMethod::Cash->value]);
+
                             Notification::make()->success()
-                                ->title('Confirmation sent')
-                                ->body('Emailed '.$r->payerEmail().' confirming payment received.')
+                                ->title('Marked as paying cash')
+                                ->body($r->shooterName().' is flagged to pay in cash on the day. No EFT reminder will be sent.')
                                 ->send();
+                        }),
+                    Action::make('clear_cash_intent')
+                        ->label('Cancel cash plan')
+                        ->icon('heroicon-o-x-mark')
+                        ->color('gray')
+                        ->requiresConfirmation()
+                        ->modalHeading('Cancel cash-on-day plan')
+                        ->modalDescription(fn (EventRegistration $r) => 'Clear the cash-on-day flag for '.$r->shooterName()
+                            .'? They\'ll go back to being chased for EFT like everyone else awaiting payment.')
+                        ->visible(fn (EventRegistration $r) => $r->hasCashIntent()
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
+                            $r->update(['payment_method' => null]);
 
-                            return;
-                        }
+                            Notification::make()->success()
+                                ->title('Cash plan cleared')
+                                ->body($r->shooterName().' is back in the EFT queue.')
+                                ->send();
+                        }),
+                    Action::make('send_confirmation')
+                        ->label('Send confirmation')
+                        ->icon('heroicon-o-check-badge')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Send payment confirmation')
+                        ->modalDescription(fn (EventRegistration $r) => 'Email '.$r->shooterName().' at '
+                            .($r->payerEmail() ?? '—').' confirming their entry fee has been received?')
+                        ->visible(fn (EventRegistration $r) => $r->paid_at !== null
+                            && filled($r->payerEmail())
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
+                            $sent = app(MatchEntryPaymentRequestService::class)->sendConfirmation($r);
 
-                        Notification::make()->danger()
-                            ->title('Could not send confirmation')
-                            ->body('This entry has no email address on file.')
-                            ->send();
-                    }),
-                Action::make('mark_unpaid')
-                    ->label('Undo paid')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('gray')
-                    ->requiresConfirmation()
-                    ->modalHeading('Undo payment confirmation')
-                    ->visible(fn (EventRegistration $r) => $r->paid_at !== null
-                        && auth()->user()?->can('events.registrations.manage'))
-                    ->action(function (EventRegistration $r) {
-                        $r->update([
-                            'paid_at' => null,
-                            'marked_paid_by_user_id' => null,
-                        ]);
+                            if ($sent) {
+                                Notification::make()->success()
+                                    ->title('Confirmation sent')
+                                    ->body('Emailed '.$r->payerEmail().' confirming payment received.')
+                                    ->send();
 
-                        Notification::make()->success()
-                            ->title('Marked as unpaid')
-                            ->send();
-                    }),
-                Action::make('withdraw_refund')
-                    ->label('Withdraw & refund')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('danger')
-                    ->modalHeading(fn (EventRegistration $r) => 'Withdraw '.$r->shooterName().' and refund')
-                    ->modalDescription(fn (EventRegistration $r) => 'Cancel '.$r->shooterName().'\'s entry and record the refund you issued. The entry stays on the list marked Cancelled, and the refund shows on the match director\'s cash-up slip so the money going back out is accounted for.')
-                    ->modalSubmitActionLabel('Record withdrawal and refund')
-                    ->visible(fn (EventRegistration $r) => $r->paid_at !== null
-                        && $r->status !== EventRegistrationStatus::Cancelled
-                        && ! $r->wasRefunded()
-                        && auth()->user()?->can('events.registrations.manage'))
-                    ->fillForm(fn (EventRegistration $r) => [
-                        'amount_rands' => number_format(((int) ($r->effectiveFeeCents() ?? 0)) / 100, 2, '.', ''),
-                        'method' => $r->payment_method?->value ?? MatchPaymentMethod::Eft->value,
-                        'notify' => true,
-                    ])
-                    ->schema([
-                        TextInput::make('amount_rands')
-                            ->label('Refund amount (ZAR)')
-                            ->numeric()
-                            ->prefix('R')
-                            ->minValue(0)
-                            ->required()
-                            ->helperText('Defaults to the full fee. Reduce for a partial refund.'),
-                        Select::make('method')
-                            ->label('Refund method')
-                            ->options(MatchPaymentMethod::options())
-                            ->default(MatchPaymentMethod::Eft->value)
-                            ->required()
-                            ->helperText('EFT came out of the club account. Cash came out of the match-day float.'),
-                        Textarea::make('note')
-                            ->label('Note (optional)')
-                            ->rows(2)
-                            ->helperText('Visible on the cash-up slip and included in the shooter\'s refund email.'),
-                        Toggle::make('notify')
-                            ->label('Email the shooter a refund notification')
-                            ->default(true)
-                            ->inline(false),
-                    ])
-                    ->action(function (EventRegistration $r, array $data) {
-                        $method = MatchPaymentMethod::tryFrom($data['method'] ?? '')
-                            ?? MatchPaymentMethod::Eft;
-                        $amountCents = (int) round(((float) ($data['amount_rands'] ?? 0)) * 100);
-                        $note = $data['note'] ?? null;
-                        $notify = (bool) ($data['notify'] ?? false);
+                                return;
+                            }
 
-                        DB::transaction(function () use ($r, $amountCents, $method, $note) {
+                            Notification::make()->danger()
+                                ->title('Could not send confirmation')
+                                ->body('This entry has no email address on file.')
+                                ->send();
+                        }),
+                    Action::make('mark_unpaid')
+                        ->label('Undo paid')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('gray')
+                        ->requiresConfirmation()
+                        ->modalHeading('Undo payment confirmation')
+                        ->visible(fn (EventRegistration $r) => $r->paid_at !== null
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
                             $r->update([
-                                'status' => EventRegistrationStatus::Cancelled,
-                                'refunded_at' => now(),
-                                'refunded_amount_cents' => $amountCents,
-                                'refunded_method' => $method->value,
-                                'refunded_note' => $note,
-                                'refunded_by_user_id' => auth()->id(),
+                                'paid_at' => null,
+                                'marked_paid_by_user_id' => null,
                             ]);
-                        });
 
-                        $emailed = false;
-                        if ($notify && filled($r->payerEmail())) {
-                            Mail::to($r->payerEmail(), $r->shooterName())
-                                ->send(new MatchEntryRefundIssuedMail($r->fresh(['event'])));
-                            $emailed = true;
-                        }
+                            Notification::make()->success()
+                                ->title('Marked as unpaid')
+                                ->send();
+                        }),
+                    Action::make('withdraw_refund')
+                        ->label('Withdraw & refund')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('danger')
+                        ->modalHeading(fn (EventRegistration $r) => 'Withdraw '.$r->shooterName())
+                        ->modalDescription(fn (EventRegistration $r) => 'Cancel '.$r->shooterName().'\'s entry and record the refund. EFT refunds stay as "owing" on the cash-up slip until you mark them paid at the next weekly match payout. Cash refunds come straight out of the match-day float and are stamped paid immediately.')
+                        ->modalSubmitActionLabel('Record withdrawal')
+                        ->visible(fn (EventRegistration $r) => $r->paid_at !== null
+                            && $r->status !== EventRegistrationStatus::Cancelled
+                            && ! $r->wasRefunded()
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->fillForm(fn (EventRegistration $r) => [
+                            'amount_rands' => number_format(((int) ($r->effectiveFeeCents() ?? 0)) / 100, 2, '.', ''),
+                            'method' => $r->payment_method?->value ?? MatchPaymentMethod::Eft->value,
+                            'notify' => true,
+                        ])
+                        ->schema([
+                            TextInput::make('amount_rands')
+                                ->label('Refund amount (ZAR)')
+                                ->numeric()
+                                ->prefix('R')
+                                ->minValue(0)
+                                ->required()
+                                ->helperText('Defaults to the full fee. Reduce for a partial refund.'),
+                            Select::make('method')
+                                ->label('Refund method')
+                                ->options(MatchPaymentMethod::options())
+                                ->default(MatchPaymentMethod::Eft->value)
+                                ->required()
+                                ->helperText('EFT will be paid at the next weekly match-payment batch. Cash comes out of the match-day float right now.'),
+                            Textarea::make('note')
+                                ->label('Note (optional)')
+                                ->rows(2)
+                                ->helperText('Visible on the cash-up slip and included in the shooter\'s confirmation email.'),
+                            Toggle::make('notify')
+                                ->label('Email the shooter a withdrawal confirmation')
+                                ->default(true)
+                                ->inline(false)
+                                ->helperText('EFT confirmations say the refund will land within a week; cash confirmations are a receipt.'),
+                        ])
+                        ->action(function (EventRegistration $r, array $data) {
+                            $method = MatchPaymentMethod::tryFrom($data['method'] ?? '')
+                                ?? MatchPaymentMethod::Eft;
+                            $amountCents = (int) round(((float) ($data['amount_rands'] ?? 0)) * 100);
+                            $note = $data['note'] ?? null;
+                            $notify = (bool) ($data['notify'] ?? false);
 
-                        Notification::make()->success()
-                            ->title('Withdrawal and refund recorded')
-                            ->body($r->shooterName().' is withdrawn, R '.number_format($amountCents / 100, 2)
-                                .' refunded via '.$method->label().'.'
-                                .($emailed ? ' A notification email was sent.' : ''))
-                            ->send();
-                    }),
-                ApplyMatchCreditAction::make(),
-                TransferMatchEntryAction::make(),
-                Action::make('check_in')
-                    ->label('Check in')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn (EventRegistration $r) => ! $r->attended
-                        && auth()->user()?->can('events.attendance.manage'))
-                    ->action(function (EventRegistration $r) {
-                        $r->update([
-                            'attended' => true,
-                            'checked_in_at' => now(),
-                            'checked_in_by_user_id' => auth()->id(),
-                        ]);
-                    }),
-                EditAction::make()
-                    ->visible(fn () => auth()->user()?->can('events.registrations.manage')),
-                DeleteAction::make()
-                    ->visible(fn () => auth()->user()?->can('events.registrations.manage')),
+                            // Cash refunds leave the match-day float the moment
+                            // they're recorded, so stamp paid as well; EFT refunds
+                            // only move with the weekly payout, so stay owing.
+                            $paidAt = $method === MatchPaymentMethod::Cash ? now() : null;
+
+                            DB::transaction(function () use ($r, $amountCents, $method, $note, $paidAt) {
+                                $r->update([
+                                    'status' => EventRegistrationStatus::Cancelled,
+                                    'refunded_at' => now(),
+                                    'refunded_amount_cents' => $amountCents,
+                                    'refunded_method' => $method->value,
+                                    'refunded_note' => $note,
+                                    'refunded_by_user_id' => auth()->id(),
+                                    'refund_paid_at' => $paidAt,
+                                ]);
+                            });
+
+                            $emailed = false;
+                            if ($notify && filled($r->payerEmail())) {
+                                Mail::to($r->payerEmail(), $r->shooterName())
+                                    ->send(new MatchWithdrawalConfirmedMail($r->fresh(['event'])));
+                                $emailed = true;
+                            }
+
+                            $statusLine = $method === MatchPaymentMethod::Cash
+                                ? ' stamped paid from the match-day float.'
+                                : ' is owing — mark it paid once the next weekly match payout clears.';
+
+                            Notification::make()->success()
+                                ->title('Withdrawal recorded')
+                                ->body($r->shooterName().' is withdrawn. R '.number_format($amountCents / 100, 2)
+                                    .' '.$method->label().' refund'.$statusLine
+                                    .($emailed ? ' A confirmation email was sent.' : ''))
+                                ->send();
+                        }),
+                    Action::make('mark_refund_paid')
+                        ->label('Mark refund paid')
+                        ->icon('heroicon-o-check-badge')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (EventRegistration $r) => 'Mark '.$r->shooterName().'\'s refund as paid')
+                        ->modalDescription(fn (EventRegistration $r) => 'Confirm the R '.number_format($r->refundedAmountCents() / 100, 2)
+                            .' '.($r->refunded_method?->label() ?? 'EFT').' refund has been sent to '.$r->shooterName()
+                            .'. This stamps today\'s date on the entry so the cash-up slip stops showing it as owing. No email is sent — the shooter will see the EFT land in their account.')
+                        ->modalSubmitActionLabel('Mark refund paid')
+                        ->visible(fn (EventRegistration $r) => $r->isRefundOwing()
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
+                            $r->update(['refund_paid_at' => now()]);
+
+                            Notification::make()->success()
+                                ->title('Refund marked as paid')
+                                ->body('R '.number_format($r->refundedAmountCents() / 100, 2)
+                                    .' refund to '.$r->shooterName().' is settled.')
+                                ->send();
+                        }),
+                    ApplyMatchCreditAction::make(),
+                    TransferMatchEntryAction::make(),
+                    Action::make('check_in')
+                        ->label('Check in')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn (EventRegistration $r) => ! $r->attended
+                            && auth()->user()?->can('events.attendance.manage'))
+                        ->action(function (EventRegistration $r) {
+                            $r->update([
+                                'attended' => true,
+                                'checked_in_at' => now(),
+                                'checked_in_by_user_id' => auth()->id(),
+                            ]);
+                        }),
+                    EditAction::make()
+                        ->visible(fn () => auth()->user()?->can('events.registrations.manage')),
+                    Action::make('withdraw')
+                        ->label('Withdraw')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (EventRegistration $r) => 'Withdraw '.$r->shooterName())
+                        ->modalDescription(fn (EventRegistration $r) => 'Cancel '.$r->shooterName().'\'s entry. They stay on the admin list marked Cancelled for the audit trail, but drop off the public shooter list and no longer count against the match cap. Nothing is refunded — this is for shooters who never paid.')
+                        ->modalSubmitActionLabel('Withdraw entry')
+                        // Hidden on paid-but-not-yet-refunded entries so admins
+                        // are nudged to the "Withdraw & refund" action instead,
+                        // which stamps the refund trail. Hidden on already-
+                        // cancelled rows because there's nothing left to do.
+                        ->visible(fn (EventRegistration $r) => $r->status !== EventRegistrationStatus::Cancelled
+                            && ! ($r->paid_at !== null && ! $r->wasRefunded())
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
+                            $r->update(['status' => EventRegistrationStatus::Cancelled]);
+
+                            Notification::make()->success()
+                                ->title('Entry withdrawn')
+                                ->body($r->shooterName().' is cancelled and removed from the public shooter list.')
+                                ->send();
+                        }),
+                ])
+                    ->label('More')
+                    ->icon('heroicon-o-ellipsis-horizontal')
+                    ->size(Size::Small)
+                    ->color('gray'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

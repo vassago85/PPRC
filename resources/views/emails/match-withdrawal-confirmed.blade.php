@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Refund issued for {{ $event?->title }}</title>
+    <title>{{ $isCashRefund ? 'Refund issued for' : 'Withdrawal confirmed for' }} {{ $event?->title }}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#0b1120;font-family:'Segoe UI',Roboto,Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
 
@@ -21,7 +21,7 @@
                                 Pretoria Precision Rifle Club
                             </p>
                             <h1 style="margin:8px 0 0;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
-                                Refund issued
+                                {{ $isCashRefund ? 'Refund issued' : 'Withdrawal confirmed' }}
                             </h1>
                             <p style="margin:8px 0 0;font-size:14px;color:#cbd5e1;">
                                 {{ $event?->title ?? 'PPRC match' }}
@@ -34,13 +34,20 @@
                             <p style="margin:0 0 18px;font-size:17px;color:#0f172a;font-weight:600;">
                                 Hi {{ e($firstName) }},
                             </p>
-                            <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
-                                We've withdrawn your entry for <strong>{{ $event?->title ?? 'the match' }}</strong> and processed a refund.
-                            </p>
+
+                            @if ($isCashRefund)
+                                <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
+                                    We've withdrawn your entry for <strong>{{ $event?->title ?? 'the match' }}</strong> and handed your refund back out of the match-day float.
+                                </p>
+                            @else
+                                <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.65;">
+                                    We've withdrawn your entry for <strong>{{ $event?->title ?? 'the match' }}</strong>. Your refund will be paid by EFT in the next weekly match-payment run — usually within seven days.
+                                </p>
+                            @endif
 
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:16px 0;border-top:1px solid #e2e8f0;">
                                 <tr>
-                                    <td style="padding:12px 0;font-size:14px;color:#64748b;border-bottom:1px solid #e2e8f0;">Amount refunded</td>
+                                    <td style="padding:12px 0;font-size:14px;color:#64748b;border-bottom:1px solid #e2e8f0;">Refund amount</td>
                                     <td style="padding:12px 0;font-size:14px;color:#0f172a;font-weight:600;text-align:right;border-bottom:1px solid #e2e8f0;">
                                         R {{ number_format($amountCents / 100, 2) }}
                                     </td>
@@ -51,11 +58,17 @@
                                         {{ $method?->label() ?? 'EFT' }}
                                     </td>
                                 </tr>
-                                @if ($refundedOn)
+                                <tr>
+                                    <td style="padding:12px 0;font-size:14px;color:#64748b;border-bottom:1px solid #e2e8f0;">Status</td>
+                                    <td style="padding:12px 0;font-size:14px;color:#0f172a;font-weight:600;text-align:right;border-bottom:1px solid #e2e8f0;">
+                                        {{ $isCashRefund ? 'Paid' : 'Due at next weekly payout' }}
+                                    </td>
+                                </tr>
+                                @if ($recordedOn)
                                     <tr>
-                                        <td style="padding:12px 0;font-size:14px;color:#64748b;border-bottom:1px solid #e2e8f0;">Issued</td>
+                                        <td style="padding:12px 0;font-size:14px;color:#64748b;border-bottom:1px solid #e2e8f0;">Recorded</td>
                                         <td style="padding:12px 0;font-size:14px;color:#0f172a;font-weight:600;text-align:right;border-bottom:1px solid #e2e8f0;">
-                                            {{ $refundedOn->format('d M Y') }}
+                                            {{ $recordedOn->format('d M Y') }}
                                         </td>
                                     </tr>
                                 @endif
@@ -73,9 +86,15 @@
                                 </p>
                             @endif
 
-                            <p style="margin:16px 0 0;font-size:13px;color:#64748b;line-height:1.6;">
-                                EFT refunds typically take one to two working days to reflect. If you don't see the money by then, drop us a line and we'll chase it.
-                            </p>
+                            @if ($isCashRefund)
+                                <p style="margin:16px 0 0;font-size:13px;color:#64748b;line-height:1.6;">
+                                    If anything about the amount looks off, drop us a line and we'll sort it.
+                                </p>
+                            @else
+                                <p style="margin:16px 0 0;font-size:13px;color:#64748b;line-height:1.6;">
+                                    EFT refunds go out together with the match director's payout and prize money, usually within a week. You'll see it land in the account you originally paid from — we don't send a second email when it clears.
+                                </p>
+                            @endif
                         </td>
                     </tr>
 

@@ -176,28 +176,65 @@ class MatchDirectorReport
 
             // Refunds are informational on the slip: the refunded entry is
             // already Cancelled and so already excluded from EFT base above,
-            // which naturally keeps the director's share correct. These
-            // totals exist so the slip can show "we also sent R450 back out
-            // to Jaco" without a shooter's cancelled row looking like it
-            // just quietly disappeared.
-            'refunds_total_cents' => (int) $this->refunds()->sum('refunded_amount_cents'),
+            // which naturally keeps the director's share correct. Split into
+            // "paid" (money already out — cash refunds and historical EFTs)
+            // and "owing" (recorded but not yet transferred — these are the
+            // EFT refunds that will go out at the next weekly payout batch)
+            // so the slip tells the director what's actually settled vs what
+            // the club still has to pay out from the pot.
             'refunds_count' => $this->refunds()->count(),
+            'refunds_total_cents' => (int) $this->refunds()->sum('refunded_amount_cents'),
+            'refunds_paid_cents' => (int) $this->refundsPaid()->sum('refunded_amount_cents'),
+            'refunds_owing_cents' => (int) $this->refundsOwing()->sum('refunded_amount_cents'),
+            'refunds_owing_count' => $this->refundsOwing()->count(),
         ];
     }
 
     /**
      * Refunded entries for this match — cancelled rows with `refunded_at`
      * stamped by the admin's Withdraw & refund action. Not part of rows()
-     * because rows() excludes cancelled entries by design.
+     * because rows() excludes cancelled entries by design. Memoised so
+     * refundsPaid()/refundsOwing() don't trigger three queries.
      *
      * @return Collection<int, EventRegistration>
      */
     public function refunds(): Collection
     {
-        return $this->event->registrations()
+        return $this->refunds ??= $this->event->registrations()
             ->with(['refundedBy'])
             ->whereNotNull('refunded_at')
             ->orderBy('refunded_at')
             ->get();
     }
+
+    /**
+     * Refunds whose money has actually left the club (`refund_paid_at` set).
+     * Covers cash refunds (handed back on the day) and EFT refunds that have
+     * been through a weekly payout and been marked paid.
+     *
+     * @return Collection<int, EventRegistration>
+     */
+    public function refundsPaid(): Collection
+    {
+        return $this->refunds()->filter(fn (EventRegistration $r) => $r->isRefundPaid())->values();
+    }
+
+    /**
+     * Refunds the shooter has been promised but the club hasn't yet paid out —
+     * EFT refunds queued for the next weekly match payment batch.
+     *
+     * @return Collection<int, EventRegistration>
+     */
+    public function refundsOwing(): Collection
+    {
+        return $this->refunds()->filter(fn (EventRegistration $r) => $r->isRefundOwing())->values();
+    }
+
+    /**
+     * Memoisation cache for refunds(). Kept nullable (not `Collection|null`
+     * typed) so the first call hydrates it with the Eloquent result.
+     *
+     * @var Collection<int, EventRegistration>|null
+     */
+    protected ?Collection $refunds = null;
 }

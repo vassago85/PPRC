@@ -372,7 +372,12 @@ class Event extends Model
         }
 
         if ($this->max_entries !== null) {
-            $count = $this->registrations_count ?? $this->registrations()->count();
+            // Only *active* entries count against the cap — withdrawn or
+            // no-show entries free up their spot immediately. The pre-loaded
+            // count (via withCount(['registrations' => fn ($q) => $q->active()]))
+            // is the fast path; the fallback query mirrors the same filter so
+            // model-level callers can't accidentally see a stale "Full" state.
+            $count = $this->registrations_count ?? $this->registrations()->active()->count();
             if ($count >= $this->max_entries) {
                 return RegistrationState::Full;
             }

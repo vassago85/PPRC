@@ -12,7 +12,7 @@ class HomeController extends Controller
     {
         $upcomingMatches = Event::query()
             ->with('matchFormat')
-            ->withCount('registrations')
+            ->withCount(['registrations' => fn ($q) => $q->active()])
             ->upcoming()
             ->limit(3)
             ->get()

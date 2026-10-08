@@ -2,9 +2,10 @@
 
 use App\Enums\EventRegistrationStatus;
 use App\Enums\MatchPaymentMethod;
+use App\Enums\RegistrationState;
 use App\Filament\Admin\Resources\Events\Pages\EditEvent;
 use App\Filament\Admin\Resources\Events\RelationManagers\RegistrationsRelationManager;
-use App\Mail\MatchEntryRefundIssuedMail;
+use App\Mail\MatchWithdrawalConfirmedMail;
 use App\Models\EventRegistration;
 use App\Models\User;
 use App\Services\Events\MatchDirectorReport;
@@ -50,6 +51,76 @@ it('hides the Withdraw & refund action on an unpaid entry', function () {
     ])->assertTableActionHidden('withdraw_refund', $entry);
 });
 
+it('withdraws an unpaid entry via the Withdraw action without touching refund fields', function () {
+    $entry = refundableEntry();
+    $entry->update(['paid_at' => null]);
+
+    Livewire::test(RegistrationsRelationManager::class, [
+        'ownerRecord' => $entry->event,
+        'pageClass' => EditEvent::class,
+    ])
+        ->callTableAction('withdraw', $entry)
+        ->assertHasNoTableActionErrors();
+
+    $entry->refresh();
+
+    expect($entry->status)->toBe(EventRegistrationStatus::Cancelled)
+        ->and($entry->refunded_at)->toBeNull()
+        ->and($entry->refund_paid_at)->toBeNull()
+        ->and($entry->wasRefunded())->toBeFalse();
+});
+
+it('hides the plain Withdraw action on paid entries so admins use Withdraw & refund instead', function () {
+    $entry = refundableEntry();
+
+    Livewire::test(RegistrationsRelationManager::class, [
+        'ownerRecord' => $entry->event,
+        'pageClass' => EditEvent::class,
+    ])
+        ->assertTableActionHidden('withdraw', $entry)
+        ->assertTableActionVisible('withdraw_refund', $entry);
+});
+
+it('hides both withdraw actions on already-cancelled entries', function () {
+    $entry = refundableEntry();
+    $entry->update([
+        'status' => EventRegistrationStatus::Cancelled,
+        'refunded_at' => now(),
+        'refunded_amount_cents' => 45000,
+        'refunded_method' => MatchPaymentMethod::Eft->value,
+    ]);
+
+    Livewire::test(RegistrationsRelationManager::class, [
+        'ownerRecord' => $entry->event,
+        'pageClass' => EditEvent::class,
+    ])
+        ->assertTableActionHidden('withdraw', $entry)
+        ->assertTableActionHidden('withdraw_refund', $entry);
+});
+
+it('frees up a capped match spot the moment an entry is withdrawn', function () {
+    $event = transferMatch('Tight Match', 45000, [
+        'registrations_open' => true,
+        'max_entries' => 1,
+    ]);
+
+    $entry = EventRegistration::create([
+        'event_id' => $event->id,
+        'member_id' => transferShooter()->id,
+        'fee_cents' => 45000,
+        'status' => EventRegistrationStatus::Confirmed,
+        'registered_at' => now()->subDays(5),
+    ]);
+
+    // One active entry fills the single-seat cap.
+    expect($event->fresh()->registrationState())->toBe(RegistrationState::Full);
+
+    $entry->update(['status' => EventRegistrationStatus::Cancelled]);
+
+    // Cancelled rows are excluded from the active count, so the spot opens up.
+    expect($event->fresh()->registrationState())->toBe(RegistrationState::Open);
+});
+
 it('hides the Withdraw & refund action once already refunded', function () {
     $entry = refundableEntry();
     $entry->update([
@@ -65,7 +136,7 @@ it('hides the Withdraw & refund action once already refunded', function () {
     ])->assertTableActionHidden('withdraw_refund', $entry);
 });
 
-it('cancels the entry and stamps every refund field', function () {
+it('leaves EFT refunds owing until an admin marks them paid', function () {
     $entry = refundableEntry();
 
     Livewire::test(RegistrationsRelationManager::class, [
@@ -88,12 +159,15 @@ it('cancels the entry and stamps every refund field', function () {
         ->and($entry->refunded_method)->toBe(MatchPaymentMethod::Eft)
         ->and($entry->refunded_note)->toBe('Family emergency, won\'t make it')
         ->and($entry->refunded_by_user_id)->toBe($this->treasurer->id)
-        ->and($entry->wasRefunded())->toBeTrue();
+        ->and($entry->refund_paid_at)->toBeNull()
+        ->and($entry->wasRefunded())->toBeTrue()
+        ->and($entry->isRefundPaid())->toBeFalse()
+        ->and($entry->isRefundOwing())->toBeTrue();
 
-    Mail::assertSent(MatchEntryRefundIssuedMail::class, 1);
+    Mail::assertSent(MatchWithdrawalConfirmedMail::class, 1);
 });
 
-it('skips the notification email when notify is off', function () {
+it('stamps cash refunds as paid immediately because the money came out of the float', function () {
     $entry = refundableEntry();
 
     Livewire::test(RegistrationsRelationManager::class, [
@@ -107,9 +181,14 @@ it('skips the notification email when notify is off', function () {
         ])
         ->assertHasNoTableActionErrors();
 
-    expect($entry->fresh()->refunded_method)->toBe(MatchPaymentMethod::Cash);
+    $entry->refresh();
 
-    Mail::assertNotSent(MatchEntryRefundIssuedMail::class);
+    expect($entry->refunded_method)->toBe(MatchPaymentMethod::Cash)
+        ->and($entry->refund_paid_at)->not->toBeNull()
+        ->and($entry->isRefundPaid())->toBeTrue()
+        ->and($entry->isRefundOwing())->toBeFalse();
+
+    Mail::assertNotSent(MatchWithdrawalConfirmedMail::class);
 });
 
 it('supports a partial refund', function () {
@@ -129,13 +208,81 @@ it('supports a partial refund', function () {
     expect($entry->fresh()->refunded_amount_cents)->toBe(20000);
 });
 
-it('exposes refund totals on the match director summary', function () {
-    $entry = refundableEntry();
-    $event = $entry->event;
+it('offers Mark refund paid only on refunds that are still owing', function () {
+    $event = transferMatch('Mark Paid Match', 45000);
 
-    // A second paid shooter who sticks around — their EFT must stay in the
-    // payout base so we can prove the refund doesn't double-subtract.
-    $staying = EventRegistration::create([
+    $owing = EventRegistration::create([
+        'event_id' => $event->id,
+        'member_id' => transferShooter()->id,
+        'fee_cents' => 45000,
+        'status' => EventRegistrationStatus::Cancelled,
+        'registered_at' => now()->subDays(5),
+        'paid_at' => now()->subDays(3),
+        'refunded_at' => now()->subDay(),
+        'refunded_amount_cents' => 45000,
+        'refunded_method' => MatchPaymentMethod::Eft->value,
+    ]);
+
+    $alreadyPaid = EventRegistration::create([
+        'event_id' => $event->id,
+        'member_id' => transferShooter()->id,
+        'fee_cents' => 45000,
+        'status' => EventRegistrationStatus::Cancelled,
+        'registered_at' => now()->subDays(5),
+        'paid_at' => now()->subDays(3),
+        'refunded_at' => now()->subDay(),
+        'refunded_amount_cents' => 45000,
+        'refunded_method' => MatchPaymentMethod::Cash->value,
+        'refund_paid_at' => now()->subDay(),
+    ]);
+
+    $neverRefunded = EventRegistration::create([
+        'event_id' => $event->id,
+        'member_id' => transferShooter()->id,
+        'fee_cents' => 45000,
+        'status' => EventRegistrationStatus::Confirmed,
+        'registered_at' => now()->subDays(5),
+        'paid_at' => now()->subDays(3),
+    ]);
+
+    Livewire::test(RegistrationsRelationManager::class, [
+        'ownerRecord' => $event,
+        'pageClass' => EditEvent::class,
+    ])
+        ->assertTableActionVisible('mark_refund_paid', $owing)
+        ->assertTableActionHidden('mark_refund_paid', $alreadyPaid)
+        ->assertTableActionHidden('mark_refund_paid', $neverRefunded);
+});
+
+it('settles an EFT refund by stamping refund_paid_at without sending a second email', function () {
+    $entry = EventRegistration::create([
+        'event_id' => transferMatch('Settle Match', 45000)->id,
+        'member_id' => transferShooter()->id,
+        'fee_cents' => 45000,
+        'status' => EventRegistrationStatus::Cancelled,
+        'registered_at' => now()->subDays(5),
+        'paid_at' => now()->subDays(3),
+        'refunded_at' => now()->subDay(),
+        'refunded_amount_cents' => 45000,
+        'refunded_method' => MatchPaymentMethod::Eft->value,
+    ]);
+
+    Livewire::test(RegistrationsRelationManager::class, [
+        'ownerRecord' => $entry->event,
+        'pageClass' => EditEvent::class,
+    ])
+        ->callTableAction('mark_refund_paid', $entry)
+        ->assertHasNoTableActionErrors();
+
+    expect($entry->fresh()->refund_paid_at)->not->toBeNull();
+    Mail::assertNotSent(MatchWithdrawalConfirmedMail::class);
+});
+
+it('exposes refund totals on the match director summary split by paid vs owing', function () {
+    $event = transferMatch('Director Summary Match', 45000);
+
+    // A paid shooter who sticks around — proves refunds don't double-subtract.
+    EventRegistration::create([
         'event_id' => $event->id,
         'member_id' => transferShooter()->id,
         'fee_cents' => 45000,
@@ -145,20 +292,42 @@ it('exposes refund totals on the match director summary', function () {
         'payment_method' => MatchPaymentMethod::Eft->value,
     ]);
 
-    // Refund the first shooter.
-    $entry->update([
+    // Owing EFT refund — the money is still with the club waiting for payout.
+    EventRegistration::create([
+        'event_id' => $event->id,
+        'member_id' => transferShooter()->id,
+        'fee_cents' => 45000,
         'status' => EventRegistrationStatus::Cancelled,
-        'refunded_at' => now(),
+        'registered_at' => now()->subDays(5),
+        'paid_at' => now()->subDays(3),
+        'refunded_at' => now()->subDay(),
         'refunded_amount_cents' => 45000,
         'refunded_method' => MatchPaymentMethod::Eft->value,
     ]);
 
+    // Cash refund that was handed back on the day — already out.
+    EventRegistration::create([
+        'event_id' => $event->id,
+        'member_id' => transferShooter()->id,
+        'fee_cents' => 45000,
+        'status' => EventRegistrationStatus::Cancelled,
+        'registered_at' => now()->subDays(5),
+        'paid_at' => now()->subDays(3),
+        'refunded_at' => now()->subDay(),
+        'refunded_amount_cents' => 30000,
+        'refunded_method' => MatchPaymentMethod::Cash->value,
+        'refund_paid_at' => now()->subDay(),
+    ]);
+
     $summary = (new MatchDirectorReport($event->fresh()))->summary();
 
-    expect($summary['refunds_total_cents'])->toBe(45000)
-        ->and($summary['refunds_count'])->toBe(1)
-        // Only the staying shooter is in the EFT base; refunded cancelled row
-        // is excluded naturally, so director payout is 45000 - 0 - 0 - 0.
+    expect($summary['refunds_count'])->toBe(2)
+        ->and($summary['refunds_total_cents'])->toBe(75000)
+        ->and($summary['refunds_paid_cents'])->toBe(30000)
+        ->and($summary['refunds_owing_cents'])->toBe(45000)
+        ->and($summary['refunds_owing_count'])->toBe(1)
+        // Only the staying shooter is in the EFT base; cancelled refund rows
+        // are excluded naturally, so director payout is 45000 - 0 - 0 - 0.
         ->and($summary['eft_base_cents'])->toBe(45000)
         ->and($summary['director_payout_cents'])->toBe(45000)
         ->and($summary['payout_count'])->toBe(1);

@@ -9,11 +9,13 @@ class MatchController extends Controller
 {
     public function index()
     {
-        // `withCount('registrations')` so each card's registrationState() can
-        // check Full-ness without firing a separate query per card.
+        // `withCount(active registrations)` so each card's registrationState()
+        // can check Full-ness without firing a separate query per card. Only
+        // active entries count toward the cap — a shooter the admin has
+        // withdrawn frees up their spot immediately.
         $upcoming = Event::query()
             ->with('matchFormat')
-            ->withCount('registrations')
+            ->withCount(['registrations' => fn ($q) => $q->active()])
             ->upcoming()
             ->limit(30)
             ->get()
@@ -62,7 +64,7 @@ class MatchController extends Controller
     {
         abort_unless($event->isPubliclyVisible(), 404);
 
-        $event->loadCount('registrations');
+        $event->loadCount(['registrations' => fn ($q) => $q->active()]);
         $event->load(['matchFormat', 'results', 'galleryPhotos']);
 
         // Group all squadded entries by squad number for the public squad
@@ -75,7 +77,7 @@ class MatchController extends Controller
                 'member.user:id',
                 'member.user.roles:id,name',
             ])
-            ->whereNotIn('status', ['cancelled', 'no_show'])
+            ->active()
             ->orderByRaw('squad_number IS NULL, squad_number')
             ->orderByRaw('firing_order IS NULL, firing_order')
             ->orderBy('id')
