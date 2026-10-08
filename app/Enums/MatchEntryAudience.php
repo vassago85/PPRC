@@ -46,7 +46,14 @@ enum MatchEntryAudience: string
             self::All => true,
             self::Confirmed => $registration->paymentConfirmed(),
             self::Awaiting => $registration->awaitingPayment(),
-            self::Unpaid => $registration->paid_at === null,
+            // "Not yet marked paid" is for chasing a settlement — ExCo free
+            // entries and SAPRF-paid shooters have paid_at = null forever
+            // because they never owed PPRC anything, so including them here
+            // would mean every "please pay" email also went to the people
+            // who have nothing to pay.
+            self::Unpaid => $registration->paid_at === null
+                && ! $registration->is_saprf_entry
+                && ! $registration->isWaived(),
             self::Guests => $registration->member_id === null,
         };
     }

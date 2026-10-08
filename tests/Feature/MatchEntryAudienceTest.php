@@ -125,6 +125,39 @@ it('scopes the Unpaid audience to entries not marked paid', function () {
         ->not->toContain($data['paidGuest']->id, $data['member']->id);
 });
 
+it('keeps SAPRF and waived entries out of the Unpaid audience', function () {
+    $data = audienceEntries();
+
+    // SAPRF entry: pays through the SAPRF portal, PPRC is never owed and
+    // paid_at stays null forever. Emailing them a "please pay" reminder
+    // because they match "not yet marked paid" is spam.
+    $saprf = EventRegistration::create([
+        'event_id' => $data['event']->id,
+        'guest_name' => 'SAPRF Shooter',
+        'guest_email' => 'saprf@example.com',
+        'is_saprf_entry' => true,
+        'status' => EventRegistrationStatus::Registered,
+        'registered_at' => now(),
+    ]);
+
+    // Waived (comped) entry: fee overridden to 0 on a match that normally
+    // charges. paid_at stays null because there's nothing to settle.
+    $waived = EventRegistration::create([
+        'event_id' => $data['event']->id,
+        'guest_name' => 'Comped Guest',
+        'guest_email' => 'comped@example.com',
+        'fee_cents' => 0,
+        'status' => EventRegistrationStatus::Registered,
+        'registered_at' => now(),
+    ]);
+
+    $ids = MatchEntryAudience::Unpaid->filter($data['event'])->pluck('id');
+
+    expect($ids)
+        ->toContain($data['owingGuest']->id)
+        ->not->toContain($saprf->id, $waived->id);
+});
+
 it('scopes the Guests audience to entries without an account', function () {
     $data = audienceEntries();
 
