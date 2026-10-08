@@ -7,9 +7,9 @@ use App\Mail\EventGuestRegistrationPinMail;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\Member;
-use App\Models\SaprfShooter;
 use App\Services\Events\MatchEntryPaymentRequestService;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -69,7 +69,7 @@ class EventRegister extends Component
      * guests and for members with no sub-members: the classic single-member
      * flow re-emerges naturally.
      */
-    public function getHouseholdMembersProperty(): \Illuminate\Support\Collection
+    public function getHouseholdMembersProperty(): Collection
     {
         $member = $this->member;
         if (! $member instanceof Member) {
@@ -124,6 +124,17 @@ class EventRegister extends Component
 
     public function sendGuestPin(): void
     {
+        // Mirror the guard already in registerGuest()/registerMemberFor() so a
+        // closed, full or not-yet-open match cannot even hand out a code — the
+        // state panel below will have replaced the form anyway, but a direct
+        // POST (or a stale page kept open past the deadline) must not slip
+        // through and spam shooters with codes they can never redeem.
+        if (! $this->event->isRegistrationOpen()) {
+            $this->addError('guestEmail', 'Registrations are not open for this match.');
+
+            return;
+        }
+
         $this->validate(array_merge([
             'guestName' => ['required', 'string', 'max:150'],
             'guestEmail' => ['required', 'email', 'max:150'],
@@ -223,7 +234,7 @@ class EventRegister extends Component
                 'is_junior' => $isJuniorEntry,
                 'fee_cents' => $isSaprfEntry ? 0 : null,
                 'notes' => $isSaprfEntry && $this->saprfNumber !== ''
-                    ? 'SAPRF #' . trim($this->saprfNumber)
+                    ? 'SAPRF #'.trim($this->saprfNumber)
                     : null,
                 'status' => EventRegistrationStatus::Registered,
                 'registered_at' => now(),
@@ -320,7 +331,7 @@ class EventRegister extends Component
             'is_junior' => $target->isJunior(),
             'fee_cents' => $isSaprfEntry ? 0 : null,
             'notes' => $isSaprfEntry && $this->saprfNumber !== ''
-                ? 'SAPRF #' . trim($this->saprfNumber)
+                ? 'SAPRF #'.trim($this->saprfNumber)
                 : null,
             'status' => EventRegistrationStatus::Registered,
             'registered_at' => now(),

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\EventStatus;
+use App\Enums\RegistrationState;
 use App\Support\MediaDisk;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -51,6 +52,7 @@ class Event extends Model
         'registration_require_category',
         'registrations_open',
         'registrations_close_at',
+        'registrations_open_at',
         'status',
         'match_director_id',
         'match_director_name',
@@ -63,6 +65,7 @@ class Event extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'registrations_close_at' => 'datetime',
+        'registrations_open_at' => 'datetime',
         'published_at' => 'datetime',
         'results_published_at' => 'datetime',
         'registrations_open' => 'boolean',
@@ -332,23 +335,50 @@ class Event extends Model
 
     public function isRegistrationOpen(): bool
     {
+        return $this->registrationState() === RegistrationState::Open;
+    }
+
+    /**
+     * Which bucket the public site should show for this match right now.
+     *
+     * The precedence is deliberate: Finished > Closed (switch or deadline) >
+     * NotYetOpen > Full > Open. "Closed" always beats "Full" so an admin who
+     * flips the switch off keeps the match closed even if there is capacity;
+     * "Full" never reopens on cancellations because the raw registrations
+     * count still includes them until the admin cancels the entry. The old
+     * behaviour (count-based cap) is preserved by only promoting to Full when
+     * nothing more restrictive applies.
+     *
+     * The `registrations_count` relation count is used if it was eager-loaded
+     * (via `withCount('registrations')`), so listing pages don't fire a query
+     * per card.
+     */
+    public function registrationState(): RegistrationState
+    {
         if ($this->isFinished()) {
-            return false;
+            return RegistrationState::Finished;
         }
 
         if (! $this->registrations_open) {
-            return false;
+            return RegistrationState::Closed;
         }
 
         if ($this->registrations_close_at && $this->registrations_close_at->isPast()) {
-            return false;
+            return RegistrationState::Closed;
         }
 
-        if ($this->max_entries !== null && $this->registrations()->count() >= $this->max_entries) {
-            return false;
+        if ($this->registrations_open_at && $this->registrations_open_at->isFuture()) {
+            return RegistrationState::NotYetOpen;
         }
 
-        return true;
+        if ($this->max_entries !== null) {
+            $count = $this->registrations_count ?? $this->registrations()->count();
+            if ($count >= $this->max_entries) {
+                return RegistrationState::Full;
+            }
+        }
+
+        return RegistrationState::Open;
     }
 
     /**

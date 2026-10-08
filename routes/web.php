@@ -12,6 +12,7 @@ use App\Http\Controllers\Site\ContactController;
 use App\Http\Controllers\Site\FaqController;
 use App\Http\Controllers\Site\GalleryController;
 use App\Http\Controllers\Site\HomeController;
+use App\Http\Controllers\Site\MatchAttendanceResponseController;
 use App\Http\Controllers\Site\MatchController;
 use App\Http\Controllers\Site\MembershipCancellationController;
 use App\Http\Controllers\Site\MembershipController;
@@ -54,6 +55,23 @@ Route::view('/prs-academy', 'site.prs-academy')->name('prs.academy');
 
 Route::get('/matches', [MatchController::class, 'index'])->name('matches');
 Route::get('/matches/{event:slug}', [MatchController::class, 'show'])->name('matches.show');
+// Sign-in return route: a member clicks "Sign in" on a match page, we park the
+// match URL in the session as the intended destination, then hand off to the
+// Fortify login flow. The existing LoginResponse / verified-pin controllers
+// already use `redirect()->intended()`, so the member lands back on the
+// specific match (with `#enter` scrolling them to the registration component).
+Route::get('/matches/{event:slug}/sign-in', [MatchController::class, 'signIn'])
+    ->name('matches.sign-in');
+
+// Signed URL target for the "are you still shooting?" email. Needs no login
+// because guests without portal accounts also receive the mail; the signature
+// in every URL binds the registration id to the chosen response so forwarding
+// or tampering can't withdraw someone else or flip the answer.
+Route::get('/matches/attendance/{registration}/{response}', [MatchAttendanceResponseController::class, 'record'])
+    ->middleware('signed')
+    ->whereNumber('registration')
+    ->where('response', '[a-z_]+')
+    ->name('matches.attendance.record');
 Route::get('/membership/certificate/{token}', [CertificateController::class, 'show'])
     ->where('token', '[a-zA-Z0-9]+')
     ->name('membership.certificate.show');

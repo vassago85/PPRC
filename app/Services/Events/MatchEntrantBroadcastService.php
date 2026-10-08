@@ -3,6 +3,7 @@
 namespace App\Services\Events;
 
 use App\Enums\MatchEntryAudience;
+use App\Mail\MatchAttendanceCheckMail;
 use App\Mail\MatchEntrantMessageMail;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -112,6 +113,56 @@ class MatchEntrantBroadcastService
             // admin clicked twice, or new entries came in a day later) skips
             // shooters who have already had the invite.
             $registration->forceFill(['whatsapp_link_sent_at' => now()])->save();
+
+            $sent++;
+        }
+
+        return ['sent' => $sent, 'skipped' => $skipped, 'already' => $already];
+    }
+
+    /**
+     * Email a "are you still shooting?" check with three signed-URL response
+     * buttons (still shooting / unsure / withdraw) to every entry in the
+     * chosen audience. Mirrors sendWhatsAppLink's top-up semantics: when
+     * $skipAlreadySent is on, entries with `attendance_check_sent_at` set
+     * are left alone so running this again a day later only catches new
+     * signups rather than re-asking everyone.
+     *
+     * @return array{sent: int, skipped: int, already: int}
+     */
+    public function sendAttendanceCheck(
+        Event $event,
+        MatchEntryAudience $audience,
+        bool $skipAlreadySent = true,
+        ?string $note = null,
+    ): array {
+        $sent = 0;
+        $skipped = 0;
+        $already = 0;
+
+        foreach ($audience->filter($event) as $registration) {
+            /** @var EventRegistration $registration */
+            if ($skipAlreadySent && $registration->attendance_check_sent_at !== null) {
+                $already++;
+
+                continue;
+            }
+
+            $email = $registration->payerEmail();
+
+            if (! filled($email)) {
+                $skipped++;
+
+                continue;
+            }
+
+            Mail::to($email, $registration->shooterName())->later(
+                MailThrottle::delayFor($sent),
+                new MatchAttendanceCheckMail($event, $registration, $note),
+            );
+
+            // Stamp immediately so a re-run only picks up late entries.
+            $registration->forceFill(['attendance_check_sent_at' => now()])->save();
 
             $sent++;
         }

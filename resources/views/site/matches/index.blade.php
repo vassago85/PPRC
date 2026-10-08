@@ -6,7 +6,10 @@
         <x-site.eyebrow>Matches</x-site.eyebrow>
         <h1 class="mt-3 text-4xl sm:text-5xl font-semibold tracking-tight">Club matches &amp; events</h1>
         <p class="mt-5 max-w-2xl text-slate-300">
-            PRS (Centerfire) and PR22 matches hosted by PPRC. Members are notified by email when registrations open.
+            PRS (Centerfire) and PR22 matches hosted by PPRC. Pick an upcoming match below to see the details and enter online. Members are notified by email when registrations open.
+        </p>
+        <p class="mt-3 max-w-2xl text-sm text-slate-500">
+            Need help with an entry you've already made? <a href="{{ url('/contact') }}" class="font-medium text-slate-300 underline underline-offset-2 hover:text-white">Contact the club</a>.
         </p>
     </x-site.section>
 
@@ -27,10 +30,10 @@
         @else
             <x-site.card padding="lg" class="text-center border-dashed">
                 <p class="text-slate-300">No upcoming matches are listed yet.</p>
-                <p class="mt-2 text-sm text-slate-500">Check back soon, or join the club to get match updates by email.</p>
+                <p class="mt-2 text-sm text-slate-500">Check back soon. Members get match updates by email as soon as the calendar is published.</p>
                 <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                    <x-site.button :href="url('/register')">Join PPRC</x-site.button>
-                    <x-site.button :href="url('/contact')" variant="secondary">Contact us</x-site.button>
+                    <x-site.button :href="url('/contact')">Contact the club</x-site.button>
+                    <x-site.button :href="url('/membership')" variant="secondary">About PPRC membership</x-site.button>
                 </div>
             </x-site.card>
         @endif

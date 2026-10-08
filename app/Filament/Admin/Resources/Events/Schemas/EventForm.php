@@ -174,9 +174,14 @@ class EventForm
                                         ->label('Tie-breaker stage')
                                         ->helperText('Stage number used to break ties on the leaderboard. e.g. 1'),
                                     Toggle::make('registrations_open')->inline(false),
+                                    DateTimePicker::make('registrations_open_at')
+                                        ->label('Registrations open at')
+                                        ->seconds(false)
+                                        ->helperText('Optional. Leave blank to accept entries as soon as the match is published and the toggle above is on. Set a future date-time to publish the match ahead of time while the public form stays suppressed with a "Not yet open" message.'),
                                     DateTimePicker::make('registrations_close_at')
                                         ->label('Registrations close at')
-                                        ->seconds(false),
+                                        ->seconds(false)
+                                        ->helperText('Optional. After this date-time the public form switches to "Registration closed" and no further entries can be sent.'),
                                 ]),
 
                             Section::make('SAPRF sanctioning')

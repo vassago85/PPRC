@@ -12,6 +12,7 @@ class HomeController extends Controller
     {
         $upcomingMatches = Event::query()
             ->with('matchFormat')
+            ->withCount('registrations')
             ->upcoming()
             ->limit(3)
             ->get()
@@ -22,6 +23,8 @@ class HomeController extends Controller
                 'format' => $e->matchFormat?->short_name ?? $e->matchFormat?->name,
                 'banner_url' => $e->bannerUrl(),
                 'url' => route('matches.show', ['event' => $e->slug]),
+                'registration_state' => $e->registrationState(),
+                'registrations_open_at' => $e->registrations_open_at,
             ]);
 
         $recentResults = Event::query()

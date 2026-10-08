@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources\Events\RelationManagers;
 
+use App\Enums\AttendanceResponse;
 use App\Enums\EventRegistrationStatus;
 use App\Enums\InvoiceType;
 use App\Enums\MatchEntryAudience;
@@ -12,6 +13,7 @@ use App\Filament\Admin\Support\MemberSearch;
 use App\Filament\Admin\Support\SearchTerm;
 use App\Invoices\InvoiceFactory;
 use App\Invoices\InvoiceUrl;
+use App\Mail\MatchEntryRefundIssuedMail;
 use App\Models\EventRegistration;
 use App\Models\Member;
 use App\Services\Events\MatchEntrantBroadcastService;
@@ -40,6 +42,8 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class RegistrationsRelationManager extends RelationManager
@@ -260,6 +264,14 @@ class RegistrationsRelationManager extends RelationManager
                     ->state(fn (EventRegistration $r) => $r->whatsapp_link_sent_at !== null)
                     ->tooltip(fn (EventRegistration $r) => $r->whatsapp_link_sent_at?->format('d M H:i'))
                     ->toggleable(isToggledHiddenByDefault: true),
+                IconColumn::make('attendance_response')
+                    ->label('Attending?')
+                    ->icon(fn (?AttendanceResponse $state) => $state?->icon() ?? 'heroicon-o-minus')
+                    ->color(fn (?AttendanceResponse $state) => $state?->color() ?? 'gray')
+                    ->tooltip(fn (EventRegistration $r) => $r->attendance_response === null
+                        ? ($r->attendance_check_sent_at !== null ? 'Asked '.$r->attendance_check_sent_at->format('d M H:i').' — no response yet' : null)
+                        : $r->attendance_response->label().' · '.$r->attendance_responded_at?->format('d M H:i'))
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -421,6 +433,51 @@ class RegistrationsRelationManager extends RelationManager
                             ->body("Sent {$result['sent']}, already had it: {$result['already']}, skipped {$result['skipped']} (no email).")
                             ->send();
                     }),
+                Action::make('send_attendance_check')
+                    ->label('Send attendance check')
+                    ->icon('heroicon-o-question-mark-circle')
+                    ->color('info')
+                    ->visible(fn () => auth()->user()?->can('events.registrations.manage'))
+                    ->modalHeading('Send "are you still shooting?" email')
+                    ->modalDescription('Emails every entry in the chosen audience three big buttons — still shooting, unsure, withdraw. The response is recorded against their entry so you can plan squads without chasing anyone. We stamp each entry once it has had the email, so running this again a day or two later only tops up new signups.')
+                    ->modalSubmitActionLabel('Send check')
+                    ->fillForm(fn () => [
+                        'audience' => MatchEntryAudience::Awaiting->value,
+                        'skip_already_sent' => true,
+                    ])
+                    ->schema([
+                        Select::make('audience')
+                            ->label('Who to email')
+                            ->options(MatchEntryAudience::options())
+                            ->default(MatchEntryAudience::Awaiting->value)
+                            ->required()
+                            ->helperText('Awaiting payment is the usual pick — those are the shooters whose attendance is uncertain.'),
+                        Toggle::make('skip_already_sent')
+                            ->label('Skip shooters we have already asked')
+                            ->default(true)
+                            ->inline(false)
+                            ->helperText('Leave on when topping up late entries. Turn off to re-send to everyone (e.g. the match was rescheduled).'),
+                        Textarea::make('note')
+                            ->label('Optional note')
+                            ->rows(3)
+                            ->helperText('Appended under the default "we are finalising the squad list" line.'),
+                    ])
+                    ->action(function (array $data) {
+                        $event = $this->getOwnerRecord();
+                        $audience = MatchEntryAudience::from($data['audience']);
+
+                        $result = app(MatchEntrantBroadcastService::class)->sendAttendanceCheck(
+                            $event,
+                            $audience,
+                            (bool) ($data['skip_already_sent'] ?? true),
+                            $data['note'] ?? null,
+                        );
+
+                        Notification::make()->success()
+                            ->title('Attendance check sent')
+                            ->body("Sent {$result['sent']}, already asked: {$result['already']}, skipped {$result['skipped']} (no email).")
+                            ->send();
+                    }),
             ])
             ->recordActions([
                 Action::make('view_invoice')
@@ -575,6 +632,77 @@ class RegistrationsRelationManager extends RelationManager
 
                         Notification::make()->success()
                             ->title('Marked as unpaid')
+                            ->send();
+                    }),
+                Action::make('withdraw_refund')
+                    ->label('Withdraw & refund')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('danger')
+                    ->modalHeading(fn (EventRegistration $r) => 'Withdraw '.$r->shooterName().' and refund')
+                    ->modalDescription(fn (EventRegistration $r) => 'Cancel '.$r->shooterName().'\'s entry and record the refund you issued. The entry stays on the list marked Cancelled, and the refund shows on the match director\'s cash-up slip so the money going back out is accounted for.')
+                    ->modalSubmitActionLabel('Record withdrawal and refund')
+                    ->visible(fn (EventRegistration $r) => $r->paid_at !== null
+                        && $r->status !== EventRegistrationStatus::Cancelled
+                        && ! $r->wasRefunded()
+                        && auth()->user()?->can('events.registrations.manage'))
+                    ->fillForm(fn (EventRegistration $r) => [
+                        'amount_rands' => number_format(((int) ($r->effectiveFeeCents() ?? 0)) / 100, 2, '.', ''),
+                        'method' => $r->payment_method?->value ?? MatchPaymentMethod::Eft->value,
+                        'notify' => true,
+                    ])
+                    ->schema([
+                        TextInput::make('amount_rands')
+                            ->label('Refund amount (ZAR)')
+                            ->numeric()
+                            ->prefix('R')
+                            ->minValue(0)
+                            ->required()
+                            ->helperText('Defaults to the full fee. Reduce for a partial refund.'),
+                        Select::make('method')
+                            ->label('Refund method')
+                            ->options(MatchPaymentMethod::options())
+                            ->default(MatchPaymentMethod::Eft->value)
+                            ->required()
+                            ->helperText('EFT came out of the club account. Cash came out of the match-day float.'),
+                        Textarea::make('note')
+                            ->label('Note (optional)')
+                            ->rows(2)
+                            ->helperText('Visible on the cash-up slip and included in the shooter\'s refund email.'),
+                        Toggle::make('notify')
+                            ->label('Email the shooter a refund notification')
+                            ->default(true)
+                            ->inline(false),
+                    ])
+                    ->action(function (EventRegistration $r, array $data) {
+                        $method = MatchPaymentMethod::tryFrom($data['method'] ?? '')
+                            ?? MatchPaymentMethod::Eft;
+                        $amountCents = (int) round(((float) ($data['amount_rands'] ?? 0)) * 100);
+                        $note = $data['note'] ?? null;
+                        $notify = (bool) ($data['notify'] ?? false);
+
+                        DB::transaction(function () use ($r, $amountCents, $method, $note) {
+                            $r->update([
+                                'status' => EventRegistrationStatus::Cancelled,
+                                'refunded_at' => now(),
+                                'refunded_amount_cents' => $amountCents,
+                                'refunded_method' => $method->value,
+                                'refunded_note' => $note,
+                                'refunded_by_user_id' => auth()->id(),
+                            ]);
+                        });
+
+                        $emailed = false;
+                        if ($notify && filled($r->payerEmail())) {
+                            Mail::to($r->payerEmail(), $r->shooterName())
+                                ->send(new MatchEntryRefundIssuedMail($r->fresh(['event'])));
+                            $emailed = true;
+                        }
+
+                        Notification::make()->success()
+                            ->title('Withdrawal and refund recorded')
+                            ->body($r->shooterName().' is withdrawn, R '.number_format($amountCents / 100, 2)
+                                .' refunded via '.$method->label().'.'
+                                .($emailed ? ' A notification email was sent.' : ''))
                             ->send();
                     }),
                 ApplyMatchCreditAction::make(),

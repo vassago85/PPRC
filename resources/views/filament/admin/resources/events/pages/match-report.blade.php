@@ -10,6 +10,21 @@
         $expenses = $this->getExpenses();
         $expenseItems = $expenses['items'];
         $expenseTotalCents = (int) ($s['expenses_total_cents'] ?? $expenses['total_cents'] ?? 0);
+        $refunds = $this->getRefunds();
+        $refundsTotalCents = (int) ($s['refunds_total_cents'] ?? 0);
+        $payeeUserOptions = $canPay ? $this->getPayeeUserOptions() : [];
+        $categoryOptions = $this->getExpenseCategoryOptions();
+
+        // Palette the slip can use when rendering a category badge. Keep aligned
+        // with MatchExpenseCategory::color() so the two don't drift.
+        $categoryBadgeClass = [
+            'trophies'    => 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400',
+            'medals'      => 'bg-yellow-50 text-yellow-700 ring-yellow-600/20 dark:bg-yellow-500/10 dark:text-yellow-400',
+            'prize_money' => 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400',
+            'range_fees'  => 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-500/10 dark:text-sky-400',
+            'supplies'    => 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-500/10 dark:text-violet-400',
+            'other'       => 'bg-gray-100 text-gray-600 ring-gray-500/20 dark:bg-white/5 dark:text-gray-400',
+        ];
 
         $money = fn (int $cents) => 'R ' . number_format($cents / 100, 2);
 
@@ -187,13 +202,13 @@
         </p>
     </div>
 
-    {{-- Other costs the club owes (range fees, etc.) --}}
+    {{-- Other costs the club owes (range fees, trophies, prize money, etc.) --}}
     <div class="mt-4 print-card overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
         <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-white/10">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Other costs the club must pay</p>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    Range fees, prize money, and anything else the club is settling out of the EFT pot. These come off the top before the match director is paid.
+                    Range fees, trophies, prize money, and anything else the club is settling out of the EFT pot. These are <strong>reimbursed off the top</strong> before the match director's cut — someone who paid for trophies out of pocket is listed here with their name as the payee.
                 </p>
             </div>
             <p class="text-sm font-semibold text-gray-900 dark:text-white">
@@ -205,6 +220,7 @@
             <thead>
                 <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
                     <th class="px-4 py-2">Description</th>
+                    <th class="px-4 py-2">Category</th>
                     <th class="px-4 py-2">Payee</th>
                     <th class="px-4 py-2 text-right">Amount</th>
                     <th class="px-4 py-2 text-right no-print"></th>
@@ -212,9 +228,29 @@
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-white/5">
                 @forelse ($expenseItems as $expense)
+                    @php
+                        $categoryValue = $expense->category?->value ?? 'other';
+                        $categoryLabel = $expense->category?->label() ?? 'Other';
+                        $categoryClass = $categoryBadgeClass[$categoryValue] ?? $categoryBadgeClass['other'];
+                        $payeeLabel = $expense->payeeDisplay() ?: '—';
+                    @endphp
                     <tr>
                         <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $expense->description }}</td>
-                        <td class="px-4 py-2 text-gray-600 dark:text-gray-300">{{ $expense->payee_name ?: '—' }}</td>
+                        <td class="px-4 py-2">
+                            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ $categoryClass }}">
+                                {{ $categoryLabel }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2 text-gray-600 dark:text-gray-300">
+                            @if ($expense->payee_user_id && $expense->payeeUser)
+                                <span class="inline-flex items-center gap-1.5">
+                                    <svg class="h-3.5 w-3.5 text-primary-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                                    <span class="font-medium text-gray-900 dark:text-white">{{ $payeeLabel }}</span>
+                                </span>
+                            @else
+                                {{ $payeeLabel }}
+                            @endif
+                        </td>
                         <td class="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-white">{{ $money((int) $expense->amount_cents) }}</td>
                         <td class="px-4 py-2 text-right no-print">
                             @if ($canPay)
@@ -228,7 +264,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
+                        <td colspan="5" class="px-4 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
                             No other costs recorded yet.
                         </td>
                     </tr>
@@ -237,7 +273,7 @@
             @if ($expenseTotalCents > 0)
                 <tfoot>
                     <tr class="border-t border-gray-200 dark:border-white/10">
-                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" colspan="2">Total other costs</td>
+                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" colspan="3">Total other costs</td>
                         <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $money($expenseTotalCents) }}</td>
                         <td class="px-4 py-2 no-print"></td>
                     </tr>
@@ -247,14 +283,33 @@
 
         @if ($canPay)
             <div class="no-print border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-end">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)_minmax(0,2fr)_minmax(0,1fr)_auto] lg:items-end">
                     <div>
                         <label for="expense-description" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Description</label>
-                        <input id="expense-description" type="text" wire:model.defer="newExpenseDescription" placeholder="Range fees"
+                        <input id="expense-description" type="text" wire:model.defer="newExpenseDescription" placeholder="Trophies for class winners"
                             class="mt-1 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
                     </div>
                     <div>
-                        <label for="expense-payee" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Payee (who it's due to)</label>
+                        <label for="expense-category" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Category</label>
+                        <select id="expense-category" wire:model.defer="newExpenseCategory"
+                            class="mt-1 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                            @foreach ($categoryOptions as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="expense-payee-user" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Pay back a club member</label>
+                        <select id="expense-payee-user" wire:model.defer="newExpensePayeeUserId"
+                            class="mt-1 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white">
+                            <option value="">— None (use free text) —</option>
+                            @foreach ($payeeUserOptions as $userId => $userName)
+                                <option value="{{ $userId }}">{{ $userName }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="expense-payee" class="block text-xs font-medium text-gray-600 dark:text-gray-300">…or outside payee</label>
                         <input id="expense-payee" type="text" wire:model.defer="newExpensePayee" placeholder="Legends Adventure Farm"
                             class="mt-1 w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
                     </div>
@@ -265,15 +320,68 @@
                     </div>
                     <div>
                         <button type="button" wire:click="addExpense"
-                            class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-500 sm:w-auto">
+                            class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-500 lg:w-auto">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                             Add cost
                         </button>
                     </div>
                 </div>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    Picking a club member fills the payee name automatically. Use the free-text payee field for outside suppliers (range, printer, caterer).
+                </p>
             </div>
         @endif
     </div>
+
+    {{-- Refunds issued (only shown when there are any) --}}
+    @if ($refunds->isNotEmpty())
+        <div class="mt-4 print-card overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-white/10">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Refunds issued</p>
+                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        Paid shooters who withdrew and were refunded. Their entries are cancelled above, so the money going back out is already excluded from the EFT total — this list is here so the slip accounts for every rand that left the club.
+                    </p>
+                </div>
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                    Total: <span class="tabular-nums">{{ $money($refundsTotalCents) }}</span>
+                </p>
+            </div>
+
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500 dark:border-white/10 dark:text-gray-400">
+                        <th class="px-4 py-2">Shooter</th>
+                        <th class="px-4 py-2">Method</th>
+                        <th class="px-4 py-2">Date</th>
+                        <th class="px-4 py-2">Note</th>
+                        <th class="px-4 py-2 text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                    @foreach ($refunds as $refund)
+                        <tr>
+                            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $refund->shooterName() }}</td>
+                            <td class="px-4 py-2">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset {{ ($refund->refunded_method?->value ?? 'eft') === 'cash' ? 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400' : 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-500/10 dark:text-sky-400' }}">
+                                    {{ $refund->refunded_method?->label() ?? 'EFT' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-2 text-gray-600 dark:text-gray-300 tabular-nums">{{ $refund->refunded_at?->format('d M Y') }}</td>
+                            <td class="px-4 py-2 text-gray-600 dark:text-gray-300">{{ $refund->refunded_note ?: '—' }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-white">{{ $money($refund->refundedAmountCents()) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr class="border-t border-gray-200 dark:border-white/10">
+                        <td class="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400" colspan="4">Total refunded</td>
+                        <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $money($refundsTotalCents) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    @endif
 
     {{-- Entries table --}}
     <div class="mt-4 print-card overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">

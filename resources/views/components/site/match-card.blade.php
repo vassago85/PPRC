@@ -11,6 +11,28 @@
     $featured = (bool) data_get($match, 'is_featured', false);
     $format   = data_get($match, 'format'); // optional: "PRS (Centerfire)", "PR22", etc.
     $banner   = data_get($match, 'banner_url');
+
+    // Status badge is only rendered on upcoming matches; the index controller
+    // deliberately passes null for past cards so we don't confuse the eye with
+    // a "Match finished" chip where you expect to see when it ran.
+    $regState = data_get($match, 'registration_state'); // \App\Enums\RegistrationState|null
+    $opensAt  = data_get($match, 'registrations_open_at');
+
+    $badgeLabel = null;
+    $badgeClass = null;
+    if ($regState instanceof \App\Enums\RegistrationState) {
+        $badgeLabel = match ($regState) {
+            \App\Enums\RegistrationState::NotYetOpen => $opensAt ? 'Opens '.$opensAt->format('d M') : 'Opens soon',
+            default => $regState->shortLabel(),
+        };
+        $badgeClass = match ($regState) {
+            \App\Enums\RegistrationState::Open       => 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200',
+            \App\Enums\RegistrationState::Closed     => 'border-slate-400/30 bg-slate-500/10 text-slate-300',
+            \App\Enums\RegistrationState::Full       => 'border-amber-400/40 bg-amber-500/10 text-amber-200',
+            \App\Enums\RegistrationState::NotYetOpen => 'border-sky-400/30 bg-sky-500/10 text-sky-200',
+            \App\Enums\RegistrationState::Finished   => 'border-slate-400/30 bg-slate-500/10 text-slate-300',
+        };
+    }
 @endphp
 <a href="{{ $url }}"
    {{ $attributes->class([
@@ -64,9 +86,16 @@
                     'text-base' => ! $compact,
                 ])>{{ $title }}</h3>
 
-                @if ($featured && ! $compact)
-                    <span class="rounded-md bg-amber-400/10 text-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ring-amber-400/30 shrink-0">Featured</span>
-                @endif
+                <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                    @if ($badgeLabel && ! $compact)
+                        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {{ $badgeClass }}">
+                            {{ $badgeLabel }}
+                        </span>
+                    @endif
+                    @if ($featured && ! $compact)
+                        <span class="rounded-md bg-amber-400/10 text-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ring-amber-400/30">Featured</span>
+                    @endif
+                </div>
             </div>
 
             @if ($format || $location)

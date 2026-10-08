@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AttendanceResponse;
 use App\Enums\EventRegistrationStatus;
 use App\Enums\MatchPaymentMethod;
 use App\Support\PaymentReferencePrefix;
@@ -45,6 +46,14 @@ class EventRegistration extends Model
         'payment_proof_path',
         'proof_submitted_at',
         'whatsapp_link_sent_at',
+        'attendance_response',
+        'attendance_responded_at',
+        'attendance_check_sent_at',
+        'refunded_at',
+        'refunded_amount_cents',
+        'refunded_method',
+        'refunded_note',
+        'refunded_by_user_id',
     ];
 
     protected $casts = [
@@ -56,6 +65,12 @@ class EventRegistration extends Model
         'paid_at' => 'datetime',
         'proof_submitted_at' => 'datetime',
         'whatsapp_link_sent_at' => 'datetime',
+        'attendance_responded_at' => 'datetime',
+        'attendance_check_sent_at' => 'datetime',
+        'attendance_response' => AttendanceResponse::class,
+        'refunded_at' => 'datetime',
+        'refunded_amount_cents' => 'integer',
+        'refunded_method' => MatchPaymentMethod::class,
         'payment_method' => MatchPaymentMethod::class,
         'status' => EventRegistrationStatus::class,
         'squad_number' => 'integer',
@@ -147,6 +162,35 @@ class EventRegistration extends Model
     public function markedPaidBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'marked_paid_by_user_id');
+    }
+
+    public function refundedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'refunded_by_user_id');
+    }
+
+    /**
+     * Whether an admin has issued a refund against this entry. Pure read of
+     * `refunded_at` so the "Withdraw & refund" row action can hide itself
+     * once used, and the cash-up slip can show a refunds section.
+     */
+    public function wasRefunded(): bool
+    {
+        return $this->refunded_at !== null;
+    }
+
+    /**
+     * The amount actually refunded, falling back to the full fee paid when
+     * the admin didn't override the amount in the modal (which is the common
+     * case — full fee back).
+     */
+    public function refundedAmountCents(): int
+    {
+        if ($this->refunded_amount_cents !== null) {
+            return max(0, (int) $this->refunded_amount_cents);
+        }
+
+        return max(0, (int) ($this->effectiveFeeCents() ?? 0));
     }
 
     /**

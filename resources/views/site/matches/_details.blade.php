@@ -75,13 +75,16 @@
         <dd class="mt-2 font-medium text-white">
             {{ $event->registrations_count ?? 0 }}@if ($event->max_entries) / {{ $event->max_entries }}@endif
         </dd>
-        @if ($event->isFinished())
-            <dd class="mt-1 text-sm text-slate-400">Match {{ $event->status->value === 'cancelled' ? 'cancelled' : 'completed' }}</dd>
-        @elseif ($event->isRegistrationOpen())
-            <dd class="mt-1 text-sm text-success-300">Registrations open</dd>
-        @elseif ($event->registrations_open === false)
-            <dd class="mt-1 text-sm text-slate-400">Registrations closed</dd>
-        @endif
+        @php
+            $tileState = $event->registrationState();
+            $tileClass = match ($tileState) {
+                \App\Enums\RegistrationState::Open       => 'text-emerald-300',
+                \App\Enums\RegistrationState::NotYetOpen => 'text-sky-300',
+                \App\Enums\RegistrationState::Full       => 'text-amber-300',
+                default                                   => 'text-slate-400',
+            };
+        @endphp
+        <dd class="mt-1 text-sm {{ $tileClass }}">{{ $tileState->label() }}</dd>
     </div>
 </dl>
 

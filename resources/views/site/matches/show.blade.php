@@ -34,22 +34,31 @@
                     @if ($event->summary)
                         <p class="max-w-3xl text-lg text-slate-300">{{ $event->summary }}</p>
                     @endif
-
-                    @if ($event->hasMatchBook())
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <a href="{{ $event->matchBookUrl() }}" target="_blank" rel="noopener"
-                               class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H6.75A2.25 2.25 0 0 0 4.5 8.25v9A2.25 2.25 0 0 0 6.75 19.5h9a2.25 2.25 0 0 0 2.25-2.25V10.5M19.5 4.5h-6m6 0v6m0-6L9 15"/></svg>
-                                Open match book
-                            </a>
-                            <a href="{{ $event->matchBookUrl() }}" download
-                               class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-brand-500">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9 4.5 4.5m0 0 4.5-4.5m-4.5 4.5V3"/></svg>
-                                Download PDF
-                            </a>
-                        </div>
-                    @endif
                 </div>
+
+                {{-- Registration-first summary: date, venue, prices, deadline
+                     and (when open) a prominent Enter match button. Match book
+                     links sit below it as secondary context. --}}
+                @unless ($resultsPublished)
+                    <div class="mt-6">
+                        @include('site.matches._registration-summary')
+                    </div>
+                @endunless
+
+                @if ($event->hasMatchBook())
+                    <div class="mt-4 flex flex-wrap items-center gap-2">
+                        <a href="{{ $event->matchBookUrl() }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H6.75A2.25 2.25 0 0 0 4.5 8.25v9A2.25 2.25 0 0 0 6.75 19.5h9a2.25 2.25 0 0 0 2.25-2.25V10.5M19.5 4.5h-6m6 0v6m0-6L9 15"/></svg>
+                            Open match book
+                        </a>
+                        <a href="{{ $event->matchBookUrl() }}" download
+                           class="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9 4.5 4.5m0 0 4.5-4.5m-4.5 4.5V3"/></svg>
+                            Download PDF
+                        </a>
+                    </div>
+                @endif
 
                 @if ($bannerUrl)
                     <div class="mx-auto mt-8 max-w-sm">
@@ -153,14 +162,54 @@
                 ->values();
         @endphp
         <x-site.section padding="default" id="squads">
-            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Shooters</p>
-                    <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{{ $isSquadded ? 'Squads' : 'Registered shooters' }}</h2>
-                </div>
-                <p class="text-sm text-slate-500">{{ $squads->flatten()->count() }} {{ \Illuminate\Support\Str::plural('shooter', $squads->flatten()->count()) }}</p>
-            </div>
+            {{-- The shooter list is useful but long; on a phone it buries the
+                 details and gallery further down. We collapse it below md and
+                 open it by default on tablet/desktop so no behaviour changes
+                 above sm. `matchMedia` keeps the state in sync when the
+                 viewport is resized. --}}
+            <div
+                x-data="{
+                    open: window.matchMedia('(min-width: 768px)').matches,
+                    init() {
+                        const mq = window.matchMedia('(min-width: 768px)');
+                        const sync = (e) => { this.open = e.matches || this.open; };
+                        if (mq.addEventListener) {
+                            mq.addEventListener('change', sync);
+                        } else {
+                            mq.addListener(sync);
+                        }
+                    },
+                }"
+                class="rounded-2xl border border-white/10 bg-white/[0.02]"
+            >
+                <button
+                    type="button"
+                    @click="open = !open"
+                    :aria-expanded="open ? 'true' : 'false'"
+                    aria-controls="squad-list"
+                    class="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-white/[0.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60 sm:px-6"
+                >
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Shooters</p>
+                        <h2 class="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{{ $isSquadded ? 'Squads' : 'Registered shooters' }}</h2>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm text-slate-500">{{ $squads->flatten()->count() }} {{ \Illuminate\Support\Str::plural('shooter', $squads->flatten()->count()) }}</span>
+                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.03] text-slate-300 md:hidden">
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                                 class="h-3.5 w-3.5 transition-transform duration-200" :class="{ 'rotate-180': open }" aria-hidden="true">
+                                <path d="m5 7.5 5 5 5-5" />
+                            </svg>
+                        </span>
+                    </div>
+                </button>
 
+                <div
+                    id="squad-list"
+                    x-show="open"
+                    x-cloak
+                    class="border-t border-white/10 px-5 py-6 sm:px-6"
+                >
             <div @class(['grid gap-5', 'md:grid-cols-2 xl:grid-cols-3' => $isSquadded])>
                 @foreach ($orderedKeys as $squadKey)
                     @php
@@ -219,6 +268,32 @@
                     </div>
                 @endforeach
             </div>
+                </div>
+            </div>
         </x-site.section>
+    @endif
+
+    {{-- Mobile-only sticky Enter-match bar. Only rendered when the match is
+         actually accepting entries — a closed or full match must never offer
+         an entry affordance. The bar links to #enter which scrolls to the
+         Livewire registration component higher up the page. --}}
+    @if (! $resultsPublished && $event->isRegistrationOpen())
+        @php $memberCents = $event->memberPriceCents(); @endphp
+        <div class="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center p-3 lg:hidden" role="region" aria-label="Enter this match">
+            <a href="#enter"
+               class="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_-12px_rgba(0,0,0,0.65)] ring-1 ring-white/10 transition hover:bg-brand-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                <span class="flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Enter match
+                </span>
+                @if ($memberCents !== null)
+                    <span class="tabular-nums text-xs font-medium text-white/80">from R {{ number_format($memberCents / 100, 2) }}</span>
+                @endif
+            </a>
+        </div>
+        {{-- Leave breathing room so the sticky bar never covers the footer. --}}
+        <div class="h-20 lg:hidden" aria-hidden="true"></div>
     @endif
 </x-site.layout>

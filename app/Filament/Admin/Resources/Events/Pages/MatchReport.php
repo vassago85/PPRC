@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\Events\Pages;
 
 use App\Enums\EventRegistrationStatus;
 use App\Enums\MatchCreditStatus;
+use App\Enums\MatchExpenseCategory;
 use App\Enums\MatchPaymentMethod;
 use App\Filament\Admin\Resources\Events\EventResource;
 use App\Models\Event;
@@ -12,6 +13,7 @@ use App\Models\MatchCredit;
 use App\Models\MatchExpense;
 use App\Models\Member;
 use App\Models\SiteSetting;
+use App\Models\User;
 use App\Services\Events\MatchDirectorReport;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -52,6 +54,17 @@ class MatchReport extends Page
     public string $newExpensePayee = '';
 
     public ?float $newExpenseAmount = null;
+
+    /** Default to "Other" so the dropdown is always populated with a safe value. */
+    public string $newExpenseCategory = MatchExpenseCategory::Other->value;
+
+    /**
+     * Optional user link for the payee — when set, the user's name is written
+     * into `payee_name` so the slip stays readable even if the user is removed
+     * later. The free-text `newExpensePayee` is kept as a fallback for
+     * suppliers who don't have an account.
+     */
+    public ?int $newExpensePayeeUserId = null;
 
     public const LEVY_SETTING_KEY = 'matches.director_levy_per_entry_cents';
 
@@ -94,6 +107,17 @@ class MatchReport extends Page
     public function getRows(): Collection
     {
         return $this->report()->rows();
+    }
+
+    /**
+     * Refunded entries for the slip's refunds section — cancelled registrations
+     * that an admin ran through the "Withdraw & refund" row action.
+     *
+     * @return Collection<int, EventRegistration>
+     */
+    public function getRefunds(): Collection
+    {
+        return $this->report()->refunds();
     }
 
     /**
@@ -286,16 +310,39 @@ class MatchReport extends Page
      * Every extra cost recorded against this match, oldest first, together with
      * a total so the view doesn't have to sum them itself.
      *
-     * @return array{items: \Illuminate\Support\Collection<int, MatchExpense>, total_cents: int}
+     * @return array{items: Collection<int, MatchExpense>, total_cents: int}
      */
     public function getExpenses(): array
     {
-        $items = $this->getRecord()->matchExpenses()->get();
+        $items = $this->getRecord()->matchExpenses()->with('payeeUser')->get();
 
         return [
             'items' => $items,
             'total_cents' => (int) $items->sum('amount_cents'),
         ];
+    }
+
+    /**
+     * Options for the payee-user dropdown on the "Add cost" form. We cap at a
+     * sensible limit so the page never ships thousands of <option> rows, and
+     * sort by display name so the admin can scan it quickly.
+     *
+     * @return array<int, string>
+     */
+    public function getPayeeUserOptions(): array
+    {
+        return User::query()
+            ->whereNotNull('name')
+            ->orderBy('name')
+            ->limit(500)
+            ->pluck('name', 'id')
+            ->all();
+    }
+
+    /** Enum options for the category <select>, labelled for humans. */
+    public function getExpenseCategoryOptions(): array
+    {
+        return MatchExpenseCategory::options();
     }
 
     /**
@@ -309,8 +356,14 @@ class MatchReport extends Page
         }
 
         $description = trim($this->newExpenseDescription);
-        $payee = trim($this->newExpensePayee);
+        $freeTextPayee = trim($this->newExpensePayee);
         $amountCents = (int) round(max(0, (float) ($this->newExpenseAmount ?? 0)) * 100);
+        $category = MatchExpenseCategory::tryFrom($this->newExpenseCategory) ?? MatchExpenseCategory::Other;
+
+        $payeeUser = null;
+        if ($this->newExpensePayeeUserId) {
+            $payeeUser = User::query()->whereKey((int) $this->newExpensePayeeUserId)->first();
+        }
 
         if ($description === '') {
             Notification::make()->warning()
@@ -330,9 +383,17 @@ class MatchReport extends Page
             return;
         }
 
+        // When a user is picked, auto-sync the display label so slips never
+        // have an empty payee column; keep the typed label as the fallback.
+        $payeeLabel = $payeeUser
+            ? trim((string) $payeeUser->name)
+            : $freeTextPayee;
+
         $this->getRecord()->matchExpenses()->create([
             'description' => $description,
-            'payee_name' => $payee !== '' ? $payee : null,
+            'category' => $category->value,
+            'payee_name' => $payeeLabel !== '' ? $payeeLabel : null,
+            'payee_user_id' => $payeeUser?->id,
             'amount_cents' => $amountCents,
             'created_by_user_id' => auth()->id(),
         ]);
@@ -340,6 +401,8 @@ class MatchReport extends Page
         $this->newExpenseDescription = '';
         $this->newExpensePayee = '';
         $this->newExpenseAmount = null;
+        $this->newExpenseCategory = MatchExpenseCategory::Other->value;
+        $this->newExpensePayeeUserId = null;
 
         Notification::make()->success()
             ->title('Cost added')

@@ -173,6 +173,31 @@ class MatchDirectorReport
             'club_premium_cents' => $clubPremiumCents,
             'expenses_total_cents' => $expensesTotalCents,
             'director_payout_cents' => $directorPayoutCents,
+
+            // Refunds are informational on the slip: the refunded entry is
+            // already Cancelled and so already excluded from EFT base above,
+            // which naturally keeps the director's share correct. These
+            // totals exist so the slip can show "we also sent R450 back out
+            // to Jaco" without a shooter's cancelled row looking like it
+            // just quietly disappeared.
+            'refunds_total_cents' => (int) $this->refunds()->sum('refunded_amount_cents'),
+            'refunds_count' => $this->refunds()->count(),
         ];
+    }
+
+    /**
+     * Refunded entries for this match — cancelled rows with `refunded_at`
+     * stamped by the admin's Withdraw & refund action. Not part of rows()
+     * because rows() excludes cancelled entries by design.
+     *
+     * @return Collection<int, EventRegistration>
+     */
+    public function refunds(): Collection
+    {
+        return $this->event->registrations()
+            ->with(['refundedBy'])
+            ->whereNotNull('refunded_at')
+            ->orderBy('refunded_at')
+            ->get();
     }
 }
