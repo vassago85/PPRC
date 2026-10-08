@@ -330,6 +330,27 @@ class EventRegistration extends Model
     }
 
     /**
+     * True when this entry belongs to the user the admin flagged as the
+     * event's Match Director. Used to render the "MD" badge on the public
+     * shooter list and the admin entries table, and to hide the "Set as
+     * Match Director" row action on an entry that is already the MD.
+     *
+     * Compares via `member->user_id` because the event's FK points at a user,
+     * not a member — guest entries never match (an MD has to be a club user
+     * for the admin picker to apply the fee waiver + confirmation).
+     */
+    public function isMatchDirector(): bool
+    {
+        $directorUserId = $this->event?->match_director_id;
+
+        if (! $directorUserId) {
+            return false;
+        }
+
+        return $this->member?->user_id === $directorUserId;
+    }
+
+    /**
      * What PPRC actually charges this entry.
      *
      * Precedence:

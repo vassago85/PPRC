@@ -156,12 +156,25 @@ class RegistrationsRelationManager extends RelationManager
             ->defaultSort(fn (Builder $query): Builder => $query
                 ->orderBy('squad_number')
                 ->orderBy('firing_order'))
+            // Eager-load the parent event so callbacks reading its columns
+            // (match director, fee prices via effectiveFeeCents, etc.) don't
+            // fire a query per visible row. Loading the full row rather than
+            // a column subset — restricting columns silently breaks any later
+            // callback that reads a column we didn't pick, and the saving is
+            // trivial for Filament pages that render ~25 rows.
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('event'))
             ->columns([
                 TextColumn::make('squad_number')->label('Squad')->sortable(),
                 TextColumn::make('firing_order')->label('Order')->sortable(),
                 TextColumn::make('shooter_display')
                     ->label('Shooter')
                     ->state(fn (EventRegistration $r) => $r->shooterName())
+                    // Appends an "MD" chip to the Match Director's row so
+                    // admins can see at a glance which entry currently holds
+                    // the MD title (and which the Set-as-MD action is hidden
+                    // on). We rely on Filament's description() slot so the
+                    // chip rides under the name without widening the column.
+                    ->description(fn (EventRegistration $r) => $r->isMatchDirector() ? '★ Match Director' : null)
                     ->searchable(
                         query: function ($query, string $search) {
                             $term = SearchTerm::make($query, $search);
@@ -644,6 +657,46 @@ class RegistrationsRelationManager extends RelationManager
 
                             Notification::make()->success()
                                 ->title('Marked as unpaid')
+                                ->send();
+                        }),
+                    Action::make('make_match_director')
+                        ->label('Set as Match Director')
+                        ->icon('heroicon-o-star')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading(fn (EventRegistration $r) => 'Set '.$r->shooterName().' as Match Director')
+                        ->modalDescription(fn (EventRegistration $r) => 'Mark '.$r->shooterName().' as the Match Director for this match. In one go this: waives their entry fee (R 0), confirms their entry, and names them as MD on the match page and listings. Previous MDs keep their waiver — only the title moves across.')
+                        ->modalSubmitActionLabel('Set as Match Director')
+                        // Needs a linked member account because the event's
+                        // match_director_id is a user FK — pure guest entries
+                        // can't be MD'd this way. Hidden on already-MD rows
+                        // and cancelled/refunded rows (nothing to confirm).
+                        ->visible(fn (EventRegistration $r) => $r->member_id !== null
+                            && $r->member?->user_id !== null
+                            && $r->status !== EventRegistrationStatus::Cancelled
+                            && ! $r->wasRefunded()
+                            && ! $r->isMatchDirector()
+                            && auth()->user()?->can('events.registrations.manage'))
+                        ->action(function (EventRegistration $r) {
+                            $event = $this->getOwnerRecord();
+                            $userId = $r->member?->user_id;
+                            $name = $r->shooterName();
+
+                            DB::transaction(function () use ($r, $event, $userId, $name) {
+                                $event->update([
+                                    'match_director_id' => $userId,
+                                    'match_director_name' => $name,
+                                ]);
+
+                                $r->update([
+                                    'fee_cents' => 0,
+                                    'status' => EventRegistrationStatus::Confirmed,
+                                ]);
+                            });
+
+                            Notification::make()->success()
+                                ->title('Match Director set')
+                                ->body($name.' is now the MD for this match — fee waived and entry confirmed.')
                                 ->send();
                         }),
                     Action::make('withdraw_refund')

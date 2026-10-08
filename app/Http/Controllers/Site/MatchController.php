@@ -82,6 +82,11 @@ class MatchController extends Controller
             ->orderByRaw('firing_order IS NULL, firing_order')
             ->orderBy('id')
             ->get()
+            // Set the inverse so `isMatchDirector()` (and anything else that
+            // walks `$entry->event`) resolves from memory. Without this each
+            // shooter in the loop would fire a query to re-fetch the parent
+            // event we already have in hand.
+            ->each(fn ($r) => $r->setRelation('event', $event))
             ->groupBy(fn ($r) => $r->squad_number);
 
         return view('site.matches.show', [
