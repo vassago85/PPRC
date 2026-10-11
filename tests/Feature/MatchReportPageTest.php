@@ -136,6 +136,69 @@ it('adds a walk-in shooter paid in cash', function () {
     expect($entry->payment_method?->value)->toBe('cash');
 });
 
+it('overrides an entry fee from the slip without short-changing the director', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+    $entry = EventRegistration::create([
+        'event_id' => $event->id,
+        'guest_name' => 'Lapsed Member',
+        'guest_email' => 'lapsed@example.com',
+        'paid_at' => now(),
+        'payment_method' => 'eft',
+        'status' => EventRegistrationStatus::Confirmed,
+        'registered_at' => now(),
+    ]);
+
+    $component = Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->set('keepNonMemberDifference', true);
+
+    // Guest fee R250, member rate R200: R50 goes to the club by default.
+    expect($component->instance()->getSummary()['director_payout_cents'])->toBe(20000);
+
+    // They only paid the member rate, so the club absorbs the gap — the
+    // director still receives R200.
+    $component->call('setFee', $entry->id, '200');
+    expect($entry->refresh()->fee_cents)->toBe(20000);
+
+    $row = $component->instance()->getRows()->firstWhere('id', $entry->id);
+    expect($row['fee_cents'])->toBe(20000)
+        ->and($row['fee_adjusted'])->toBeTrue()
+        ->and($row['default_fee_cents'])->toBe(25000)
+        ->and($row['club_premium_cents'])->toBe(0);
+
+    $summary = $component->instance()->getSummary();
+    expect($summary['eft_base_cents'])->toBe(20000)
+        ->and($summary['director_payout_cents'])->toBe(20000);
+
+    // Blank resets to the normal match fee.
+    $component->call('setFee', $entry->id, null);
+    expect($entry->refresh()->fee_cents)->toBeNull();
+    expect($component->instance()->getRows()->firstWhere('id', $entry->id)['fee_adjusted'])->toBeFalse();
+});
+
+it('rejects a negative fee override', function () {
+    $admin = User::factory()->create(['email_verified_at' => now()]);
+    $admin->assignRole('match_director');
+    $this->actingAs($admin);
+
+    $event = matchReportEvent();
+    $entry = EventRegistration::create([
+        'event_id' => $event->id,
+        'guest_name' => 'Negative Nancy',
+        'guest_email' => 'nancy@example.com',
+        'status' => EventRegistrationStatus::Registered,
+        'registered_at' => now(),
+    ]);
+
+    Livewire::test(MatchReport::class, ['record' => $event->slug])
+        ->call('setFee', $entry->id, '-50');
+
+    expect($entry->refresh()->fee_cents)->toBeNull();
+});
+
 it('logs a paid guest no-show to the credit ledger once', function () {
     $admin = User::factory()->create(['email_verified_at' => now()]);
     $admin->assignRole('match_director');

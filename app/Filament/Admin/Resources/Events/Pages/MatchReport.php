@@ -211,6 +211,52 @@ class MatchReport extends Page
         $entry->update($data);
     }
 
+    /**
+     * Override what a single entry is charged — e.g. a lapsed member who paid
+     * the member rate instead of the guest fee. The payout is worked off the
+     * fee, so the director is paid on what actually came in. A blank value
+     * clears the override and falls back to the match's normal pricing.
+     */
+    public function setFee(int $entryId, mixed $rands): void
+    {
+        if (! $this->canManagePayments()) {
+            return;
+        }
+
+        $entry = $this->entry($entryId);
+        if (! $entry) {
+            return;
+        }
+
+        if ($rands === null || trim((string) $rands) === '') {
+            $entry->update(['fee_cents' => null]);
+
+            Notification::make()->success()
+                ->title('Fee reset')
+                ->body($entry->shooterName().' is back on the normal match fee.')
+                ->send();
+
+            return;
+        }
+
+        if (! is_numeric($rands) || (float) $rands < 0) {
+            Notification::make()->warning()
+                ->title('Enter a valid amount')
+                ->body('The fee must be a rand amount of zero or more.')
+                ->send();
+
+            return;
+        }
+
+        $cents = (int) round(((float) $rands) * 100);
+        $entry->update(['fee_cents' => $cents]);
+
+        Notification::make()->success()
+            ->title('Fee updated')
+            ->body($entry->shooterName().' now counts as R '.number_format($cents / 100, 2).' on the slip.')
+            ->send();
+    }
+
     public function toggleAttended(int $entryId): void
     {
         if (! $this->canManageAttendance()) {

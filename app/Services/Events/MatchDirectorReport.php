@@ -56,6 +56,7 @@ class MatchDirectorReport
                 $attended = (bool) $r->attended;
                 $memberRate = $this->memberEquivalentCents($r);
                 $clubPremium = $this->clubPremiumCents($fee, $memberRate);
+                $defaultFee = (int) ($this->event->effectivePriceCentsFor($r->member, (bool) $r->is_junior) ?? 0);
 
                 return [
                     'id' => $r->id,
@@ -64,6 +65,8 @@ class MatchDirectorReport
                     'division' => $r->division,
                     'category' => $r->category,
                     'fee_cents' => $fee,
+                    'default_fee_cents' => $defaultFee,
+                    'fee_adjusted' => ! $r->is_saprf_entry && $r->fee_cents !== null && $r->fee_cents !== $defaultFee,
                     'member_rate_cents' => $memberRate,
                     'club_premium_cents' => $clubPremium,
                     'credit_applied_cents' => $r->creditAppliedCents(),

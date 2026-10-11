@@ -424,7 +424,7 @@
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-white/5">
                 @forelse ($rows as $row)
-                    <tr>
+                    <tr wire:key="report-row-{{ $row['id'] }}">
                         <td class="px-4 py-3">
                             <div class="font-medium text-gray-900 dark:text-white">{{ $row['name'] }}</div>
                             <div class="text-xs text-gray-400">{{ $row['is_member'] ? 'Member' : 'Guest' }}</div>
@@ -432,8 +432,45 @@
                         <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
                             {{ $row['division'] ?: '—' }}@if($row['category']) <span class="text-gray-400">/ {{ $row['category'] }}</span>@endif
                         </td>
-                        <td class="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-white">
-                            {{ $row['fee_cents'] > 0 ? $money($row['fee_cents']) : '—' }}
+                        <td class="px-4 py-3 text-right tabular-nums text-gray-900 dark:text-white"
+                            x-data="{ editing: false, value: '{{ number_format($row['fee_cents'] / 100, 2, '.', '') }}' }">
+                            <div x-show="! editing" class="inline-flex items-center justify-end gap-1.5">
+                                <span>{{ $row['fee_cents'] > 0 ? $money($row['fee_cents']) : '—' }}</span>
+                                @if ($canPay)
+                                    <button type="button" x-on:click="editing = true; $nextTick(() => $refs.feeInput.select())"
+                                        title="Change the fee for this shooter"
+                                        class="no-print rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200">
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                                    </button>
+                                @endif
+                            </div>
+                            @if ($canPay)
+                                <div x-show="editing" x-cloak class="no-print flex items-center justify-end gap-1">
+                                    <span class="text-xs text-gray-500">R</span>
+                                    <input type="number" min="0" step="0.01" x-ref="feeInput" x-model="value"
+                                        x-on:keydown.enter.prevent="$wire.setFee({{ $row['id'] }}, value); editing = false"
+                                        x-on:keydown.escape="editing = false"
+                                        class="w-24 rounded-md border-gray-300 py-1 text-right text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
+                                    <button type="button" x-on:click="$wire.setFee({{ $row['id'] }}, value); editing = false"
+                                        class="rounded-md bg-primary-600 px-2 py-1 text-xs font-medium text-white hover:bg-primary-500">
+                                        Save
+                                    </button>
+                                    <button type="button" x-on:click="editing = false"
+                                        class="rounded-md px-1.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10">
+                                        Cancel
+                                    </button>
+                                </div>
+                            @endif
+                            @if ($row['fee_adjusted'])
+                                <div class="text-xs font-normal text-warning-600 dark:text-warning-400">
+                                    Adjusted (was {{ $money($row['default_fee_cents']) }})
+                                    @if ($canPay)
+                                        <button type="button" wire:click="setFee({{ $row['id'] }}, null)"
+                                            wire:confirm="Put {{ $row['name'] }} back on the normal match fee?"
+                                            class="no-print ml-1 underline hover:text-warning-700">Reset</button>
+                                    @endif
+                                </div>
+                            @endif
                             @if (($row['club_premium_cents'] ?? 0) > 0)
                                 <div class="text-xs font-normal text-gray-400">{{ $money($row['club_premium_cents']) }} to club</div>
                             @endif
@@ -503,6 +540,7 @@
     <p class="no-print mt-3 text-xs text-gray-500 dark:text-gray-400">
         Mark each entry <strong>EFT</strong> or <strong>Cash</strong> once paid (click the same one again to undo). Attendance is optional and does not change the payout — every paid entry counts.
         <strong>EFT</strong> money sits in the club account and is what the club owes you; <strong>cash</strong> was handed to you on the day, so it's shown separately and not added to the payout.
+        If someone paid a different amount (e.g. a lapsed member who paid the member rate), click the pencil next to their fee to change it — the payout is worked off the adjusted fee.
     </p>
 
     </div>{{-- /#match-report --}}
